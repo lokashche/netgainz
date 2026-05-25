@@ -1,0 +1,49 @@
+{
+ "actions": [],
+ "creation": "2026-05-25 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "member_naming_section",
+  "member_id_prefix"
+ ],
+ "fields": [
+  {
+   "fieldname": "member_naming_section",
+   "fieldtype": "Section Break",
+   "label": "Member Naming"
+  },
+  {
+   "default": "MEM-",
+   "description": "Prefix used to auto-generate Member IDs (e.g. \"KE-\", \"FF-\"). New members are named \"{prefix}0001\", \"{prefix}0002\", ...",
+   "fieldname": "member_id_prefix",
+   "fieldtype": "Data",
+   "label": "Member ID Prefix",
+   "reqd": 1
+  }
+ ],
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-05-25 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Net Gainz",
+ "name": "Gym Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "quick_entry": 1,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

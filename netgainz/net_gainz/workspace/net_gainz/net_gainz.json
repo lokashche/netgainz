@@ -1,0 +1,96 @@
+{
+ "charts": [],
+ "content": "[{\"id\":\"nr70N_fIpj\",\"type\":\"header\",\"data\":{\"text\":\"<span style=\\\"font-size: 18px; letter-spacing: 0.18px;\\\"><b>Members &amp; Coaches</b></span>\",\"col\":12}},{\"id\":\"eY0JuAbVpL\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Member\",\"col\":3}},{\"id\":\"1ByN0lodsQ\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Coaches\",\"col\":3}},{\"id\":\"ydkG-aZZ0y\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"x_ehawlpU8\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Subscriptions &amp; Expenses Entry</b></span>\",\"col\":12}},{\"id\":\"x2VStQHEbe\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Subscription\",\"col\":3}},{\"id\":\"r0mpfYRizn\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Expense\",\"col\":3}},{\"id\":\"C6OJ4sjsyh\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"wnGxdHVKU2\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Base Data</b></span>\",\"col\":12}},{\"id\":\"cW9iAX9PgS\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Membership Plans\",\"col\":3}},{\"id\":\"j_Z4jvKgyR\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Gym Programs\",\"col\":3}},{\"id\":\"TIhgo9dl5X\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Expenses Category\",\"col\":3}}]",
+ "creation": "2026-04-11 16:46:32.672018",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "idx": 0,
+ "indicator_color": "green",
+ "is_hidden": 0,
+ "label": "Net Gainz",
+ "links": [
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Member",
+   "link_count": 0,
+   "link_to": "Member",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-04-11 17:15:03.873695",
+ "modified_by": "Administrator",
+ "module": "Net Gainz",
+ "name": "Net Gainz",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [],
+ "sequence_id": 28.0,
+ "shortcuts": [
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Coaches",
+   "link_to": "Coach",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Member",
+   "link_to": "Member",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Membership Plans",
+   "link_to": "Membership Plan",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Subscription",
+   "link_to": "Subscription",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Gym Programs",
+   "link_to": "Program",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Expense",
+   "link_to": "Gym Expense",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Expenses Category",
+   "link_to": "Expense Category",
+   "stats_filter": "[]",
+   "type": "DocType"
+  }
+ ],
+ "title": "Net Gainz"
+}

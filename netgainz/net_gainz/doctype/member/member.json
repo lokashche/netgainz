@@ -1,0 +1,192 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-04-11 15:34:08.640538",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "full_name",
+  "column_break_awad",
+  "phone",
+  "email",
+  "personal_details_section",
+  "date_of_birth",
+  "occupation",
+  "column_break_mhrf",
+  "blood_group",
+  "section_break_kmms",
+  "address",
+  "emergency_contact",
+  "gym_details_section",
+  "date_of_joining",
+  "coach",
+  "category",
+  "academy",
+  "column_break_wbzs",
+  "membership_plan",
+  "gym_program",
+  "reference_and_status_section",
+  "source_of_reference",
+  "status",
+  "inactive_reason"
+ ],
+ "fields": [
+  {
+   "fieldname": "full_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Full Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_awad",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "phone",
+   "fieldtype": "Phone",
+   "label": "Phone"
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "label": "Email",
+   "options": "Email"
+  },
+  {
+   "fieldname": "personal_details_section",
+   "fieldtype": "Section Break",
+   "label": "Personal Details"
+  },
+  {
+   "fieldname": "date_of_birth",
+   "fieldtype": "Date",
+   "label": "Date of Birth"
+  },
+  {
+   "fieldname": "occupation",
+   "fieldtype": "Data",
+   "label": "Occupation"
+  },
+  {
+   "fieldname": "column_break_mhrf",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "blood_group",
+   "fieldtype": "Select",
+   "label": "Blood Group",
+   "options": "A+\nA-\nB+\nB-\nO+\nO-\nAB+\nAB-"
+  },
+  {
+   "fieldname": "section_break_kmms",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "address",
+   "fieldtype": "Small Text",
+   "label": "Address"
+  },
+  {
+   "fieldname": "emergency_contact",
+   "fieldtype": "Phone",
+   "label": "Emergency Contact"
+  },
+  {
+   "fieldname": "gym_details_section",
+   "fieldtype": "Section Break",
+   "label": "Gym Details"
+  },
+  {
+   "default": "Today",
+   "fieldname": "date_of_joining",
+   "fieldtype": "Date",
+   "label": "Date of Joining"
+  },
+  {
+   "fieldname": "coach",
+   "fieldtype": "Link",
+   "label": "Coach",
+   "options": "Coach"
+  },
+  {
+   "fieldname": "category",
+   "fieldtype": "Select",
+   "label": "Category",
+   "options": "Sport\nGeneral"
+  },
+  {
+   "fieldname": "academy",
+   "fieldtype": "Data",
+   "label": "Academy"
+  },
+  {
+   "fieldname": "column_break_wbzs",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "membership_plan",
+   "fieldtype": "Link",
+   "label": "Membership Plan",
+   "options": "Membership Plan"
+  },
+  {
+   "fieldname": "gym_program",
+   "fieldtype": "Link",
+   "label": "Gym Program",
+   "options": "Program"
+  },
+  {
+   "fieldname": "reference_and_status_section",
+   "fieldtype": "Section Break",
+   "label": "Reference and Status"
+  },
+  {
+   "fieldname": "source_of_reference",
+   "fieldtype": "Select",
+   "label": "Source of Reference",
+   "options": "Walk-in\nSocial Media\nReferral\nGoogle\nOther"
+  },
+  {
+   "default": "Active",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Active\nInactive\nFrozen"
+  },
+  {
+   "depends_on": "eval:doc.status == \"Inactive\"",
+   "fieldname": "inactive_reason",
+   "fieldtype": "Small Text",
+   "label": "Inactive Reason"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-04-11 15:48:47.345114",
+ "modified_by": "Administrator",
+ "module": "Net Gainz",
+ "name": "Member",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
