@@ -5,3 +5,5 @@
 tags
 node_modules
 __pycache__
+owner-app/.env.local
+owner-app/.next/
