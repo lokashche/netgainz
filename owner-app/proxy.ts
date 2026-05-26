@@ -1,23 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/session";
 
 const PUBLIC_PATHS = ["/login", "/api/auth/login"];
+const SESSION_COOKIE = "ng_session";
 
-export async function proxy(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();
   }
 
-  const session = await getSession();
-
-  if (!session.frappeCookies) {
+  if (!req.cookies.get(SESSION_COOKIE)?.value) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
   return NextResponse.next();
 }
+
+export default proxy;
 
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
