@@ -1,7 +1,9 @@
 {
  "actions": [],
  "allow_rename": 1,
+ "autoname": "SUB-.YYYY.-.####",
  "creation": "2026-04-11 15:54:35.212012",
+ "search_fields": "member_name,month",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
@@ -38,6 +40,8 @@
    "fetch_from": "member.full_name",
    "fieldname": "member_name",
    "fieldtype": "Data",
+   "in_global_search": 1,
+   "in_list_view": 1,
    "label": "Member Name",
    "read_only": 1
   },
@@ -51,6 +55,8 @@
   {
    "fieldname": "month",
    "fieldtype": "Select",
+   "in_filter": 1,
+   "in_list_view": 1,
    "label": "Month",
    "options": "January\nFebruary\nMarch\nApril\nMay\nJune\nJuly\nAugust\nSeptember\nOctober\nNovember\nDecember"
   },
@@ -63,6 +69,7 @@
    "fetch_from": "membership_plan.amount",
    "fieldname": "tariff",
    "fieldtype": "Currency",
+   "in_list_view": 1,
    "label": "Tariff"
   },
   {
@@ -83,6 +90,7 @@
   {
    "fieldname": "balance_due",
    "fieldtype": "Currency",
+   "in_list_view": 1,
    "label": "Balance Due",
    "read_only": 1
   },
@@ -130,6 +138,7 @@
    "default": "Pending",
    "fieldname": "status",
    "fieldtype": "Select",
+   "in_filter": 1,
    "in_list_view": 1,
    "label": "Status",
    "options": "Pending\nPaid\nOverdue\nPartial"
@@ -148,7 +157,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-04-11 16:08:05.689234",
+ "modified": "2026-05-25 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Net Gainz",
  "name": "Subscription",

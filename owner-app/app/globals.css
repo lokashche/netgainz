@@ -1,26 +1,36 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --ng-bg:        #0B1220;
+  --ng-surface:   #111A2E;
+  --ng-panel:     #1A2540;
+  --ng-green:     #22D38C;
+  --ng-green-dim: rgba(34,211,140,0.15);
+  --ng-teal:      #5EEAD4;
+  --ng-text:      #E6EDF7;
+  --ng-muted:     #8A97B2;
+  --ng-border:    #1E2D45;
+  --ng-danger:    #F87171;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+body {
+  background: var(--ng-bg);
+  color: var(--ng-text);
+  font-family: var(--font-geist-sans, Arial, Helvetica, sans-serif);
+  -webkit-font-smoothing: antialiased;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Fix input text color globally */
+input, textarea, select {
+  color: var(--ng-text);
+  background: var(--ng-panel);
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--ng-muted);
 }

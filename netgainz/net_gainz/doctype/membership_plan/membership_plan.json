@@ -3,6 +3,7 @@
  "allow_import": 1,
  "allow_rename": 1,
  "autoname": "field:plan_name",
+ "search_fields": "plan_name",
  "creation": "2026-04-11 14:53:29.393251",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -19,6 +20,7 @@
   {
    "fieldname": "plan_name",
    "fieldtype": "Data",
+   "in_global_search": 1,
    "in_list_view": 1,
    "label": "Plan Name",
    "reqd": 1,
@@ -54,13 +56,15 @@
    "default": "1",
    "fieldname": "is_active",
    "fieldtype": "Check",
+   "in_filter": 1,
+   "in_list_view": 1,
    "label": "Is Active"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-04-11 15:07:30.680986",
+ "modified": "2026-05-25 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Net Gainz",
  "name": "Membership Plan",

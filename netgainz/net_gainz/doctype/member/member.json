@@ -2,6 +2,7 @@
  "actions": [],
  "allow_rename": 1,
  "creation": "2026-04-11 15:34:08.640538",
+ "search_fields": "full_name,phone,email",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
@@ -34,6 +35,7 @@
   {
    "fieldname": "full_name",
    "fieldtype": "Data",
+   "in_global_search": 1,
    "in_list_view": 1,
    "label": "Full Name",
    "reqd": 1
@@ -45,11 +47,14 @@
   {
    "fieldname": "phone",
    "fieldtype": "Phone",
+   "in_global_search": 1,
+   "in_list_view": 1,
    "label": "Phone"
   },
   {
    "fieldname": "email",
    "fieldtype": "Data",
+   "in_global_search": 1,
    "label": "Email",
    "options": "Email"
   },
@@ -151,6 +156,7 @@
    "default": "Active",
    "fieldname": "status",
    "fieldtype": "Select",
+   "in_filter": 1,
    "in_list_view": 1,
    "label": "Status",
    "options": "Active\nInactive\nFrozen"
@@ -165,7 +171,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-04-11 15:48:47.345114",
+ "modified": "2026-05-25 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Net Gainz",
  "name": "Member",

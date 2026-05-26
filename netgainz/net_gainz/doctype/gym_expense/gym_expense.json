@@ -1,6 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
+ "autoname": "EXP-.YYYY.-.####",
  "creation": "2026-04-11 16:09:33.374410",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -20,6 +21,7 @@
   {
    "fieldname": "date",
    "fieldtype": "Date",
+   "in_filter": 1,
    "in_list_view": 1,
    "label": "Date",
    "options": "Today",
@@ -28,6 +30,7 @@
   {
    "fieldname": "category",
    "fieldtype": "Link",
+   "in_filter": 1,
    "in_list_view": 1,
    "label": "Category",
    "options": "Expense Category",
@@ -43,6 +46,8 @@
   {
    "fieldname": "vendor",
    "fieldtype": "Data",
+   "in_global_search": 1,
+   "in_list_view": 1,
    "label": "Vendor / Payee"
   },
   {
@@ -54,6 +59,8 @@
    "default": "0",
    "fieldname": "is_recurring",
    "fieldtype": "Check",
+   "in_filter": 1,
+   "in_list_view": 1,
    "label": "Is Recurring"
   },
   {
@@ -64,6 +71,7 @@
    "depends_on": "eval:doc.is_recurring == 1",
    "fieldname": "frequency",
    "fieldtype": "Select",
+   "in_filter": 1,
    "label": "Frequency",
    "options": "Monthly\nQuarterly\nAnnually"
   },
@@ -81,7 +89,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-04-11 16:15:22.870168",
+ "modified": "2026-05-26 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Net Gainz",
  "name": "Gym Expense",
@@ -102,6 +110,7 @@
  ],
  "row_format": "Dynamic",
  "rows_threshold_for_grid_search": 20,
+ "search_fields": "vendor,category",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": []

@@ -34,28 +34,44 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-1">NetGainz</h1>
-        <p className="text-sm text-gray-500 mb-6">Sign in to your gym account</p>
+    <div className="min-h-screen flex items-center justify-center bg-[#0B1220] px-4">
+      <div className="w-full max-w-sm bg-[#111A2E] rounded-2xl border border-[#1E2D45] shadow-xl p-8">
+        {/* Logo */}
+        <div className="mb-6">
+          <h1 className="font-bold text-2xl tracking-widest">
+            <span style={{ color: "#22D38C" }}>NET</span>
+            <span style={{ color: "#E6EDF7" }}>GAIN</span>
+            <span style={{ color: "#22D38C" }}>Z</span>
+          </h1>
+          <p className="text-sm mt-1" style={{ color: "#8A97B2" }}>Sign in to your gym account</p>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="usr" className="block text-sm font-medium text-gray-700 mb-1">
-              Email
+            <label
+              htmlFor="usr"
+              className="block text-xs uppercase tracking-wider mb-1"
+              style={{ color: "#8A97B2" }}
+            >
+              Username
             </label>
             <input
               id="usr"
               name="usr"
-              type="email"
+              type="text"
               required
-              autoComplete="email"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+              autoComplete="username"
+              placeholder="Administrator"
+              className="w-full px-3 py-2.5 rounded-lg text-sm focus:outline-none focus:ring-2 focus:border-transparent bg-[#1A2540] border border-[#1E2D45] text-[#E6EDF7] placeholder:text-[#8A97B2] focus:ring-[#22D38C]"
             />
           </div>
 
           <div>
-            <label htmlFor="pwd" className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="pwd"
+              className="block text-xs uppercase tracking-wider mb-1"
+              style={{ color: "#8A97B2" }}
+            >
               Password
             </label>
             <input
@@ -64,16 +80,18 @@ export default function LoginPage() {
               type="password"
               required
               autoComplete="current-password"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+              className="w-full px-3 py-2.5 rounded-lg text-sm focus:outline-none focus:ring-2 focus:border-transparent bg-[#1A2540] border border-[#1E2D45] text-[#E6EDF7] placeholder:text-[#8A97B2] focus:ring-[#22D38C]"
             />
           </div>
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && (
+            <p className="text-sm text-[#F87171]">{error}</p>
+          )}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gray-900 text-white py-2 rounded-lg text-sm font-medium hover:bg-gray-700 disabled:opacity-50 transition-colors"
+            className="w-full bg-[#22D38C] text-[#0B1220] font-semibold rounded-lg py-2.5 text-sm hover:bg-[#5EEAD4] disabled:opacity-50 transition-colors"
           >
             {loading ? "Signing in…" : "Sign in"}
           </button>
