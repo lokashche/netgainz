@@ -78,6 +78,11 @@ jobs:
             --install-app erpnext \
             --install-app netgainz
 
+      - name: Install coverage
+        run: |
+          cd frappe-bench
+          ./env/bin/pip install coverage
+
       - name: Run tests
         run: |
           cd frappe-bench
