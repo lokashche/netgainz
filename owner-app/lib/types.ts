@@ -46,6 +46,13 @@ export type Subscription = {
   comments?: string;
 };
 
+export type AccountingMethod = 'Cash' | 'Accrual';
+
+export type GymSettings = {
+  accounting_method: AccountingMethod;
+  member_id_prefix: string;
+};
+
 export type ExpenseCategory = {
   name: string;        // same as category_name
   category_name: string;

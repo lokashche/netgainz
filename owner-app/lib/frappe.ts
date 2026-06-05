@@ -1,3 +1,5 @@
+import type { AccountingMethod, GymSettings } from "./types";
+
 const FRAPPE_URL = process.env.FRAPPE_URL!;
 
 type FrappeResponse<T = unknown> = {
@@ -5,6 +7,39 @@ type FrappeResponse<T = unknown> = {
   error?: string;
   status: number;
 };
+
+export function toIntlPhone(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length === 10) return `+91 ${digits}`;
+  return raw.trim();
+}
+
+export function extractFrappeError(body: unknown): string | undefined {
+  if (!body || typeof body !== "object") return undefined;
+  const b = body as Record<string, unknown>;
+
+  // Try top-level message first
+  if (typeof b.message === "string" && b.message) return b.message;
+
+  // Frappe validation errors live in _server_messages (a JSON-encoded array)
+  if (typeof b._server_messages === "string") {
+    try {
+      const msgs = JSON.parse(b._server_messages) as Array<{ message?: string }>;
+      const first = msgs[0]?.message;
+      if (first) return first;
+    } catch {
+      // ignore
+    }
+  }
+
+  // Fallback to the raw exception string
+  if (typeof b.exception === "string") {
+    const match = b.exception.match(/:\s*(.+)$/);
+    if (match) return match[1];
+  }
+
+  return undefined;
+}
 
 export async function frappeRequest<T = unknown>(
   path: string,
@@ -39,6 +74,20 @@ export async function frappeRequest<T = unknown>(
   return { data, status: res.status };
 }
 
+export async function getGymSettings(
+  sessionCookie: string
+): Promise<GymSettings> {
+  const { data } = await frappeRequest<{ data: GymSettings }>(
+    "api/resource/Gym Settings/Gym Settings",
+    { sessionCookie }
+  );
+  const settings = data?.data;
+  return {
+    accounting_method: (settings?.accounting_method ?? "Cash") as AccountingMethod,
+    member_id_prefix: settings?.member_id_prefix ?? "MEM-",
+  };
+}
+
 export async function frappeLogin(
   usr: string,
   pwd: string
@@ -53,7 +102,11 @@ export async function frappeLogin(
     return { ok: false, cookies: "", fullName: "" };
   }
 
-  const cookies = res.headers.getSetCookie().join("; ");
+  // Only store name=value pairs — strip Set-Cookie attributes (Path, HttpOnly, etc.)
+  const cookies = res.headers
+    .getSetCookie()
+    .map((c) => c.split(";")[0])
+    .join("; ");
   const body = await res.json().catch(() => ({}));
   const fullName: string = body?.full_name ?? usr;
 

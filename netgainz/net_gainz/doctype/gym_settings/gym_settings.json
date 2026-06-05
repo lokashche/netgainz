@@ -4,10 +4,26 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "accounting_section",
+  "accounting_method",
   "member_naming_section",
   "member_id_prefix"
  ],
  "fields": [
+  {
+   "fieldname": "accounting_section",
+   "fieldtype": "Section Break",
+   "label": "Accounting"
+  },
+  {
+   "default": "Cash",
+   "description": "Cash basis: income is recognised when payment is received (Profit First style, allowed for proprietorships and small businesses under IT Act s.145). Accrual basis: income is recognised in the month the subscription is for, regardless of when paid (required for most Pvt Ltds and partnerships under Companies Act 2013).",
+   "fieldname": "accounting_method",
+   "fieldtype": "Select",
+   "label": "Accounting Method",
+   "options": "Cash\nAccrual",
+   "reqd": 1
+  },
   {
    "fieldname": "member_naming_section",
    "fieldtype": "Section Break",
@@ -24,7 +40,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-05-25 00:00:00.000000",
+ "modified": "2026-06-05 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Net Gainz",
  "name": "Gym Settings",

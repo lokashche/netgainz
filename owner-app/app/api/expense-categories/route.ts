@@ -3,14 +3,24 @@ import { frappeRequest } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
 import type { ExpenseCategory } from "@/lib/types";
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
   const session = await getSession();
   if (!session.frappeCookies) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { searchParams } = req.nextUrl;
+  const q = searchParams.get("q");
+
   const fields = JSON.stringify(["name", "category_name", "description"]);
-  const path = `api/resource/Expense%20Category?fields=${encodeURIComponent(fields)}&order_by=${encodeURIComponent("category_name asc")}`;
+
+  const filters: string[][] = [];
+  if (q) filters.push(["category_name", "like", `%${q}%`]);
+
+  let path = `api/resource/Expense%20Category?fields=${encodeURIComponent(fields)}&limit=50&order_by=${encodeURIComponent("category_name asc")}`;
+  if (filters.length > 0) {
+    path += `&filters=${encodeURIComponent(JSON.stringify(filters))}`;
+  }
 
   const { data, status } = await frappeRequest<{ data: ExpenseCategory[] }>(path, {
     sessionCookie: session.frappeCookies,

@@ -1,7 +1,38 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useState, SyntheticEvent } from "react";
+import { extractFrappeError } from "@/lib/frappe";
 import { useRouter } from "next/navigation";
+import LinkFieldPicker, { type LinkFieldOption } from "@/app/components/LinkFieldPicker";
+import type { Member, MembershipPlan } from "@/lib/types";
+
+async function fetchMembers(q: string): Promise<LinkFieldOption[]> {
+  const url = q ? `/api/members?q=${encodeURIComponent(q)}` : "/api/members";
+  const res = await fetch(url);
+  if (!res.ok) return [];
+  const body = (await res.json()) as { data?: Member[] };
+  return (body.data ?? []).map((m) => ({
+    id: m.name,
+    label: m.full_name,
+    sub: m.phone || m.email || undefined,
+  }));
+}
+
+async function fetchPlans(q: string): Promise<LinkFieldOption[]> {
+  const params = new URLSearchParams({ active_only: "1" });
+  if (q) params.set("q", q);
+  const res = await fetch(`/api/plans?${params.toString()}`);
+  if (!res.ok) return [];
+  const body = (await res.json()) as { data?: MembershipPlan[] };
+  return (body.data ?? []).map((p) => ({
+    id: p.name,
+    label: p.plan_name,
+    sub:
+      p.amount !== undefined && p.duration_in_days
+        ? `₹${p.amount} · ${p.duration_in_days} days`
+        : undefined,
+  }));
+}
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -19,7 +50,9 @@ export default function NewSubscriptionPage() {
   const router = useRouter();
 
   const [member, setMember] = useState("");
+  const [memberLabel, setMemberLabel] = useState("");
   const [membership_plan, setMembershipPlan] = useState("");
+  const [planLabel, setPlanLabel] = useState("");
   const [month, setMonth] = useState("");
   const [tariff, setTariff] = useState("");
   const [fee_collected, setFeeCollected] = useState("0");
@@ -31,7 +64,7 @@ export default function NewSubscriptionPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
@@ -56,8 +89,8 @@ export default function NewSubscriptionPage() {
       });
 
       if (!res.ok) {
-        const body = await res.json().catch(() => ({})) as { message?: string; _error_message?: string };
-        setError(body._error_message ?? body.message ?? `Error ${res.status}`);
+        const body = await res.json().catch(() => ({}));
+        setError(extractFrappeError(body) ?? `Error ${res.status}`);
         setSubmitting(false);
         return;
       }
@@ -87,18 +120,23 @@ export default function NewSubscriptionPage() {
           </div>
         )}
 
-        {/* Member ID */}
+        {/* Member */}
         <div>
           <label className={labelClass}>
-            Member ID <span className="text-[#F87171]">*</span>
+            Member <span className="text-[#F87171]">*</span>
           </label>
-          <input
-            type="text"
-            required
+          <LinkFieldPicker
             value={member}
-            onChange={(e) => setMember(e.target.value)}
-            placeholder="e.g. MEM-0001"
-            className={inputClass}
+            displayLabel={memberLabel}
+            onChange={(id, label) => {
+              setMember(id);
+              setMemberLabel(label);
+            }}
+            fetchOptions={fetchMembers}
+            placeholder="Search by name…"
+            required
+            emptyHint="No members found"
+            inputClassName={inputClass}
           />
         </div>
 
@@ -107,13 +145,18 @@ export default function NewSubscriptionPage() {
           <label className={labelClass}>
             Membership Plan <span className="text-[#F87171]">*</span>
           </label>
-          <input
-            type="text"
-            required
+          <LinkFieldPicker
             value={membership_plan}
-            onChange={(e) => setMembershipPlan(e.target.value)}
-            placeholder="e.g. Basic 30 Day"
-            className={inputClass}
+            displayLabel={planLabel}
+            onChange={(id, label) => {
+              setMembershipPlan(id);
+              setPlanLabel(label);
+            }}
+            fetchOptions={fetchPlans}
+            placeholder="Search plans…"
+            required
+            emptyHint="No plans found"
+            inputClassName={inputClass}
           />
         </div>
 

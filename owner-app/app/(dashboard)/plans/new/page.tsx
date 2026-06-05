@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useState, SyntheticEvent } from "react";
+import { extractFrappeError } from "@/lib/frappe";
 import { useRouter } from "next/navigation";
 
 const inputClass =
@@ -20,7 +21,7 @@ export default function NewPlanPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
@@ -41,8 +42,8 @@ export default function NewPlanPage() {
       });
 
       if (!res.ok) {
-        const body = await res.json().catch(() => ({})) as { message?: string; _error_message?: string };
-        setError(body._error_message ?? body.message ?? `Error ${res.status}`);
+        const body = await res.json().catch(() => ({}));
+        setError(extractFrappeError(body) ?? `Error ${res.status}`);
         setSubmitting(false);
         return;
       }

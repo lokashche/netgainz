@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, FormEvent } from "react";
+import { useState, useEffect, SyntheticEvent } from "react";
+import { extractFrappeError } from "@/lib/frappe";
 import { useRouter, useParams } from "next/navigation";
 import type { ExpenseCategory } from "@/lib/types";
 
@@ -49,7 +50,7 @@ export default function ExpenseCategoryDetailPage() {
     load();
   }, [id]);
 
-  async function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
@@ -63,8 +64,8 @@ export default function ExpenseCategoryDetailPage() {
       });
 
       if (!res.ok) {
-        const body = await res.json().catch(() => ({})) as { message?: string };
-        setError(body.message ?? `Error ${res.status}`);
+        const body = await res.json().catch(() => ({}));
+        setError(extractFrappeError(body) ?? `Error ${res.status}`);
         setSubmitting(false);
         return;
       }
@@ -88,8 +89,8 @@ export default function ExpenseCategoryDetailPage() {
       });
 
       if (!res.ok) {
-        const body = await res.json().catch(() => ({})) as { message?: string };
-        setError(body.message ?? `Error ${res.status}`);
+        const body = await res.json().catch(() => ({}));
+        setError(extractFrappeError(body) ?? `Error ${res.status}`);
         setDeleting(false);
         return;
       }

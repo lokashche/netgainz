@@ -1,4 +1,4 @@
-import { frappeRequest } from "@/lib/frappe";
+import { frappeRequest, getGymSettings } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
 import type { Member, Subscription, SubscriptionStatus, GymExpense } from "@/lib/types";
@@ -43,10 +43,18 @@ export default async function DashboardPage() {
   const session = await getSession();
   if (!session.frappeCookies) redirect("/login");
 
+  const settings = await getGymSettings(session.frappeCookies);
+  const isCashBasis = settings.accounting_method === "Cash";
+
   // Current-month helpers
   const now = new Date();
   const currentMonthName = now.toLocaleString("en-US", { month: "long" }); // e.g. "May"
-  const currentMonthPrefix = now.toISOString().slice(0, 7); // e.g. "2026-05"
+  const year = now.getFullYear();
+  const monthIdx = now.getMonth(); // 0-indexed
+  const mm = String(monthIdx + 1).padStart(2, "0");
+  const monthStart = `${year}-${mm}-01`;
+  const lastDay = new Date(year, monthIdx + 1, 0).getDate();
+  const monthEnd = `${year}-${mm}-${String(lastDay).padStart(2, "0")}`;
 
   // ── Build query paths ────────────────────────────────────────────────────
 
@@ -58,17 +66,23 @@ export default async function DashboardPage() {
   )}&limit=500`;
 
   // 2. Income this month (subscriptions)
+  //    - Cash basis: subscriptions paid this month → sum fee_collected
+  //    - Accrual basis: subscriptions FOR this month → sum tariff (earned, not necessarily received)
+  const incomeFilters = isCashBasis
+    ? [["paid_date", "between", [monthStart, monthEnd]]]
+    : [["month", "=", currentMonthName]];
+  const incomeFields = isCashBasis
+    ? ["name", "fee_collected", "status"]
+    : ["name", "tariff", "status"];
   const incomeSubsPath = `api/resource/Subscription?fields=${encodeURIComponent(
-    JSON.stringify(["name", "fee_collected", "status"])
-  )}&filters=${encodeURIComponent(
-    JSON.stringify([["month", "=", currentMonthName]])
-  )}&limit=500`;
+    JSON.stringify(incomeFields)
+  )}&filters=${encodeURIComponent(JSON.stringify(incomeFilters))}&limit=500`;
 
   // 3. Expenses this month
   const expensesMonthPath = `api/resource/Gym%20Expense?fields=${encodeURIComponent(
     JSON.stringify(["name", "amount", "date"])
   )}&filters=${encodeURIComponent(
-    JSON.stringify([["date", "like", `${currentMonthPrefix}%`]])
+    JSON.stringify([["date", "between", [monthStart, monthEnd]]])
   )}&limit=500`;
 
   // 4. Overdue subscriptions
@@ -116,10 +130,11 @@ export default async function DashboardPage() {
     frappeRequest<{ data: Pick<Member, "name">[] }>(membersPath, {
       sessionCookie: session.frappeCookies,
     }),
-    frappeRequest<{ data: Pick<Subscription, "name" | "fee_collected" | "status">[] }>(
-      incomeSubsPath,
-      { sessionCookie: session.frappeCookies }
-    ),
+    frappeRequest<{
+      data: Array<
+        { name: string; status: SubscriptionStatus; fee_collected?: number; tariff?: number }
+      >;
+    }>(incomeSubsPath, { sessionCookie: session.frappeCookies }),
     frappeRequest<{ data: Pick<GymExpense, "name" | "amount" | "date">[] }>(
       expensesMonthPath,
       { sessionCookie: session.frappeCookies }
@@ -163,7 +178,8 @@ export default async function DashboardPage() {
   const activeMembersCount: number = members.length;
 
   const totalIncome: number = incomeSubsList.reduce(
-    (sum, s) => sum + (Number(s.fee_collected) || 0),
+    (sum, s) =>
+      sum + (Number(isCashBasis ? s.fee_collected : s.tariff) || 0),
     0
   );
 
@@ -207,9 +223,19 @@ export default async function DashboardPage() {
   return (
     <div>
       {/* Page header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-[#E6EDF7]">Dashboard</h1>
-        <p className="text-sm text-[#8A97B2] mt-1">Financial overview for {currentMonthName}</p>
+      <div className="mb-6 flex items-end justify-between flex-wrap gap-2">
+        <div>
+          <h1 className="text-2xl font-bold text-[#E6EDF7]">Dashboard</h1>
+          <p className="text-sm text-[#8A97B2] mt-1">
+            {isCashBasis ? "Cash basis" : "Accrual basis"} · {currentMonthName} {year}
+          </p>
+        </div>
+        <a
+          href="/settings"
+          className="text-xs text-[#8A97B2] hover:text-[#22D38C] transition-colors"
+        >
+          Change basis →
+        </a>
       </div>
 
       {/* ── KPI Row ── */}
@@ -229,7 +255,10 @@ export default async function DashboardPage() {
             Income This Month
           </p>
           <p className="text-[#22D38C] text-3xl font-bold">₹{fmt(totalIncome)}</p>
-          <p className="text-[#8A97B2] text-xs mt-1">{currentMonthName} subscriptions</p>
+          <p className="text-[#8A97B2] text-xs mt-1">
+            {isCashBasis ? "received in " : "earned for "}
+            {currentMonthName}
+          </p>
         </div>
 
         {/* Card 3 — Expenses This Month */}

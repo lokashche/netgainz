@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, FormEvent, use } from "react";
+import { useState, useEffect, SyntheticEvent, use } from "react";
 import { useRouter } from "next/navigation";
 import type { Member, MemberStatus } from "@/lib/types";
+import { extractFrappeError, toIntlPhone } from "@/lib/frappe";
 
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"];
 const CATEGORIES = ["Sport", "General"];
@@ -69,19 +70,19 @@ export default function MemberDetailPage({ params }: { params: Params }) {
     load();
   }, [id]);
 
-  async function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
     setSuccess(false);
 
     const payload: Record<string, string> = { full_name, status };
-    payload.phone = phone;
+    payload.phone = phone ? toIntlPhone(phone) : "";
     payload.email = email;
     payload.date_of_birth = date_of_birth;
     payload.blood_group = blood_group;
     payload.address = address;
-    payload.emergency_contact = emergency_contact;
+    payload.emergency_contact = emergency_contact ? toIntlPhone(emergency_contact) : "";
     payload.date_of_joining = date_of_joining;
     payload.category = category;
     payload.source_of_reference = source_of_reference;
@@ -95,8 +96,8 @@ export default function MemberDetailPage({ params }: { params: Params }) {
       });
 
       if (!res.ok) {
-        const body = await res.json().catch(() => ({})) as { message?: string };
-        setError(body.message ?? `Error ${res.status}`);
+        const body = await res.json().catch(() => ({}));
+        setError(extractFrappeError(body) ?? `Error ${res.status}`);
       } else {
         setSuccess(true);
         setTimeout(() => setSuccess(false), 3000);
@@ -119,8 +120,8 @@ export default function MemberDetailPage({ params }: { params: Params }) {
       });
 
       if (!res.ok) {
-        const body = await res.json().catch(() => ({})) as { message?: string };
-        setError(body.message ?? `Error ${res.status}`);
+        const body = await res.json().catch(() => ({}));
+        setError(extractFrappeError(body) ?? `Error ${res.status}`);
         setDeleting(false);
         return;
       }
@@ -188,6 +189,7 @@ export default function MemberDetailPage({ params }: { params: Params }) {
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
+              placeholder="+91 XXXXXXXXXX"
               className={inputClass}
             />
           </div>
@@ -246,6 +248,7 @@ export default function MemberDetailPage({ params }: { params: Params }) {
             type="tel"
             value={emergency_contact}
             onChange={(e) => setEmergencyContact(e.target.value)}
+            placeholder="+91 XXXXXXXXXX"
             className={inputClass}
           />
         </div>

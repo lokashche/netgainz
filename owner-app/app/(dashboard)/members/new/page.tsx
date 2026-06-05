@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useState, SyntheticEvent } from "react";
 import { useRouter } from "next/navigation";
 import type { MemberStatus } from "@/lib/types";
+import { extractFrappeError, toIntlPhone } from "@/lib/frappe";
 
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"];
 const CATEGORIES = ["Sport", "General"];
@@ -33,18 +34,18 @@ export default function NewMemberPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
 
     const payload: Record<string, string> = { full_name, status };
-    if (phone) payload.phone = phone;
+    if (phone) payload.phone = toIntlPhone(phone);
     if (email) payload.email = email;
     if (date_of_birth) payload.date_of_birth = date_of_birth;
     if (blood_group) payload.blood_group = blood_group;
     if (address) payload.address = address;
-    if (emergency_contact) payload.emergency_contact = emergency_contact;
+    if (emergency_contact) payload.emergency_contact = toIntlPhone(emergency_contact);
     if (date_of_joining) payload.date_of_joining = date_of_joining;
     if (category) payload.category = category;
     if (source_of_reference) payload.source_of_reference = source_of_reference;
@@ -58,8 +59,8 @@ export default function NewMemberPage() {
       });
 
       if (!res.ok) {
-        const body = await res.json().catch(() => ({})) as { message?: string };
-        setError(body.message ?? `Error ${res.status}`);
+        const body = await res.json().catch(() => ({}));
+        setError(extractFrappeError(body) ?? `Error ${res.status}`);
         setSubmitting(false);
         return;
       }
@@ -111,6 +112,7 @@ export default function NewMemberPage() {
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
+              placeholder="+91 XXXXXXXXXX"
               className={inputClass}
             />
           </div>
@@ -169,6 +171,7 @@ export default function NewMemberPage() {
             type="tel"
             value={emergency_contact}
             onChange={(e) => setEmergencyContact(e.target.value)}
+            placeholder="+91 XXXXXXXXXX"
             className={inputClass}
           />
         </div>

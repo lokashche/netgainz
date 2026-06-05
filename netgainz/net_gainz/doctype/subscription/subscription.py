@@ -53,7 +53,7 @@ class Subscription(Document):
 				self.status = "Pending"
 
 		# 3. THE DEADLINE CHECK: If it's late, "Overdue" wins
-		if self.due_date and date.today() > self.due_date:
+		if self.due_date and date.today() > getdate(self.due_date):
 			# If the date has passed and the status is NOT "Paid"...
 			if self.status != "Paid":
 				# This marks it "Overdue" even if they paid a little bit (Partial)

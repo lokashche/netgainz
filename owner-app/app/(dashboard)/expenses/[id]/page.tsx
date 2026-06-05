@@ -1,8 +1,24 @@
 "use client";
 
-import { useState, useEffect, FormEvent } from "react";
+import { useState, useEffect, SyntheticEvent } from "react";
 import { useRouter, useParams } from "next/navigation";
-import type { GymExpense, ExpenseFrequency } from "@/lib/types";
+import type { ExpenseCategory, GymExpense, ExpenseFrequency } from "@/lib/types";
+import { extractFrappeError } from "@/lib/frappe";
+import LinkFieldPicker, { type LinkFieldOption } from "@/app/components/LinkFieldPicker";
+
+async function fetchCategories(q: string): Promise<LinkFieldOption[]> {
+  const url = q
+    ? `/api/expense-categories?q=${encodeURIComponent(q)}`
+    : "/api/expense-categories";
+  const res = await fetch(url);
+  if (!res.ok) return [];
+  const body = (await res.json()) as { data?: ExpenseCategory[] };
+  return (body.data ?? []).map((c) => ({
+    id: c.name,
+    label: c.category_name,
+    sub: c.description || undefined,
+  }));
+}
 
 const inputClass =
   "w-full px-3 py-2.5 rounded-lg text-sm focus:outline-none focus:ring-2 focus:border-transparent bg-[#1A2540] border border-[#1E2D45] text-[#E6EDF7] placeholder:text-[#8A97B2] focus:ring-[#22D38C] appearance-none";
@@ -76,7 +92,7 @@ export default function ExpenseDetailPage() {
     load();
   }, [id]);
 
-  async function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
@@ -100,8 +116,8 @@ export default function ExpenseDetailPage() {
       });
 
       if (!res.ok) {
-        const body = await res.json().catch(() => ({})) as { message?: string };
-        setError(body.message ?? `Error ${res.status}`);
+        const body = await res.json().catch(() => ({}));
+        setError(extractFrappeError(body) ?? `Error ${res.status}`);
         setSubmitting(false);
         return;
       }
@@ -127,8 +143,8 @@ export default function ExpenseDetailPage() {
       });
 
       if (!res.ok) {
-        const body = await res.json().catch(() => ({})) as { message?: string };
-        setError(body.message ?? `Error ${res.status}`);
+        const body = await res.json().catch(() => ({}));
+        setError(extractFrappeError(body) ?? `Error ${res.status}`);
         setDeleting(false);
         return;
       }
@@ -201,12 +217,13 @@ export default function ExpenseDetailPage() {
           </div>
           <div>
             <label className={labelClass}>Category</label>
-            <input
-              type="text"
+            <LinkFieldPicker
               value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              placeholder="e.g. Rent"
-              className={inputClass}
+              onChange={(id) => setCategory(id)}
+              fetchOptions={fetchCategories}
+              placeholder="Search categories…"
+              emptyHint="No categories found"
+              inputClassName={inputClass}
             />
           </div>
         </div>

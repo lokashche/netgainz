@@ -3,11 +3,15 @@ import { frappeRequest } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
 import type { MembershipPlan } from "@/lib/types";
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
   const session = await getSession();
   if (!session.frappeCookies) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const { searchParams } = req.nextUrl;
+  const q = searchParams.get("q");
+  const activeOnly = searchParams.get("active_only") === "1";
 
   const fields = JSON.stringify([
     "name",
@@ -17,7 +21,14 @@ export async function GET(_req: NextRequest) {
     "is_active",
   ]);
 
-  const path = `api/resource/Membership Plan?fields=${encodeURIComponent(fields)}&order_by=${encodeURIComponent("plan_name asc")}`;
+  const filters: Array<[string, string, string | number]> = [];
+  if (q) filters.push(["plan_name", "like", `%${q}%`]);
+  if (activeOnly) filters.push(["is_active", "=", 1]);
+
+  let path = `api/resource/Membership Plan?fields=${encodeURIComponent(fields)}&limit=50&order_by=${encodeURIComponent("plan_name asc")}`;
+  if (filters.length > 0) {
+    path += `&filters=${encodeURIComponent(JSON.stringify(filters))}`;
+  }
 
   const { data, status } = await frappeRequest<{ data: MembershipPlan[] }>(path, {
     sessionCookie: session.frappeCookies,

@@ -1,8 +1,24 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useState, SyntheticEvent } from "react";
 import { useRouter } from "next/navigation";
-import type { ExpenseFrequency } from "@/lib/types";
+import type { ExpenseCategory, ExpenseFrequency } from "@/lib/types";
+import { extractFrappeError } from "@/lib/frappe";
+import LinkFieldPicker, { type LinkFieldOption } from "@/app/components/LinkFieldPicker";
+
+async function fetchCategories(q: string): Promise<LinkFieldOption[]> {
+  const url = q
+    ? `/api/expense-categories?q=${encodeURIComponent(q)}`
+    : "/api/expense-categories";
+  const res = await fetch(url);
+  if (!res.ok) return [];
+  const body = (await res.json()) as { data?: ExpenseCategory[] };
+  return (body.data ?? []).map((c) => ({
+    id: c.name,
+    label: c.category_name,
+    sub: c.description || undefined,
+  }));
+}
 
 const inputClass =
   "w-full px-3 py-2.5 rounded-lg text-sm focus:outline-none focus:ring-2 focus:border-transparent bg-[#1A2540] border border-[#1E2D45] text-[#E6EDF7] placeholder:text-[#8A97B2] focus:ring-[#22D38C] appearance-none";
@@ -26,7 +42,7 @@ export default function NewExpensePage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
@@ -49,8 +65,8 @@ export default function NewExpensePage() {
       });
 
       if (!res.ok) {
-        const body = await res.json().catch(() => ({})) as { message?: string };
-        setError(body.message ?? `Error ${res.status}`);
+        const body = await res.json().catch(() => ({}));
+        setError(extractFrappeError(body) ?? `Error ${res.status}`);
         setSubmitting(false);
         return;
       }
@@ -98,17 +114,15 @@ export default function NewExpensePage() {
             <label className={labelClass}>
               Category <span className="text-[#F87171]">*</span>
             </label>
-            <input
-              type="text"
-              required
+            <LinkFieldPicker
               value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              placeholder="e.g. Rent"
-              className={inputClass}
+              onChange={(id) => setCategory(id)}
+              fetchOptions={fetchCategories}
+              placeholder="Search categories…"
+              required
+              emptyHint="No categories found"
+              inputClassName={inputClass}
             />
-            <p className="text-[#8A97B2] text-xs mt-1">
-              Category must match an existing Expense Category name exactly.
-            </p>
           </div>
         </div>
 

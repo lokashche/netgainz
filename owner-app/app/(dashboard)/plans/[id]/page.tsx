@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, FormEvent, use } from "react";
+import { useState, useEffect, SyntheticEvent, use } from "react";
+import { extractFrappeError } from "@/lib/frappe";
 import { useRouter } from "next/navigation";
 import type { MembershipPlan } from "@/lib/types";
 
@@ -49,7 +50,7 @@ export default function PlanDetailPage({ params }: { params: Params }) {
     load();
   }, [id]);
 
-  async function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
@@ -71,8 +72,8 @@ export default function PlanDetailPage({ params }: { params: Params }) {
       });
 
       if (!res.ok) {
-        const body = await res.json().catch(() => ({})) as { message?: string; _error_message?: string };
-        setError(body._error_message ?? body.message ?? `Error ${res.status}`);
+        const body = await res.json().catch(() => ({}));
+        setError(extractFrappeError(body) ?? `Error ${res.status}`);
       } else {
         setSuccess(true);
         setTimeout(() => setSuccess(false), 3000);
@@ -95,8 +96,8 @@ export default function PlanDetailPage({ params }: { params: Params }) {
       });
 
       if (!res.ok) {
-        const body = await res.json().catch(() => ({})) as { message?: string; _error_message?: string };
-        setError(body._error_message ?? body.message ?? `Error ${res.status}`);
+        const body = await res.json().catch(() => ({}));
+        setError(extractFrappeError(body) ?? `Error ${res.status}`);
         setDeleting(false);
         return;
       }
