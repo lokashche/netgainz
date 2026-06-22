@@ -3,6 +3,7 @@
  "allow_rename": 1,
  "autoname": "field:program_name",
  "creation": "2026-04-11 15:08:41.388097",
+ "search_fields": "program_name",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
@@ -15,29 +16,33 @@
   {
    "fieldname": "program_name",
    "fieldtype": "Data",
+   "in_global_search": 1,
+   "in_list_view": 1,
    "label": "Program Name",
+   "reqd": 1,
    "unique": 1
   },
   {
    "fieldname": "description",
    "fieldtype": "Small Text",
-   "label": "description"
+   "label": "Description"
   },
   {
    "fieldname": "column_break_tenn",
    "fieldtype": "Column Break"
   },
   {
-   "default": "0",
+   "default": "1",
    "fieldname": "is_active",
    "fieldtype": "Check",
+   "in_list_view": 1,
    "label": "Is Active"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-04-11 15:11:20.302314",
+ "modified": "2026-06-22 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Net Gainz",
  "name": "Program",

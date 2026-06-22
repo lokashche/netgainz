@@ -9,6 +9,8 @@ type NavItem = { href: string; label: string };
 
 const SETUP_ITEMS: NavItem[] = [
   { href: "/members", label: "Members" },
+  { href: "/coaches", label: "Coaches" },
+  { href: "/programs", label: "Programs" },
   { href: "/plans", label: "Plans" },
   { href: "/expense-categories", label: "Categories" },
 ];
@@ -104,8 +106,24 @@ function NavGroup({
   );
 }
 
-export default function NavBar({ fullName }: { fullName: string }) {
+export default function NavBar({
+  fullName,
+  classTermSingular,
+  classTermPlural,
+}: {
+  fullName: string;
+  classTermSingular: string;
+  classTermPlural: string;
+}) {
   const pathname = usePathname();
+
+  const OPERATIONS_ITEMS: NavItem[] = [
+    { href: "/classes", label: classTermPlural },
+    { href: "/schedules", label: `${classTermSingular} Schedules` },
+    { href: "/attendance", label: "Attendance" },
+    { href: "/commissions", label: "Commissions" },
+    { href: "/renewals", label: "Renewals" },
+  ];
 
   return (
     <nav className="bg-[#111A2E] border-b border-[#1E2D45] sticky top-0 z-50">
@@ -122,6 +140,13 @@ export default function NavBar({ fullName }: { fullName: string }) {
           </Link>
           <NavGroup label="Setup" items={SETUP_ITEMS} pathname={pathname} />
           <NavGroup label="Cashflow" items={CASHFLOW_ITEMS} pathname={pathname} />
+          <NavGroup label="Operations" items={OPERATIONS_ITEMS} pathname={pathname} />
+          <Link
+            href="/profit-first"
+            className={isActive(pathname, "/profit-first") ? activeLinkClass : linkClass}
+          >
+            Profit First
+          </Link>
         </div>
         <div className="flex items-center gap-3">
           <Link

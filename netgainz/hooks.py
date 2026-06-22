@@ -83,7 +83,7 @@ required_apps = ["erpnext"]
 # ------------
 
 # before_install = "netgainz.install.before_install"
-# after_install = "netgainz.install.after_install"
+after_install = "netgainz.net_gainz.profit_first.seed.after_install"
 
 # Uninstallation
 # ------------
@@ -148,28 +148,27 @@ required_apps = ["erpnext"]
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"all": [
-# 		"netgainz.tasks.all"
-# 	],
-# 	"daily": [
-# 		"netgainz.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"netgainz.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"netgainz.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"netgainz.tasks.monthly"
-# 	],
-# }
+scheduler_events = {
+	"daily": [
+		# Auto-create a draft Profit First sweep on configured allocation days
+		# (idempotent; posting still requires manual approval).
+		"netgainz.net_gainz.profit_first.schedule.create_scheduled_sweeps",
+		# Raise an in-app reminder for memberships due for renewal
+		# (idempotent; read-only/notify-only — no email or SMS).
+		"netgainz.net_gainz.operations.renewals.notify_due_renewals",
+		# Auto-create the upcoming sessions for each active recurring Class Schedule
+		# (idempotent; opt-out via the class_auto_generate setting).
+		"netgainz.net_gainz.doctype.class_schedule.class_schedule.generate_scheduled_classes",
+	],
+}
 
 # Testing
 # -------
 
-# before_tests = "netgainz.install.before_tests"
+# Run ERPNext's test setup (creates the test Company + standard records such as
+# the "Transit" Warehouse Type) before NetGainz tests, since `run-tests --app
+# netgainz` only fires this app's before_tests hook.
+before_tests = "netgainz.install.before_tests"
 
 # Overriding Methods
 # ------------------------------

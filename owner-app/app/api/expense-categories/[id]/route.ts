@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { frappeRequest } from "@/lib/frappe";
+import { decodeId, frappeRequest } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
 import type { ExpenseCategory } from "@/lib/types";
 
@@ -11,7 +11,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = await params;
+  const { id: rawId } = await params;
+  const id = decodeId(rawId);
   const { data, status } = await frappeRequest<{ data: ExpenseCategory }>(
     `api/resource/Expense%20Category/${encodeURIComponent(id)}`,
     { sessionCookie: session.frappeCookies }
@@ -26,7 +27,8 @@ export async function PUT(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = await params;
+  const { id: rawId } = await params;
+  const id = decodeId(rawId);
   const body = await req.text();
 
   const { data, status } = await frappeRequest<{ data: ExpenseCategory }>(
@@ -47,7 +49,8 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = await params;
+  const { id: rawId } = await params;
+  const id = decodeId(rawId);
   const { data, status } = await frappeRequest(
     `api/resource/Expense%20Category/${encodeURIComponent(id)}`,
     {

@@ -1,0 +1,61 @@
+{
+ "actions": [],
+ "creation": "2026-06-21 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "account_role",
+  "account_label",
+  "account_link",
+  "cost_center"
+ ],
+ "fields": [
+  {
+   "columns": 3,
+   "description": "Which of the five canonical Profit First accounts this row is. Income is the 100% reference; Profit, Owner's Pay, Tax and Operating Expenses are the allocation buckets.",
+   "fieldname": "account_role",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Account Role",
+   "options": "Income\nProfit\nOwner's Pay\nTax\nOperating Expenses",
+   "reqd": 1
+  },
+  {
+   "columns": 2,
+   "description": "Owner-facing display name for this account (cosmetic).",
+   "fieldname": "account_label",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Display Label"
+  },
+  {
+   "columns": 3,
+   "description": "ERPNext ledger account this Profit First account posts to during a sweep (5b). Income role -> an Income account (credited); the four allocation roles -> asset reserve accounts (debited).",
+   "fieldname": "account_link",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Ledger Account",
+   "options": "Account"
+  },
+  {
+   "columns": 2,
+   "fieldname": "cost_center",
+   "fieldtype": "Link",
+   "label": "Cost Center",
+   "options": "Cost Center"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-06-21 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Net Gainz",
+ "name": "Profit First Account",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

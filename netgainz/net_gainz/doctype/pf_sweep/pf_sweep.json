@@ -1,0 +1,161 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "PFSW-.YYYY.-.####",
+ "creation": "2026-06-21 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "details_section",
+  "sweep_date",
+  "assessment_window",
+  "company",
+  "column_break_hdr",
+  "real_revenue",
+  "tier_code",
+  "period_label",
+  "allocations_section",
+  "allocations",
+  "ledger_section",
+  "income_account",
+  "income_cost_center",
+  "column_break_led",
+  "journal_entry",
+  "amended_from"
+ ],
+ "fields": [
+  {
+   "fieldname": "details_section",
+   "fieldtype": "Section Break",
+   "label": "Sweep"
+  },
+  {
+   "default": "Today",
+   "description": "Posting date of the sweep's Journal Entry once approved.",
+   "fieldname": "sweep_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Sweep Date",
+   "reqd": 1
+  },
+  {
+   "description": "Defaults to the window configured in Profit First Settings.",
+   "fieldname": "assessment_window",
+   "fieldtype": "Select",
+   "label": "Assessment Window",
+   "options": "\nTrailing 12 Months\nThis Month"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company"
+  },
+  {
+   "fieldname": "column_break_hdr",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "real_revenue",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Real Revenue",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tier_code",
+   "fieldtype": "Data",
+   "label": "Tier",
+   "read_only": 1
+  },
+  {
+   "fieldname": "period_label",
+   "fieldtype": "Data",
+   "label": "Period",
+   "read_only": 1
+  },
+  {
+   "fieldname": "allocations_section",
+   "fieldtype": "Section Break",
+   "label": "Proposed Allocations"
+  },
+  {
+   "description": "Computed at creation from the cash-basis Real Revenue and the tier's target percentages. A snapshot — delete and recreate for a fresh proposal.",
+   "fieldname": "allocations",
+   "fieldtype": "Table",
+   "label": "Allocations",
+   "options": "PF Sweep Allocation",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ledger_section",
+   "fieldtype": "Section Break",
+   "label": "Ledger"
+  },
+  {
+   "description": "Income account credited with the total Real Revenue when posted.",
+   "fieldname": "income_account",
+   "fieldtype": "Link",
+   "label": "Income Account",
+   "options": "Account",
+   "read_only": 1
+  },
+  {
+   "fieldname": "income_cost_center",
+   "fieldtype": "Link",
+   "label": "Income Cost Center",
+   "options": "Cost Center",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_led",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Set automatically when the sweep is approved and posted.",
+   "fieldname": "journal_entry",
+   "fieldtype": "Link",
+   "label": "Journal Entry",
+   "options": "Journal Entry",
+   "read_only": 1
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "PF Sweep",
+   "print_hide": 1,
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-06-21 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Net Gainz",
+ "name": "PF Sweep",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "amend": 1,
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

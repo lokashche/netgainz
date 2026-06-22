@@ -46,3 +46,27 @@ class TestSubscription(FrappeTestCase):
 		doc.due_date = date.today() + timedelta(days=10)
 		doc.auto_update_status()
 		self.assertEqual(doc.status, "Partial")
+
+	def test_paid_date_stamped_when_fee_collected(self):
+		"""paid_date defaults to today the first time fees are recorded so
+		cash-basis reporting never silently drops the payment."""
+		doc = self._new_sub()
+		doc.fee_collected = 500
+		doc.set_paid_date_on_payment()
+		self.assertEqual(doc.paid_date, date.today())
+
+	def test_paid_date_not_overwritten_when_already_set(self):
+		"""An explicitly entered paid_date is preserved."""
+		doc = self._new_sub()
+		doc.fee_collected = 500
+		explicit = date.today() - timedelta(days=10)
+		doc.paid_date = explicit
+		doc.set_paid_date_on_payment()
+		self.assertEqual(doc.paid_date, explicit)
+
+	def test_paid_date_untouched_without_payment(self):
+		"""No payment, no paid_date."""
+		doc = self._new_sub()
+		doc.fee_collected = 0
+		doc.set_paid_date_on_payment()
+		self.assertFalse(doc.paid_date)
