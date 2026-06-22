@@ -165,7 +165,10 @@ scheduler_events = {
 # Testing
 # -------
 
-# before_tests = "netgainz.install.before_tests"
+# Run ERPNext's test setup (creates the test Company + standard records such as
+# the "Transit" Warehouse Type) before NetGainz tests, since `run-tests --app
+# netgainz` only fires this app's before_tests hook.
+before_tests = "netgainz.install.before_tests"
 
 # Overriding Methods
 # ------------------------------
