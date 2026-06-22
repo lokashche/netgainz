@@ -14,6 +14,18 @@ export function toIntlPhone(raw: string): string {
   return raw.trim();
 }
 
+// This Next.js build can hand back dynamic route params still URL-encoded (a
+// space stays as "%20"). Normalise once to the real docname before using it or
+// re-encoding it for an API call, so names with spaces aren't double-encoded
+// into a docname Frappe can't find. Idempotent for ordinary docnames.
+export function decodeId(raw: string): string {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
+
 export function extractFrappeError(body: unknown): string | undefined {
   if (!body || typeof body !== "object") return undefined;
   const b = body as Record<string, unknown>;
@@ -85,6 +97,8 @@ export async function getGymSettings(
   return {
     accounting_method: (settings?.accounting_method ?? "Cash") as AccountingMethod,
     member_id_prefix: settings?.member_id_prefix ?? "MEM-",
+    class_term_singular: settings?.class_term_singular || "Class",
+    class_term_plural: settings?.class_term_plural || "Classes",
   };
 }
 
