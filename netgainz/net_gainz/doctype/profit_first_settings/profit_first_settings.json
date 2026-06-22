@@ -1,0 +1,159 @@
+{
+ "actions": [],
+ "creation": "2026-06-21 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "config_section",
+  "pf_enabled",
+  "assessment_window",
+  "rounding_sink",
+  "column_break_cfg",
+  "company",
+  "accounting_basis",
+  "schedule_section",
+  "sweep_auto_create",
+  "allocation_days",
+  "accounts_section",
+  "accounts",
+  "tiers_section",
+  "tiers_help",
+  "tiers",
+  "notes_section",
+  "pf_help"
+ ],
+ "fields": [
+  {
+   "fieldname": "config_section",
+   "fieldtype": "Section Break",
+   "label": "Profit First"
+  },
+  {
+   "default": "0",
+   "description": "When off, the read-only Instant Assessment is hidden. Turn on once the accounts and tier bands below are configured.",
+   "fieldname": "pf_enabled",
+   "fieldtype": "Check",
+   "label": "Enable Profit First"
+  },
+  {
+   "default": "Trailing 12 Months",
+   "description": "Period the Instant Assessment is computed over. Trailing 12 Months is recommended: it is already an annual figure for tier selection and smooths seasonality. This Month annualises x12 and flags the tier as provisional.",
+   "fieldname": "assessment_window",
+   "fieldtype": "Select",
+   "label": "Assessment Window",
+   "options": "Trailing 12 Months\nThis Month",
+   "reqd": 1
+  },
+  {
+   "default": "Operating Expenses",
+   "description": "Which target bucket receives the leftover paise so allocations always reconcile to Real Revenue to the cent.",
+   "fieldname": "rounding_sink",
+   "fieldtype": "Select",
+   "label": "Rounding Sink",
+   "options": "Operating Expenses\nProfit\nOwner's Pay\nTax"
+  },
+  {
+   "fieldname": "column_break_cfg",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "ERPNext company the sweep posts against (5b). Defaults to the site's default company.",
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company"
+  },
+  {
+   "default": "Cash",
+   "description": "Stage 5a computes Real Revenue on a CASH basis (income recognised when fee_collected is received, by Paid Date). Accrual support is planned for a later slice.",
+   "fieldname": "accounting_basis",
+   "fieldtype": "Data",
+   "label": "Accounting Basis",
+   "read_only": 1
+  },
+  {
+   "fieldname": "schedule_section",
+   "fieldtype": "Section Break",
+   "label": "Sweep Schedule"
+  },
+  {
+   "default": "1",
+   "description": "When on, a draft sweep proposal is created automatically on each allocation day (you still approve it manually before any money moves).",
+   "fieldname": "sweep_auto_create",
+   "fieldtype": "Check",
+   "label": "Auto-create draft sweeps on schedule"
+  },
+  {
+   "default": "10, 25",
+   "description": "Days of the month to allocate on (Profit First suggests the 10th & 25th, but choose any days). A day past the month's length falls on the last day of that month.",
+   "fieldname": "allocation_days",
+   "fieldtype": "Data",
+   "label": "Allocation Days"
+  },
+  {
+   "fieldname": "accounts_section",
+   "fieldtype": "Section Break",
+   "label": "Allocation Accounts"
+  },
+  {
+   "description": "The five Profit First accounts. Income is the 100% reference; Profit, Owner's Pay, Tax and Operating Expenses are the allocation buckets.",
+   "fieldname": "accounts",
+   "fieldtype": "Table",
+   "label": "Accounts",
+   "options": "Profit First Account"
+  },
+  {
+   "fieldname": "tiers_section",
+   "fieldtype": "Section Break",
+   "label": "Target Allocation % by Real-Revenue Tier"
+  },
+  {
+   "fieldname": "tiers_help",
+   "fieldtype": "HTML",
+   "options": "<p class='text-muted'>Target percentages for each annual Real-Revenue band. The four percentages in every row must sum to 100. Bands are lower-inclusive: a gym sitting exactly on a band edge falls into the higher tier. Localise the rupee bands to your market.</p>"
+  },
+  {
+   "description": "Real-Revenue tier table (TAPs). Editable so the bands can be localised to the gym's currency.",
+   "fieldname": "tiers",
+   "fieldtype": "Table",
+   "label": "Tier Bands",
+   "options": "PF Tier Band"
+  },
+  {
+   "fieldname": "notes_section",
+   "fieldtype": "Section Break"
+  },
+  {
+   "default": "The Instant Assessment is read-only: it computes Current Allocation % (CAP) from your actual data and compares it to the Target Allocation % (TAP) for your Real-Revenue tier. It moves no money and posts no ledger entries. The Profit row is a residual (Real Revenue minus recorded expenses) and overstates true profit until Owner's Pay and Tax spend are tagged via Expense Category.",
+   "fieldname": "pf_help",
+   "fieldtype": "Small Text",
+   "label": "About",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-06-21 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Net Gainz",
+ "name": "Profit First Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "quick_entry": 1,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
