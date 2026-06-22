@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, SyntheticEvent, use } from "react";
-import { extractFrappeError } from "@/lib/frappe";
+import { decodeId, extractFrappeError } from "@/lib/frappe";
 import { useRouter } from "next/navigation";
 import type { MembershipPlan } from "@/lib/types";
 
@@ -13,7 +13,8 @@ const inputClass =
 const labelClass = "block text-xs uppercase tracking-wider mb-1 text-[#8A97B2]";
 
 export default function PlanDetailPage({ params }: { params: Params }) {
-  const { id } = use(params);
+  const { id: rawId } = use(params);
+  const id = decodeId(rawId);
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);

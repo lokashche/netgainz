@@ -153,6 +153,12 @@ scheduler_events = {
 		# Auto-create a draft Profit First sweep on configured allocation days
 		# (idempotent; posting still requires manual approval).
 		"netgainz.net_gainz.profit_first.schedule.create_scheduled_sweeps",
+		# Raise an in-app reminder for memberships due for renewal
+		# (idempotent; read-only/notify-only — no email or SMS).
+		"netgainz.net_gainz.operations.renewals.notify_due_renewals",
+		# Auto-create the upcoming sessions for each active recurring Class Schedule
+		# (idempotent; opt-out via the class_auto_generate setting).
+		"netgainz.net_gainz.doctype.class_schedule.class_schedule.generate_scheduled_classes",
 	],
 }
 

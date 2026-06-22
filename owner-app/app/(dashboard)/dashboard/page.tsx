@@ -1,7 +1,7 @@
 import { frappeRequest, getGymSettings } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
-import type { Member, Subscription, SubscriptionStatus, GymExpense } from "@/lib/types";
+import type { Member, Subscription, SubscriptionStatus, GymExpense, RenewalsDue } from "@/lib/types";
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 
@@ -126,6 +126,7 @@ export default async function DashboardPage() {
     partialSubsRes,
     recentSubsRes,
     recentExpensesRes,
+    renewalsRes,
   ] = await Promise.all([
     frappeRequest<{ data: Pick<Member, "name">[] }>(membersPath, {
       sessionCookie: session.frappeCookies,
@@ -161,6 +162,10 @@ export default async function DashboardPage() {
       recentExpensesPath,
       { sessionCookie: session.frappeCookies }
     ),
+    frappeRequest<{ message: RenewalsDue }>(
+      `api/method/netgainz.net_gainz.operations.renewals.get_renewals_due`,
+      { sessionCookie: session.frappeCookies }
+    ),
   ]);
 
   // ── Extract arrays ────────────────────────────────────────────────────────
@@ -172,6 +177,12 @@ export default async function DashboardPage() {
   const partial = partialSubsRes.data?.data ?? [];
   const recentSubs = recentSubsRes.data?.data ?? [];
   const recentExpenses = recentExpensesRes.data?.data ?? [];
+
+  const renewals = renewalsRes.data?.message;
+  const renewalsDueSoon = renewals?.due_soon ?? [];
+  const renewalsOverdue = renewals?.overdue ?? [];
+  const renewalsWithin = renewals?.within_days ?? 7;
+  const showRenewals = renewalsDueSoon.length > 0 || renewalsOverdue.length > 0;
 
   // ── Derived values ────────────────────────────────────────────────────────
 
@@ -360,6 +371,48 @@ export default async function DashboardPage() {
               </a>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Renewals Due ── */}
+      {showRenewals && (
+        <div className="bg-[rgba(94,234,212,0.05)] border border-[rgba(94,234,212,0.3)] rounded-xl p-5 mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[#5EEAD4] font-semibold text-sm uppercase tracking-wider">
+              ⟳ Renewals Due
+            </p>
+            <a href="/renewals" className="text-[#5EEAD4] text-xs hover:underline">
+              View all →
+            </a>
+          </div>
+          <div className="flex items-baseline gap-6 mb-3">
+            <div>
+              <span className="text-[#E6EDF7] text-2xl font-bold">{renewalsDueSoon.length}</span>
+              <span className="text-[#8A97B2] text-sm"> due in {renewalsWithin}d</span>
+            </div>
+            {renewalsOverdue.length > 0 && (
+              <div>
+                <span className="text-[#F87171] text-2xl font-bold">{renewalsOverdue.length}</span>
+                <span className="text-[#8A97B2] text-sm"> overdue</span>
+              </div>
+            )}
+          </div>
+          <ul className="space-y-1.5">
+            {[...renewalsOverdue, ...renewalsDueSoon].slice(0, 5).map((r) => (
+              <li key={r.subscription} className="flex items-center justify-between text-xs">
+                <a
+                  href={`/members/${r.member}`}
+                  className="text-[#E6EDF7] truncate mr-2 hover:text-[#5EEAD4]"
+                >
+                  {r.member_name ?? r.member}
+                  {r.membership_plan ? ` · ${r.membership_plan}` : ""}
+                </a>
+                <span className={r.days_until < 0 ? "text-[#F87171] shrink-0" : "text-[#5EEAD4] shrink-0"}>
+                  {r.days_until < 0 ? `${Math.abs(r.days_until)}d overdue` : `in ${r.days_until}d`}
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

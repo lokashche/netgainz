@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, SyntheticEvent } from "react";
-import { extractFrappeError } from "@/lib/frappe";
+import { decodeId, extractFrappeError } from "@/lib/frappe";
 import { useRouter, useParams } from "next/navigation";
 import type { ExpenseCategory, PFBucket } from "@/lib/types";
 
@@ -20,7 +20,7 @@ const PF_BUCKETS: PFBucket[] = [
 export default function ExpenseCategoryDetailPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
-  const id = params.id;
+  const id = decodeId(params.id);
 
   const [category, setCategory] = useState<ExpenseCategory | null>(null);
   const [pf_bucket, setPfBucket] = useState<PFBucket>("Operating Expenses");
