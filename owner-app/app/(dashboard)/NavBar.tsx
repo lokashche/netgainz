@@ -122,6 +122,12 @@ export default function NavBar({ fullName }: { fullName: string }) {
           </Link>
           <NavGroup label="Setup" items={SETUP_ITEMS} pathname={pathname} />
           <NavGroup label="Cashflow" items={CASHFLOW_ITEMS} pathname={pathname} />
+          <Link
+            href="/profit-first"
+            className={isActive(pathname, "/profit-first") ? activeLinkClass : linkClass}
+          >
+            Profit First
+          </Link>
         </div>
         <div className="flex items-center gap-3">
           <Link

@@ -14,7 +14,20 @@ class Subscription(Document):
 		self.calculate_balance_due()
 		self.calculate_overdue_days()
 		self.auto_update_status()
+		self.set_paid_date_on_payment()
 		self.calculate_next_renewal()
+
+	def set_paid_date_on_payment(self):
+		"""Stamp paid_date the first time money is recorded.
+
+		Cash-basis reporting (and the Profit First Instant Assessment) scopes
+		income by paid_date. SQL BETWEEN excludes NULLs, so a collected payment
+		with no paid_date is silently dropped from cash totals. Default it to
+		today when fees are first collected, without overwriting a date the
+		owner set explicitly.
+		"""
+		if (self.fee_collected or 0) > 0 and not self.paid_date:
+			self.paid_date = date.today()
 
 	def after_save(self):
 		self.sync_member_status()

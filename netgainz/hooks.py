@@ -83,7 +83,7 @@ required_apps = ["erpnext"]
 # ------------
 
 # before_install = "netgainz.install.before_install"
-# after_install = "netgainz.install.after_install"
+after_install = "netgainz.net_gainz.profit_first.seed.after_install"
 
 # Uninstallation
 # ------------
@@ -148,23 +148,13 @@ required_apps = ["erpnext"]
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"all": [
-# 		"netgainz.tasks.all"
-# 	],
-# 	"daily": [
-# 		"netgainz.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"netgainz.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"netgainz.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"netgainz.tasks.monthly"
-# 	],
-# }
+scheduler_events = {
+	"daily": [
+		# Auto-create a draft Profit First sweep on configured allocation days
+		# (idempotent; posting still requires manual approval).
+		"netgainz.net_gainz.profit_first.schedule.create_scheduled_sweeps",
+	],
+}
 
 # Testing
 # -------

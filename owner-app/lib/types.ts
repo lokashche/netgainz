@@ -53,13 +53,110 @@ export type GymSettings = {
   member_id_prefix: string;
 };
 
+export type PFBucket =
+  | 'Operating Expenses'
+  | "Owner's Pay"
+  | 'Tax'
+  | 'Pass-Through';
+
 export type ExpenseCategory = {
   name: string;        // same as category_name
   category_name: string;
+  pf_bucket?: PFBucket;
   description?: string;
 };
 
 export type ExpenseFrequency = 'Monthly' | 'Quarterly' | 'Annually';
+
+// ── Profit First — Stage 5a Instant Assessment (read-only) ──────────────────
+
+export type PFAllocationBucket = 'Profit' | "Owner's Pay" | 'Tax' | 'Operating Expenses';
+
+export type AssessmentRow = {
+  bucket: PFAllocationBucket;
+  label: string;            // "Undistributed Cash (residual)" for the Profit row
+  actual: number;
+  cap_pct: number | null;   // Current Allocation % (null when not applicable)
+  tap_pct: number | null;   // Target Allocation %
+  target: number | null;    // Target ₹
+  gap: number | null;       // Actual − Target, in ₹
+  gap_pct: number | null;   // CAP − TAP
+};
+
+export type InstantAssessment = {
+  enabled: boolean;
+  applicable?: boolean;
+  basis?: string;           // "Cash"
+  window?: string;          // "Trailing 12 Months" | "This Month"
+  period_label?: string;
+  topline?: number;
+  passthrough?: number;
+  real_revenue?: number;
+  tier_code?: string | null;
+  tier_provisional?: boolean;
+  rows?: AssessmentRow[];
+  notice?: string | null;
+  warnings?: string[];
+  profit_is_residual?: boolean;
+  passthrough_breakdown?: { category: string; amount: number }[];
+};
+
+// ── Profit First sweep (Stage 5b) ───────────────────────────────────────────
+
+// 0 = Draft, 1 = Posted, 2 = Cancelled
+export type DocStatus = 0 | 1 | 2;
+
+export type PFSweepAllocation = {
+  account_role: PFAllocationBucket;
+  pf_account?: string;
+  target_pct?: number;
+  amount?: number;
+  cost_center?: string;
+};
+
+export type PFSweep = {
+  name: string;
+  sweep_date?: string;
+  assessment_window?: string;
+  company?: string;
+  real_revenue?: number;
+  tier_code?: string;
+  period_label?: string;
+  income_account?: string;
+  income_cost_center?: string;
+  journal_entry?: string;
+  docstatus: DocStatus;
+  allocations?: PFSweepAllocation[];
+};
+
+// ── Profit First dashboard + schedule (Stage 5c) ────────────────────────────
+
+export type PFReserve = {
+  role: PFAllocationBucket;
+  account?: string | null;
+  balance: number;
+};
+
+export type PFDashboard = {
+  enabled: boolean;
+  accounts_ready?: boolean;
+  reserves?: PFReserve[];
+  allocation_days?: string;
+  auto_create?: boolean;
+  next_sweep_date?: string | null;
+  pending_sweeps?: {
+    name: string;
+    sweep_date?: string;
+    real_revenue?: number;
+    tier_code?: string;
+  }[];
+  last_sweep?: {
+    name: string;
+    sweep_date?: string;
+    real_revenue?: number;
+    journal_entry?: string;
+  } | null;
+};
 
 export type GymExpense = {
   name: string;        // EXP-2026-0001
