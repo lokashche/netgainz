@@ -25,6 +25,7 @@
   "column_break_wbzs",
   "membership_plan",
   "gym_program",
+  "customer",
   "reference_and_status_section",
   "source_of_reference",
   "status",
@@ -134,6 +135,15 @@
    "fieldtype": "Link",
    "label": "Gym Program",
    "options": "Program"
+  },
+  {
+   "description": "ERPNext Customer auto-provisioned for billing (Stage 7). Read-only; managed by the system.",
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "no_copy": 1,
+   "options": "Customer",
+   "read_only": 1
   },
   {
    "fieldname": "reference_and_status_section",
