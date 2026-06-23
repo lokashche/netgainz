@@ -26,12 +26,21 @@ class TestPFSweep(FrappeTestCase):
 		frappe.db.delete("Gym Expense")
 
 		seed_profit_first_defaults()
+		company = accounts.default_company()
 		settings = frappe.get_single("Profit First Settings")
 		settings.pf_enabled = 1
 		settings.assessment_window = "This Month"
+		# Pin ONE company and clear any stale account links/cost-centers so the
+		# sweep's company, accounts and cost centers stay consistent even when the
+		# test runner left a different company as the ambient default (e.g. the
+		# ERPNext / india_compliance fixture companies). setup_pf_accounts re-maps.
+		settings.company = company
+		for row in settings.accounts:
+			row.account_link = None
+			row.cost_center = None
 		settings.save(ignore_permissions=True)
 
-		accounts.setup_pf_accounts()  # idempotent; creates + maps the 5 accounts
+		accounts.setup_pf_accounts(company)  # idempotent; creates + maps the 5 accounts
 
 	# ---- helpers --------------------------------------------------------- #
 	def _sub(self, fee):

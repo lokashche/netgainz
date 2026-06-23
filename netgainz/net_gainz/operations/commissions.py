@@ -22,6 +22,8 @@ owner action on the Coach Commission Run.
 import frappe
 from frappe.utils import flt, get_first_day, get_last_day, getdate, today
 
+from netgainz.net_gainz.profit_first.calc import round_half_away, to_paise, to_rupees
+
 DEFAULT_PERCENTAGE_BASIS = "Assigned Member Revenue"
 COMMISSION_TYPES = ("Fixed", "Per Member", "Percentage")
 
@@ -30,15 +32,17 @@ def commission_for(commission_type: str, amount: float, member_count: int, reven
 	"""Pure commission arithmetic for one coach. Returns rupees (2 dp).
 
 	``amount`` is a rupee figure for Fixed / Per Member and a percent for
-	Percentage. ``revenue`` is the already-resolved Percentage base.
+	Percentage. ``revenue`` is the already-resolved Percentage base. All money is
+	quantised in integer paise, half-away-from-zero (the app's one rounding rule),
+	so the result is exact and independent of System Settings.rounding_method.
 	"""
-	amount = flt(amount)
 	if commission_type == "Fixed":
-		return flt(amount, 2)
+		return to_rupees(to_paise(amount))
 	if commission_type == "Per Member":
-		return flt(amount * (member_count or 0), 2)
+		return to_rupees(to_paise(amount) * (member_count or 0))
 	if commission_type == "Percentage":
-		return flt(flt(revenue) * amount / 100.0, 2)
+		base_paise = to_paise(revenue)
+		return to_rupees(round_half_away(base_paise * flt(amount) / 100.0))
 	return 0.0
 
 
@@ -61,7 +65,7 @@ def _collected_between(start, end, members=None) -> float:
 	rows = frappe.get_all(
 		"Subscription", filters=filters, fields=["fee_collected"], limit_page_length=0
 	)
-	return flt(sum(flt(r.fee_collected) for r in rows), 2)
+	return to_rupees(sum(to_paise(r.fee_collected) for r in rows))
 
 
 def _money(value) -> str:
@@ -128,14 +132,14 @@ def compute_commissions(period_start=None, period_end=None) -> dict:
 				"coach": c.name,
 				"commission_type": c.commission_type,
 				"member_count": member_count,
-				"base_amount": flt(revenue, 2),
+				"base_amount": to_rupees(to_paise(revenue)),
 				"rate": amount,
 				"basis_label": basis_label,
 				"commission_amount": commission,
 			}
 		)
 
-	total = flt(sum(line["commission_amount"] for line in lines), 2)
+	total = to_rupees(sum(to_paise(line["commission_amount"]) for line in lines))
 	return {
 		"period_start": str(start),
 		"period_end": str(end),

@@ -69,6 +69,14 @@ jobs:
           cd frappe-bench
           bench get-app netgainz ${{ github.workspace }}
 
+      - name: Install India Compliance + payments
+        run: |
+          cd frappe-bench
+          # India Compliance pinned (needs frappe>=15.50 / erpnext>=15.60); payments
+          # provides the Payment Gateway doctype the test-record sweep needs.
+          bench get-app https://github.com/resilient-tech/india-compliance --branch v15.30.1
+          bench get-app https://github.com/frappe/payments --branch version-15
+
       - name: Create test site
         run: |
           cd frappe-bench
@@ -76,21 +84,21 @@ jobs:
             --db-root-password root \
             --admin-password admin \
             --install-app erpnext \
+            --install-app payments \
+            --install-app india_compliance \
             --install-app netgainz
-
-      - name: Install coverage
-        run: |
-          cd frappe-bench
-          ./env/bin/pip install coverage
 
       - name: Run tests
         run: |
           cd frappe-bench
-          bench --site test.localhost run-tests --app netgainz --coverage
-
-      - name: Upload coverage
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: frappe-bench/sites/.coverage
+          # Run per-module, NOT `run-tests --app netgainz`. With india_compliance
+          # installed, frappe's app-wide make_test_records sweep tries to build
+          # ERPNext fixtures (Payment Gateway Account, Item Tax Template, ...) that
+          # india_compliance's GST validations reject — failures unrelated to
+          # NetGainz. Per-module runs build only each module's own deps and pass.
+          modules=$(cd apps/netgainz && find netgainz -name 'test_*.py' | sed 's#/#.#g; s#\.py$##')
+          for m in $modules; do
+            echo "::group::$m"
+            bench --site test.localhost run-tests --module "$m"
+            echo "::endgroup::"
+          done

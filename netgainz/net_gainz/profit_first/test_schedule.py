@@ -19,13 +19,21 @@ class TestPFSchedule(FrappeTestCase):
 		frappe.db.delete("Subscription")
 
 		seed_profit_first_defaults()
+		company = accounts.default_company()
 		s = frappe.get_single("Profit First Settings")
 		s.pf_enabled = 1
 		s.sweep_auto_create = 1
 		s.allocation_days = "10, 25"
 		s.assessment_window = "This Month"
+		# Pin ONE company + clear stale account links so the sweep stays internally
+		# consistent regardless of which fixture company the runner left as the
+		# ambient default (see test_sweep.setUp for the full rationale).
+		s.company = company
+		for row in s.accounts:
+			row.account_link = None
+			row.cost_center = None
 		s.save(ignore_permissions=True)
-		accounts.setup_pf_accounts()
+		accounts.setup_pf_accounts(company)
 
 	def _income(self, fee):
 		frappe.get_doc({"doctype": "Subscription", "tariff": fee, "fee_collected": fee}).insert(

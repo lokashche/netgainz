@@ -40,6 +40,17 @@ EXPENSE_BUCKETS = (OWNERS_PAY, TAX, OPEX, PASS_THROUGH)
 # --------------------------------------------------------------------------- #
 # paise helpers                                                               #
 # --------------------------------------------------------------------------- #
+def round_half_away(value: float) -> int:
+	"""Round a float to the nearest integer, halves AWAY from zero.
+
+	The single rounding primitive for all NetGainz money quantisation. It is
+	deterministic and, unlike Frappe's ``flt(x, n)`` / ``round()``, independent of
+	``System Settings.rounding_method`` — so a commission or allocation computed
+	from the same figure never differs by a paisa across sites or settings.
+	"""
+	return int(math.floor(value + 0.5)) if value >= 0 else int(math.ceil(value - 0.5))
+
+
 def to_paise(rupees) -> int:
 	"""Quantise a rupee amount to integer paise. None -> 0.
 
@@ -49,9 +60,7 @@ def to_paise(rupees) -> int:
 	"""
 	if rupees is None:
 		return 0
-	value = float(rupees) * 100.0
-	# round-half-away-from-zero
-	return int(math.floor(value + 0.5)) if value >= 0 else int(math.ceil(value - 0.5))
+	return round_half_away(float(rupees) * 100.0)
 
 
 def to_rupees(paise: int) -> float:

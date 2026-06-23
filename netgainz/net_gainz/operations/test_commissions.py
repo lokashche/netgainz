@@ -30,6 +30,32 @@ class TestCommissionMath(FrappeTestCase):
 		self.assertEqual(commissions.commission_for("Nope", 100, 5, 5), 0.0)
 
 
+class TestCommissionRounding(FrappeTestCase):
+	"""Commission money rounds half-AWAY-from-zero in integer paise, and is
+	independent of System Settings.rounding_method (the old flt() path honoured
+	it, so the same fee could yield a different paisa across sites)."""
+
+	def setUp(self):
+		self._orig_method = frappe.db.get_single_value("System Settings", "rounding_method")
+
+	def tearDown(self):
+		frappe.db.set_single_value("System Settings", "rounding_method", self._orig_method)
+
+	def test_half_paise_rounds_away_from_zero(self):
+		# 50% of ₹0.01 = 0.5 paise -> 1 paise (away from zero), NOT 0 (bankers).
+		self.assertEqual(commissions.commission_for("Percentage", 50, 0, 0.01), 0.01)
+		# 10% of ₹0.05 = 0.5 paise -> 1 paise.
+		self.assertEqual(commissions.commission_for("Percentage", 10, 0, 0.05), 0.01)
+
+	def test_independent_of_system_rounding_method(self):
+		results = {}
+		for method in ("Banker's Rounding", "Commercial Rounding"):
+			frappe.db.set_single_value("System Settings", "rounding_method", method)
+			results[method] = commissions.commission_for("Percentage", 50, 0, 0.01)
+		self.assertEqual(results["Banker's Rounding"], results["Commercial Rounding"])
+		self.assertEqual(results["Banker's Rounding"], 0.01)
+
+
 class TestComputeCommissions(FrappeTestCase):
 	def setUp(self):
 		self.coach = frappe.get_doc(
