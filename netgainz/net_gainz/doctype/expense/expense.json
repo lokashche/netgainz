@@ -10,6 +10,7 @@
   "category",
   "amount",
   "vendor",
+  "branch",
   "recurrence_section",
   "is_recurring",
   "column_break_yacl",
@@ -49,6 +50,13 @@
    "in_global_search": 1,
    "in_list_view": 1,
    "label": "Vendor / Payee"
+  },
+  {
+   "description": "Branch this expense is attributed to (defaults to Main).",
+   "fieldname": "branch",
+   "fieldtype": "Link",
+   "label": "Branch",
+   "options": "Business Branch"
   },
   {
    "fieldname": "recurrence_section",

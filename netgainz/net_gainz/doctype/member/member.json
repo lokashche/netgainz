@@ -25,6 +25,7 @@
   "column_break_wbzs",
   "membership_plan",
   "gym_program",
+  "branch",
   "customer",
   "reference_and_status_section",
   "source_of_reference",
@@ -135,6 +136,13 @@
    "fieldtype": "Link",
    "label": "Gym Program",
    "options": "Program"
+  },
+  {
+   "description": "Home branch this member belongs to. Defaults to Main; flows to their memberships.",
+   "fieldname": "branch",
+   "fieldtype": "Link",
+   "label": "Branch",
+   "options": "Business Branch"
   },
   {
    "description": "ERPNext Customer auto-provisioned for billing (Stage 7). Read-only; managed by the system.",

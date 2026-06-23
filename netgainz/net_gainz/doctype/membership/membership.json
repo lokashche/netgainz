@@ -9,6 +9,7 @@
  "field_order": [
   "member",
   "member_name",
+  "branch",
   "membership_plan",
   "month",
   "financials_section",
@@ -44,6 +45,15 @@
    "in_list_view": 1,
    "label": "Member Name",
    "read_only": 1
+  },
+  {
+   "description": "Branch this membership belongs to (defaults from the member's home branch).",
+   "fetch_from": "member.branch",
+   "fetch_if_empty": 1,
+   "fieldname": "branch",
+   "fieldtype": "Link",
+   "label": "Branch",
+   "options": "Business Branch"
   },
   {
    "fetch_from": "member.membership_plan",

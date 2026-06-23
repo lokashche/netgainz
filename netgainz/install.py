@@ -48,3 +48,9 @@ def before_tests():
 	from erpnext.setup.utils import before_tests as erpnext_before_tests
 
 	erpnext_before_tests()
+
+	# Stage 7 WP-3: seed the default "Main" Business Branch so financial docs
+	# created in tests can stamp a branch (idempotent; no-op without a company).
+	from netgainz.net_gainz.accounting.branch import ensure_main_branch
+
+	ensure_main_branch()

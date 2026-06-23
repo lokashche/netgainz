@@ -142,10 +142,17 @@ after_install = "netgainz.net_gainz.profit_first.seed.after_install"
 # skip, never block the save, when a prerequisite is missing).
 doc_events = {
 	"Member": {
+		"before_insert": "netgainz.net_gainz.accounting.branch.stamp_default_branch",
 		"on_update": "netgainz.net_gainz.accounting.provisioning.on_member_update",
+	},
+	"Membership": {
+		"before_insert": "netgainz.net_gainz.accounting.branch.stamp_default_branch",
 	},
 	"Membership Plan": {
 		"on_update": "netgainz.net_gainz.accounting.provisioning.on_plan_update",
+	},
+	"Expense": {
+		"before_insert": "netgainz.net_gainz.accounting.branch.stamp_default_branch",
 	},
 }
 
