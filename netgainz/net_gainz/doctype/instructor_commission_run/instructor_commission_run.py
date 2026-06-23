@@ -15,6 +15,7 @@ import frappe
 from frappe.model.document import Document
 from frappe.utils import flt
 
+from netgainz.net_gainz.accounting import branch
 from netgainz.net_gainz.operations import commissions
 
 
@@ -42,6 +43,8 @@ class InstructorCommissionRun(Document):
 			from netgainz.net_gainz.profit_first import accounts as pf_accounts
 
 			self.company = pf_accounts.default_company()
+		# Branch dimension: a company-wide run sits on Main by default.
+		self.branch = self.branch or branch.ensure_main_branch(self.company)
 
 		self.set("lines", [])
 		for line in result["lines"]:
@@ -97,7 +100,7 @@ class InstructorCommissionRun(Document):
 		"""Post the balanced commission accrual: debit Commission Expense, credit
 		Commissions Payable, by the run's total. Balances by construction."""
 		total = flt(self.total_commission, 2)
-		cc = frappe.get_cached_value("Company", self.company, "cost_center") if self.company else None
+		cc = branch.branch_cost_center(self.branch, self.company)
 
 		je = frappe.new_doc("Journal Entry")
 		je.voucher_type = "Journal Entry"

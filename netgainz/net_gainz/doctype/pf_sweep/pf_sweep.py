@@ -14,6 +14,7 @@ import frappe
 from frappe.model.document import Document
 from frappe.utils import flt, today
 
+from netgainz.net_gainz.accounting import branch
 from netgainz.net_gainz.profit_first import accounts, calc
 from netgainz.net_gainz.profit_first import instant_assessment as ia
 
@@ -37,6 +38,10 @@ class PFSweep(Document):
 		)
 		if not self.sweep_date:
 			self.sweep_date = today()
+		# Branch dimension: a company-wide sweep sits on Main by default; its
+		# cost center drives the posting (Main -> Company default, so unchanged
+		# for a single-branch tenant).
+		self.branch = self.branch or branch.ensure_main_branch(self.company)
 
 		res = ia.get_target_allocation(self.assessment_window)
 		self.real_revenue = calc.to_rupees(res["real_revenue_paise"])
@@ -45,7 +50,7 @@ class PFSweep(Document):
 		taps = res.get("taps", {})
 
 		acc_map = {r.account_role: r for r in settings.accounts}
-		cc_default = frappe.get_cached_value("Company", self.company, "cost_center") if self.company else None
+		cc_default = branch.branch_cost_center(self.branch, self.company)
 
 		self.set("allocations", [])
 		for role in calc.ALLOCATION_BUCKETS:
