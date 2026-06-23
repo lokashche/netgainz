@@ -129,3 +129,27 @@ class TestProvisioning(FrappeTestCase):
 		# Annual plan maps to Year x 1.
 		annual = frappe.get_doc("Subscription Plan", sub)
 		self.assertEqual((annual.billing_interval, annual.billing_interval_count), ("Year", 1))
+
+	# ---- backfill patch -------------------------------------------------- #
+	def test_backfill_patch_seeds_sac_and_provisions(self):
+		from netgainz.patches.v0_7 import backfill_masters
+
+		# A member whose customer link we clear, simulating a pre-WP-2 row.
+		member = self._make_member("WP2 Backfill Member")
+		frappe.db.set_value("Member", member.name, "customer", None, update_modified=False)
+		# A plan with no SAC -> the on_update hook skipped its Item.
+		plan = self._make_plan("WP2 Backfill Plan", amount=3000.0, duration=30, sac=None)
+		plan.reload()
+		self.assertFalse(plan.item)
+
+		backfill_masters.execute()
+
+		self.assertTrue(
+			frappe.db.get_value("Member", member.name, "customer"), "backfill links a Customer"
+		)
+		plan.reload()
+		self.assertEqual(
+			plan.gst_hsn_code, backfill_masters.DEFAULT_PILOT_SAC, "backfill seeds the default SAC"
+		)
+		self.assertTrue(plan.item, "backfill provisions the Item once a SAC is seeded")
+		self.assertTrue(plan.subscription_plan)
