@@ -158,7 +158,7 @@ scheduler_events = {
 		"netgainz.net_gainz.operations.renewals.notify_due_renewals",
 		# Auto-create the upcoming sessions for each active recurring Class Schedule
 		# (idempotent; opt-out via the class_auto_generate setting).
-		"netgainz.net_gainz.doctype.class_schedule.class_schedule.generate_scheduled_classes",
+		"netgainz.net_gainz.doctype.session_schedule.session_schedule.generate_scheduled_classes",
 	],
 }
 

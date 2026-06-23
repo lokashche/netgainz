@@ -16,7 +16,7 @@ from netgainz.net_gainz.profit_first.seed import seed_profit_first_defaults
 class TestPFSchedule(FrappeTestCase):
 	def setUp(self):
 		frappe.db.delete("PF Sweep")
-		frappe.db.delete("Subscription")
+		frappe.db.delete("Membership")
 
 		seed_profit_first_defaults()
 		company = accounts.default_company()
@@ -36,7 +36,7 @@ class TestPFSchedule(FrappeTestCase):
 		accounts.setup_pf_accounts(company)
 
 	def _income(self, fee):
-		frappe.get_doc({"doctype": "Subscription", "tariff": fee, "fee_collected": fee}).insert(
+		frappe.get_doc({"doctype": "Membership", "tariff": fee, "fee_collected": fee}).insert(
 			ignore_permissions=True
 		)
 

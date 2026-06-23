@@ -60,7 +60,7 @@ class TestComputeCommissions(FrappeTestCase):
 	def setUp(self):
 		self.coach = frappe.get_doc(
 			{
-				"doctype": "Coach",
+				"doctype": "Instructor",
 				"coach_name": "Compute Test Coach",
 				"status": "Active",
 				"commission_type": "Per Member",
@@ -81,7 +81,7 @@ class TestComputeCommissions(FrappeTestCase):
 	def tearDown(self):
 		for m in self.members:
 			frappe.delete_doc("Member", m.name, ignore_permissions=True, force=True)
-		frappe.delete_doc("Coach", self.coach.name, ignore_permissions=True, force=True)
+		frappe.delete_doc("Instructor", self.coach.name, ignore_permissions=True, force=True)
 
 	def test_per_member_counts_only_active_members(self):
 		result = commissions.compute_commissions("2026-06-01", "2026-06-30")

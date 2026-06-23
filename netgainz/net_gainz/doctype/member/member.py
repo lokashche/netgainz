@@ -8,5 +8,5 @@ from frappe.model.naming import make_autoname
 
 class Member(Document):
 	def autoname(self):
-		prefix = frappe.db.get_single_value("Gym Settings", "member_id_prefix") or "MEM-"
+		prefix = frappe.db.get_single_value("Business Settings", "member_id_prefix") or "MEM-"
 		self.name = make_autoname(f"{prefix}.####")

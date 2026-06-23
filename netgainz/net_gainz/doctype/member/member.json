@@ -22,7 +22,6 @@
   "date_of_joining",
   "coach",
   "category",
-  "academy",
   "column_break_wbzs",
   "membership_plan",
   "gym_program",
@@ -112,18 +111,13 @@
    "fieldname": "coach",
    "fieldtype": "Link",
    "label": "Coach",
-   "options": "Coach"
+   "options": "Instructor"
   },
   {
    "fieldname": "category",
    "fieldtype": "Select",
    "label": "Category",
    "options": "Sport\nGeneral"
-  },
-  {
-   "fieldname": "academy",
-   "fieldtype": "Data",
-   "label": "Academy"
   },
   {
    "fieldname": "column_break_wbzs",

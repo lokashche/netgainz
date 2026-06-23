@@ -63,7 +63,7 @@ def _collected_between(start, end, members=None) -> float:
 			return 0.0
 		filters.append(["member", "in", list(members)])
 	rows = frappe.get_all(
-		"Subscription", filters=filters, fields=["fee_collected"], limit_page_length=0
+		"Membership", filters=filters, fields=["fee_collected"], limit_page_length=0
 	)
 	return to_rupees(sum(to_paise(r.fee_collected) for r in rows))
 
@@ -85,14 +85,14 @@ def compute_commissions(period_start=None, period_end=None) -> dict:
 	"""
 	start, end = _period(period_start, period_end)
 	basis = (
-		frappe.db.get_single_value("Gym Settings", "commission_percentage_basis")
+		frappe.db.get_single_value("Business Settings", "commission_percentage_basis")
 		or DEFAULT_PERCENTAGE_BASIS
 	)
 
 	gym_revenue = None  # resolved lazily, once, only if a Percentage/all-gym coach needs it
 
 	coaches = frappe.get_all(
-		"Coach",
+		"Instructor",
 		filters={"status": "Active", "commission_type": ["in", COMMISSION_TYPES]},
 		fields=["name", "coach_name", "commission_type", "commission_amount"],
 		limit_page_length=0,
@@ -178,7 +178,7 @@ def setup_commission_accounts(company: str | None = None) -> dict:
 	expense = pf_accounts._ensure_account("Coach Commission Expense", expense_parent, company)
 	payable = pf_accounts._ensure_account("Coach Commissions Payable", liability_parent, company)
 
-	settings = frappe.get_single("Gym Settings")
+	settings = frappe.get_single("Business Settings")
 	settings.commission_expense_account = expense
 	settings.commission_payable_account = payable
 	settings.save(ignore_permissions=True)

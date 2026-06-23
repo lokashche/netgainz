@@ -23,8 +23,8 @@ from netgainz.net_gainz.profit_first.seed import seed_profit_first_defaults
 class TestInstantAssessment(FrappeTestCase):
 	def setUp(self):
 		# Deterministic slate (rolled back after the test).
-		frappe.db.delete("Subscription")
-		frappe.db.delete("Gym Expense")
+		frappe.db.delete("Membership")
+		frappe.db.delete("Expense")
 
 		seed_profit_first_defaults()
 		settings = frappe.get_single("Profit First Settings")
@@ -34,12 +34,12 @@ class TestInstantAssessment(FrappeTestCase):
 
 	# ---- helpers --------------------------------------------------------- #
 	def _sub(self, fee, with_paid_date=True):
-		doc = frappe.get_doc({"doctype": "Subscription", "tariff": fee, "fee_collected": fee}).insert(
+		doc = frappe.get_doc({"doctype": "Membership", "tariff": fee, "fee_collected": fee}).insert(
 			ignore_permissions=True
 		)
 		if not with_paid_date:
 			# Simulate legacy data: money collected but no paid_date.
-			frappe.db.set_value("Subscription", doc.name, "paid_date", None, update_modified=False)
+			frappe.db.set_value("Membership", doc.name, "paid_date", None, update_modified=False)
 		return doc
 
 	def _category(self, name, bucket):
@@ -53,7 +53,7 @@ class TestInstantAssessment(FrappeTestCase):
 
 	def _expense(self, category, amount):
 		frappe.get_doc(
-			{"doctype": "Gym Expense", "date": today(), "category": category, "amount": amount}
+			{"doctype": "Expense", "date": today(), "category": category, "amount": amount}
 		).insert(ignore_permissions=True)
 
 	# ---- tests ----------------------------------------------------------- #

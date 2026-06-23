@@ -13,7 +13,7 @@ class TestPaymentModes(FrappeTestCase):
 	def test_modes_mirror_subscription_options(self):
 		"""PAYMENT_MODES must stay in sync with Subscription.payment_mode options —
 		the value set is duplicated on the frontend too, so guard against drift."""
-		field = frappe.get_meta("Subscription").get_field("payment_mode")
+		field = frappe.get_meta("Membership").get_field("payment_mode")
 		options = tuple(o for o in (field.options or "").split("\n") if o)
 		self.assertEqual(set(payment_modes.PAYMENT_MODES), set(options))
 

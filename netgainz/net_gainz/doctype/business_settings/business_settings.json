@@ -1,0 +1,254 @@
+{
+ "actions": [],
+ "creation": "2026-05-25 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "accounting_section",
+  "accounting_method",
+  "member_naming_section",
+  "member_id_prefix",
+  "terminology_section",
+  "vertical",
+  "member_term_singular",
+  "member_term_plural",
+  "column_break_term_a",
+  "instructor_term_singular",
+  "instructor_term_plural",
+  "column_break_term_b",
+  "session_term_singular",
+  "session_term_plural",
+  "column_break_term_c",
+  "program_term_singular",
+  "program_term_plural",
+  "commissions_section",
+  "commission_percentage_basis",
+  "commission_post_to_ledger",
+  "column_break_comm",
+  "commission_expense_account",
+  "commission_payable_account",
+  "renewals_section",
+  "renewal_reminder_days",
+  "renewal_reminders_enabled",
+  "classes_section",
+  "column_break_cls",
+  "class_auto_generate",
+  "class_schedule_horizon_days"
+ ],
+ "fields": [
+  {
+   "fieldname": "accounting_section",
+   "fieldtype": "Section Break",
+   "label": "Accounting"
+  },
+  {
+   "default": "Cash",
+   "description": "Cash basis: income is recognised when payment is received (Profit First style, allowed for proprietorships and small businesses under IT Act s.145). Accrual basis: income is recognised in the month the subscription is for, regardless of when paid (required for most Pvt Ltds and partnerships under Companies Act 2013).",
+   "fieldname": "accounting_method",
+   "fieldtype": "Select",
+   "label": "Accounting Method",
+   "options": "Cash\nAccrual",
+   "reqd": 1
+  },
+  {
+   "fieldname": "member_naming_section",
+   "fieldtype": "Section Break",
+   "label": "Member Naming"
+  },
+  {
+   "default": "MEM-",
+   "description": "Prefix used to auto-generate Member IDs (e.g. \"KE-\", \"FF-\"). New members are named \"{prefix}0001\", \"{prefix}0002\", ...",
+   "fieldname": "member_id_prefix",
+   "fieldtype": "Data",
+   "label": "Member ID Prefix",
+   "reqd": 1
+  },
+  {
+   "fieldname": "commissions_section",
+   "fieldtype": "Section Break",
+   "label": "Coach Commissions"
+  },
+  {
+   "default": "Assigned Member Revenue",
+   "description": "What a coach's \"Percentage\" commission is charged against each cycle. \"Assigned Member Revenue\": the percentage of fees collected this period from members assigned to that coach. \"All Gym Revenue\": the percentage of the gym's total collected revenue this period. \"Per Member\" commissions always use the count of active members assigned to the coach; \"Fixed\" commissions are a flat amount regardless of this setting.",
+   "fieldname": "commission_percentage_basis",
+   "fieldtype": "Select",
+   "label": "Percentage Commission Basis",
+   "options": "Assigned Member Revenue\nAll Gym Revenue"
+  },
+  {
+   "default": "0",
+   "description": "When on, approving a Coach Commission Run posts a balanced Journal Entry to the ledger (debit Coach Commission Expense, credit Coach Commissions Payable). When off, a run is computed and recorded for reference only and posts nothing.",
+   "fieldname": "commission_post_to_ledger",
+   "fieldtype": "Check",
+   "label": "Post Commission Runs to Ledger"
+  },
+  {
+   "fieldname": "column_break_comm",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.commission_post_to_ledger == 1",
+   "description": "Expense account debited when a commission run is posted. Set automatically by \"Set up commission accounts\".",
+   "fieldname": "commission_expense_account",
+   "fieldtype": "Link",
+   "label": "Commission Expense Account",
+   "options": "Account"
+  },
+  {
+   "depends_on": "eval:doc.commission_post_to_ledger == 1",
+   "description": "Liability account credited when a commission run is posted (what the gym owes its coaches). Set automatically by \"Set up commission accounts\".",
+   "fieldname": "commission_payable_account",
+   "fieldtype": "Link",
+   "label": "Commission Payable Account",
+   "options": "Account"
+  },
+  {
+   "fieldname": "renewals_section",
+   "fieldtype": "Section Break",
+   "label": "Renewals"
+  },
+  {
+   "default": "7",
+   "description": "A membership is flagged on the Renewals list when its Next Renewal date falls within this many days. Also the look-ahead window for the daily in-app renewal reminder.",
+   "fieldname": "renewal_reminder_days",
+   "fieldtype": "Int",
+   "label": "Renewal Reminder Days"
+  },
+  {
+   "default": "1",
+   "description": "When on, a daily background job raises an in-app notification listing memberships due for renewal within the reminder window. No email or SMS is sent.",
+   "fieldname": "renewal_reminders_enabled",
+   "fieldtype": "Check",
+   "label": "Daily In-App Renewal Reminder"
+  },
+  {
+   "fieldname": "classes_section",
+   "fieldtype": "Section Break",
+   "label": "Classes"
+  },
+  {
+   "default": "Class",
+   "description": "What this business calls a single scheduled session (e.g. \"Class\", \"Batch\", \"Slot\", \"Lesson\"). Used as the label throughout the app.",
+   "fieldname": "session_term_singular",
+   "fieldtype": "Data",
+   "label": "Session Term (singular)"
+  },
+  {
+   "default": "Classes",
+   "description": "Plural form of the session term (e.g. \"Classes\", \"Batches\", \"Lessons\").",
+   "fieldname": "session_term_plural",
+   "fieldtype": "Data",
+   "label": "Session Term (plural)"
+  },
+  {
+   "fieldname": "column_break_cls",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "description": "When on, a daily background job auto-creates the scheduled (recurring) classes for the coming days, so fixed batches don't have to be re-created by hand.",
+   "fieldname": "class_auto_generate",
+   "fieldtype": "Check",
+   "label": "Auto-generate Recurring Classes"
+  },
+  {
+   "default": "14",
+   "description": "How many days ahead the recurring-class generator keeps sessions created (a rolling window).",
+   "fieldname": "class_schedule_horizon_days",
+   "fieldtype": "Int",
+   "label": "Schedule Horizon (days)"
+  },
+  {
+   "fieldname": "terminology_section",
+   "fieldtype": "Section Break",
+   "label": "Terminology"
+  },
+  {
+   "default": "Gym",
+   "description": "Business vertical. Picks the default display-terminology preset; each term below can still be overridden per business.",
+   "fieldname": "vertical",
+   "fieldtype": "Select",
+   "label": "Vertical",
+   "options": "Gym\nYoga Studio\nPilates Studio\nCrossFit Box\nMartial Arts\nDance School\nMusic School\nSports Academy\nCoaching Centre\nOther"
+  },
+  {
+   "default": "Member",
+   "description": "What this business calls a subscriber (e.g. \"Member\", \"Student\", \"Client\").",
+   "fieldname": "member_term_singular",
+   "fieldtype": "Data",
+   "label": "Member Term (singular)"
+  },
+  {
+   "default": "Members",
+   "description": "Plural form of the member term.",
+   "fieldname": "member_term_plural",
+   "fieldtype": "Data",
+   "label": "Member Term (plural)"
+  },
+  {
+   "fieldname": "column_break_term_a",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Coach",
+   "description": "What this business calls an instructor (e.g. \"Coach\", \"Trainer\", \"Sensei\", \"Teacher\").",
+   "fieldname": "instructor_term_singular",
+   "fieldtype": "Data",
+   "label": "Instructor Term (singular)"
+  },
+  {
+   "default": "Coaches",
+   "description": "Plural form of the instructor term.",
+   "fieldname": "instructor_term_plural",
+   "fieldtype": "Data",
+   "label": "Instructor Term (plural)"
+  },
+  {
+   "fieldname": "column_break_term_b",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Program",
+   "description": "What this business calls a program (e.g. \"Program\", \"Course\", \"Curriculum\").",
+   "fieldname": "program_term_singular",
+   "fieldtype": "Data",
+   "label": "Program Term (singular)"
+  },
+  {
+   "default": "Programs",
+   "description": "Plural form of the program term.",
+   "fieldname": "program_term_plural",
+   "fieldtype": "Data",
+   "label": "Program Term (plural)"
+  },
+  {
+   "fieldname": "column_break_term_c",
+   "fieldtype": "Column Break"
+  }
+ ],
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-06-05 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Net Gainz",
+ "name": "Business Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "quick_entry": 1,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

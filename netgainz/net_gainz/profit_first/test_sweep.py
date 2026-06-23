@@ -22,8 +22,8 @@ class TestPFSweep(FrappeTestCase):
 		# sweeps so a posted sweep from an earlier test can't trip another test's
 		# one-sweep-per-date idempotency guard.
 		frappe.db.delete("PF Sweep")
-		frappe.db.delete("Subscription")
-		frappe.db.delete("Gym Expense")
+		frappe.db.delete("Membership")
+		frappe.db.delete("Expense")
 
 		seed_profit_first_defaults()
 		company = accounts.default_company()
@@ -44,7 +44,7 @@ class TestPFSweep(FrappeTestCase):
 
 	# ---- helpers --------------------------------------------------------- #
 	def _sub(self, fee):
-		frappe.get_doc({"doctype": "Subscription", "tariff": fee, "fee_collected": fee}).insert(
+		frappe.get_doc({"doctype": "Membership", "tariff": fee, "fee_collected": fee}).insert(
 			ignore_permissions=True
 		)
 

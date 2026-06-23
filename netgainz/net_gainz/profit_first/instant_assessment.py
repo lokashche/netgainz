@@ -132,7 +132,7 @@ def _period(window: str):
 # --------------------------------------------------------------------------- #
 def _cash_topline_paise(start, end) -> int:
 	rows = frappe.get_all(
-		"Subscription",
+		"Membership",
 		filters=[["paid_date", "between", [start, end]]],
 		fields=["fee_collected"],
 		limit_page_length=0,
@@ -146,7 +146,7 @@ def _excluded_payments(start, end) -> dict:
 	silently short. (The v0_2 backfill patch + controller fix shrink this to
 	zero going forward.)"""
 	rows = frappe.get_all(
-		"Subscription",
+		"Membership",
 		filters=[["fee_collected", ">", 0], ["paid_date", "is", "not set"]],
 		fields=["fee_collected"],
 		limit_page_length=0,
@@ -171,7 +171,7 @@ def _expense_buckets_paise(start, end, has_field: bool):
 			category_bucket[cat.name] = cat.pf_bucket or DEFAULT_BUCKET
 
 	rows = frappe.get_all(
-		"Gym Expense",
+		"Expense",
 		filters=[["date", "between", [start, end]]],
 		fields=["amount", "category"],
 		limit_page_length=0,

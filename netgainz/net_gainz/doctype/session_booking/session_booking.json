@@ -1,0 +1,125 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "BKG-.YYYY.-.####",
+ "creation": "2026-06-22 00:00:00.000000",
+ "search_fields": "member_name,class_session",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "class_session",
+  "member",
+  "member_name",
+  "column_break_bkg",
+  "coach",
+  "start_time",
+  "status_section",
+  "status",
+  "check_in_time",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "class_session",
+   "fieldtype": "Link",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "label": "Class Session",
+   "options": "Session",
+   "reqd": 1
+  },
+  {
+   "fieldname": "member",
+   "fieldtype": "Link",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "label": "Member",
+   "options": "Member",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "member.full_name",
+   "fieldname": "member_name",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "in_list_view": 1,
+   "label": "Member Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_bkg",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fetch_from": "class_session.coach",
+   "fieldname": "coach",
+   "fieldtype": "Link",
+   "in_filter": 1,
+   "label": "Coach",
+   "options": "Instructor",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "class_session.start_time",
+   "fieldname": "start_time",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Start Time",
+   "read_only": 1
+  },
+  {
+   "fieldname": "status_section",
+   "fieldtype": "Section Break",
+   "label": "Attendance"
+  },
+  {
+   "default": "Booked",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Booked\nAttended\nNo Show\nCancelled"
+  },
+  {
+   "description": "Stamped automatically when the member is marked Attended.",
+   "fieldname": "check_in_time",
+   "fieldtype": "Datetime",
+   "label": "Check-in Time",
+   "read_only": 1
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-06-22 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Net Gainz",
+ "name": "Session Booking",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "start_time",
+ "sort_order": "DESC",
+ "states": []
+}

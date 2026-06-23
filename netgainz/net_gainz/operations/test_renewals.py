@@ -14,7 +14,7 @@ def _member(name):
 
 def _sub(member, next_renewal):
 	return frappe.get_doc(
-		{"doctype": "Subscription", "member": member, "next_renewal": next_renewal}
+		{"doctype": "Membership", "member": member, "next_renewal": next_renewal}
 	).insert(ignore_permissions=True)
 
 
@@ -58,5 +58,5 @@ class TestRenewals(FrappeTestCase):
 		self.assertNotIn(self.s_old.name, due_names)
 
 	def test_reminder_disabled_returns_none(self):
-		frappe.db.set_single_value("Gym Settings", "renewal_reminders_enabled", 0)
+		frappe.db.set_single_value("Business Settings", "renewal_reminders_enabled", 0)
 		self.assertIsNone(renewals.notify_due_renewals())

@@ -28,5 +28,5 @@ class TestMember(FrappeTestCase):
 			doc = frappe.new_doc("Member")
 			doc.full_name = "Autoname Test Member"
 			doc.autoname()
-			mock_gsv.assert_called_once_with("Gym Settings", "member_id_prefix")
+			mock_gsv.assert_called_once_with("Business Settings", "member_id_prefix")
 			self.assertTrue(doc.name.startswith("TEST-"))

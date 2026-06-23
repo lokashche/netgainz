@@ -20,7 +20,7 @@ DEFAULT_REMINDER_DAYS = 7
 
 
 def _reminder_days() -> int:
-	raw = frappe.db.get_single_value("Gym Settings", "renewal_reminder_days")
+	raw = frappe.db.get_single_value("Business Settings", "renewal_reminder_days")
 	try:
 		days = int(raw)
 	except (TypeError, ValueError):
@@ -38,7 +38,7 @@ def get_renewals(within_days=None) -> dict:
 	horizon = add_days(td, within)
 
 	subs = frappe.get_all(
-		"Subscription",
+		"Membership",
 		filters=[["next_renewal", "is", "set"]],
 		fields=["name", "member", "member_name", "membership_plan", "next_renewal", "status"],
 		order_by="next_renewal asc",
@@ -102,7 +102,7 @@ def notify_due_renewals():
 	"""Daily scheduler hook: raise ONE in-app notification per owner/staff user
 	listing memberships due within the reminder window. Idempotent (one digest per
 	user per day), opt-out via renewal_reminders_enabled. No email/SMS is sent."""
-	if not frappe.db.get_single_value("Gym Settings", "renewal_reminders_enabled"):
+	if not frappe.db.get_single_value("Business Settings", "renewal_reminders_enabled"):
 		return None
 
 	data = get_renewals()
@@ -129,7 +129,7 @@ def notify_due_renewals():
 				"type": "Alert",
 				"subject": subject,
 				"email_content": body,
-				"document_type": "Subscription",
+				"document_type": "Membership",
 			}
 		).insert(ignore_permissions=True)
 		created += 1

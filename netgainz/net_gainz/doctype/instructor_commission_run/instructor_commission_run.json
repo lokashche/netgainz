@@ -1,0 +1,163 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "CCR-.YYYY.-.####",
+ "creation": "2026-06-22 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "details_section",
+  "period_start",
+  "period_end",
+  "column_break_ccr",
+  "company",
+  "total_commission",
+  "percentage_basis",
+  "lines_section",
+  "lines",
+  "ledger_section",
+  "post_to_ledger",
+  "commission_expense_account",
+  "column_break_led",
+  "commission_payable_account",
+  "journal_entry",
+  "amended_from"
+ ],
+ "fields": [
+  {
+   "fieldname": "details_section",
+   "fieldtype": "Section Break",
+   "label": "Commission Run"
+  },
+  {
+   "description": "First day of the period commissions are computed for.",
+   "fieldname": "period_start",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Period Start",
+   "reqd": 1
+  },
+  {
+   "description": "Last day of the period commissions are computed for.",
+   "fieldname": "period_end",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Period End",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_ccr",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company"
+  },
+  {
+   "fieldname": "total_commission",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Total Commission",
+   "read_only": 1
+  },
+  {
+   "description": "The Percentage commission basis in force when this run was computed.",
+   "fieldname": "percentage_basis",
+   "fieldtype": "Data",
+   "label": "Percentage Basis",
+   "read_only": 1
+  },
+  {
+   "fieldname": "lines_section",
+   "fieldtype": "Section Break",
+   "label": "Commission Lines"
+  },
+  {
+   "description": "Computed at creation from each Active coach's commission settings and the gym's data for the period. A snapshot — delete and recreate for a fresh computation.",
+   "fieldname": "lines",
+   "fieldtype": "Table",
+   "label": "Lines",
+   "options": "Instructor Commission Line",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ledger_section",
+   "fieldtype": "Section Break",
+   "label": "Ledger"
+  },
+  {
+   "default": "0",
+   "description": "Snapshot of the Gym Settings posting toggle. When on, approving this run posts a balanced Journal Entry.",
+   "fieldname": "post_to_ledger",
+   "fieldtype": "Check",
+   "label": "Post to Ledger",
+   "read_only": 1
+  },
+  {
+   "fieldname": "commission_expense_account",
+   "fieldtype": "Link",
+   "label": "Commission Expense Account",
+   "options": "Account",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_led",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "commission_payable_account",
+   "fieldtype": "Link",
+   "label": "Commission Payable Account",
+   "options": "Account",
+   "read_only": 1
+  },
+  {
+   "description": "Set automatically when the run is approved and posted.",
+   "fieldname": "journal_entry",
+   "fieldtype": "Link",
+   "label": "Journal Entry",
+   "options": "Journal Entry",
+   "read_only": 1
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Instructor Commission Run",
+   "print_hide": 1,
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-06-22 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Net Gainz",
+ "name": "Instructor Commission Run",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "amend": 1,
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

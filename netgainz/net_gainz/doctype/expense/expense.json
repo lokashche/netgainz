@@ -1,0 +1,117 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "EXP-.YYYY.-.####",
+ "creation": "2026-04-11 16:09:33.374410",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "date",
+  "category",
+  "amount",
+  "vendor",
+  "recurrence_section",
+  "is_recurring",
+  "column_break_yacl",
+  "frequency",
+  "notes_section",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "date",
+   "fieldtype": "Date",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "label": "Date",
+   "options": "Today",
+   "reqd": 1
+  },
+  {
+   "fieldname": "category",
+   "fieldtype": "Link",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "label": "Category",
+   "options": "Expense Category",
+   "reqd": 1
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Amount",
+   "reqd": 1
+  },
+  {
+   "fieldname": "vendor",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "in_list_view": 1,
+   "label": "Vendor / Payee"
+  },
+  {
+   "fieldname": "recurrence_section",
+   "fieldtype": "Section Break",
+   "label": "Recurrence"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_recurring",
+   "fieldtype": "Check",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "label": "Is Recurring"
+  },
+  {
+   "fieldname": "column_break_yacl",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.is_recurring == 1",
+   "fieldname": "frequency",
+   "fieldtype": "Select",
+   "in_filter": 1,
+   "label": "Frequency",
+   "options": "Monthly\nQuarterly\nAnnually"
+  },
+  {
+   "fieldname": "notes_section",
+   "fieldtype": "Section Break",
+   "label": "Notes"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-05-26 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Net Gainz",
+ "name": "Expense",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "search_fields": "vendor,category",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

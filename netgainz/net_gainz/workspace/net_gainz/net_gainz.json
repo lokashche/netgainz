@@ -39,7 +39,7 @@
    "color": "Grey",
    "doc_view": "List",
    "label": "Coaches",
-   "link_to": "Coach",
+   "link_to": "Instructor",
    "stats_filter": "[]",
    "type": "DocType"
   },
@@ -63,7 +63,7 @@
    "color": "Grey",
    "doc_view": "List",
    "label": "Subscription",
-   "link_to": "Subscription",
+   "link_to": "Membership",
    "stats_filter": "[]",
    "type": "DocType"
   },
@@ -79,7 +79,7 @@
    "color": "Grey",
    "doc_view": "List",
    "label": "Expense",
-   "link_to": "Gym Expense",
+   "link_to": "Expense",
    "stats_filter": "[]",
    "type": "DocType"
   },
