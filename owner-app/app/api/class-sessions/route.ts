@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
   if (from) filters.push(["start_time", ">=", from]);
   if (to) filters.push(["start_time", "<=", to]);
 
-  let path = `api/resource/Class%20Session?fields=${encodeURIComponent(fields)}&limit=100&order_by=${encodeURIComponent("start_time desc")}`;
+  let path = `api/resource/Session?fields=${encodeURIComponent(fields)}&limit=100&order_by=${encodeURIComponent("start_time desc")}`;
   if (filters.length > 0) {
     path += `&filters=${encodeURIComponent(JSON.stringify(filters))}`;
   }
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
   const body = await req.text();
 
   const { data, status: httpStatus } = await frappeRequest<{ data: ClassSession }>(
-    "api/resource/Class%20Session",
+    "api/resource/Session",
     {
       method: "POST",
       body,

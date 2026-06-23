@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
   if (statusFilter) filters.push(["status", "=", statusFilter]);
   if (memberFilter) filters.push(["member", "=", memberFilter]);
 
-  let path = `api/resource/Subscription?fields=${encodeURIComponent(fields)}&order_by=${encodeURIComponent("due_date desc")}&limit=100`;
+  let path = `api/resource/Membership?fields=${encodeURIComponent(fields)}&order_by=${encodeURIComponent("due_date desc")}&limit=100`;
   if (filters.length > 0) {
     path += `&filters=${encodeURIComponent(JSON.stringify(filters))}`;
   }
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
   const body = await req.text();
 
   const { data, status } = await frappeRequest<{ data: Subscription }>(
-    "api/resource/Subscription",
+    "api/resource/Membership",
     {
       method: "POST",
       body,

@@ -14,7 +14,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const { id: rawId } = await params;
   const id = decodeId(rawId);
   const { data, status } = await frappeRequest<{ data: Coach }>(
-    `api/resource/Coach/${encodeURIComponent(id)}`,
+    `api/resource/Instructor/${encodeURIComponent(id)}`,
     { sessionCookie: session.frappeCookies }
   );
 
@@ -32,7 +32,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
   const body = await req.text();
 
   const { data, status } = await frappeRequest<{ data: Coach }>(
-    `api/resource/Coach/${encodeURIComponent(id)}`,
+    `api/resource/Instructor/${encodeURIComponent(id)}`,
     {
       method: "PUT",
       body,
@@ -52,7 +52,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   const { id: rawId } = await params;
   const id = decodeId(rawId);
   const { data, status } = await frappeRequest(
-    `api/resource/Coach/${encodeURIComponent(id)}`,
+    `api/resource/Instructor/${encodeURIComponent(id)}`,
     {
       method: "DELETE",
       sessionCookie: session.frappeCookies,

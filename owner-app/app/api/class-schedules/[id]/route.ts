@@ -4,7 +4,7 @@ import { getSession } from "@/lib/session";
 import type { ClassSchedule } from "@/lib/types";
 
 const GENERATE =
-  "netgainz.net_gainz.doctype.class_schedule.class_schedule.generate_classes_now";
+  "netgainz.net_gainz.doctype.session_schedule.session_schedule.generate_classes_now";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -17,7 +17,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const { id: rawId } = await params;
   const id = decodeId(rawId);
   const { data, status } = await frappeRequest<{ data: ClassSchedule }>(
-    `api/resource/Class Schedule/${encodeURIComponent(id)}`,
+    `api/resource/Session Schedule/${encodeURIComponent(id)}`,
     { sessionCookie: session.frappeCookies }
   );
 
@@ -35,7 +35,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
   const body = await req.text();
 
   const { data, status } = await frappeRequest<{ data: ClassSchedule }>(
-    `api/resource/Class Schedule/${encodeURIComponent(id)}`,
+    `api/resource/Session Schedule/${encodeURIComponent(id)}`,
     { method: "PUT", body, sessionCookie: session.frappeCookies }
   );
 
@@ -68,7 +68,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   const { id: rawId } = await params;
   const id = decodeId(rawId);
   const { data, status } = await frappeRequest(
-    `api/resource/Class Schedule/${encodeURIComponent(id)}`,
+    `api/resource/Session Schedule/${encodeURIComponent(id)}`,
     { method: "DELETE", sessionCookie: session.frappeCookies }
   );
 

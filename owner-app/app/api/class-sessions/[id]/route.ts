@@ -13,7 +13,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   const { id } = await params;
   const { data, status } = await frappeRequest<{ data: ClassSession }>(
-    `api/resource/Class Session/${encodeURIComponent(id)}`,
+    `api/resource/Session/${encodeURIComponent(id)}`,
     { sessionCookie: session.frappeCookies }
   );
 
@@ -30,7 +30,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
   const body = await req.text();
 
   const { data, status } = await frappeRequest<{ data: ClassSession }>(
-    `api/resource/Class Session/${encodeURIComponent(id)}`,
+    `api/resource/Session/${encodeURIComponent(id)}`,
     {
       method: "PUT",
       body,
@@ -49,7 +49,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
 
   const { id } = await params;
   const { data, status } = await frappeRequest(
-    `api/resource/Class Session/${encodeURIComponent(id)}`,
+    `api/resource/Session/${encodeURIComponent(id)}`,
     {
       method: "DELETE",
       sessionCookie: session.frappeCookies,

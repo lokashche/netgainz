@@ -80,7 +80,7 @@ export default async function SubscriptionsPage({
   if (statusFilter) filters.push(["status", "=", statusFilter]);
   if (memberFilter) filters.push(["member", "=", memberFilter]);
 
-  let path = `api/resource/Subscription?fields=${encodeURIComponent(fields)}&order_by=${encodeURIComponent("due_date desc")}&limit=100`;
+  let path = `api/resource/Membership?fields=${encodeURIComponent(fields)}&order_by=${encodeURIComponent("due_date desc")}&limit=100`;
   if (filters.length > 0) {
     path += `&filters=${encodeURIComponent(JSON.stringify(filters))}`;
   }

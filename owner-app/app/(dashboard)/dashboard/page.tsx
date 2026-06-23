@@ -74,33 +74,33 @@ export default async function DashboardPage() {
   const incomeFields = isCashBasis
     ? ["name", "fee_collected", "status"]
     : ["name", "tariff", "status"];
-  const incomeSubsPath = `api/resource/Subscription?fields=${encodeURIComponent(
+  const incomeSubsPath = `api/resource/Membership?fields=${encodeURIComponent(
     JSON.stringify(incomeFields)
   )}&filters=${encodeURIComponent(JSON.stringify(incomeFilters))}&limit=500`;
 
   // 3. Expenses this month
-  const expensesMonthPath = `api/resource/Gym%20Expense?fields=${encodeURIComponent(
+  const expensesMonthPath = `api/resource/Expense?fields=${encodeURIComponent(
     JSON.stringify(["name", "amount", "date"])
   )}&filters=${encodeURIComponent(
     JSON.stringify([["date", "between", [monthStart, monthEnd]]])
   )}&limit=500`;
 
   // 4. Overdue subscriptions
-  const overdueSubsPath = `api/resource/Subscription?fields=${encodeURIComponent(
+  const overdueSubsPath = `api/resource/Membership?fields=${encodeURIComponent(
     JSON.stringify(["name", "member_name", "balance_due", "month", "membership_plan"])
   )}&filters=${encodeURIComponent(
     JSON.stringify([["status", "=", "Overdue"]])
   )}&order_by=${encodeURIComponent("due_date asc")}&limit=10`;
 
   // 5. Partial subscriptions
-  const partialSubsPath = `api/resource/Subscription?fields=${encodeURIComponent(
+  const partialSubsPath = `api/resource/Membership?fields=${encodeURIComponent(
     JSON.stringify(["name", "member_name", "balance_due", "month", "membership_plan"])
   )}&filters=${encodeURIComponent(
     JSON.stringify([["status", "=", "Partial"]])
   )}&order_by=${encodeURIComponent("due_date asc")}&limit=10`;
 
   // 6. Recent subscriptions (last 5)
-  const recentSubsPath = `api/resource/Subscription?fields=${encodeURIComponent(
+  const recentSubsPath = `api/resource/Membership?fields=${encodeURIComponent(
     JSON.stringify([
       "name",
       "member_name",
@@ -112,7 +112,7 @@ export default async function DashboardPage() {
   )}&order_by=${encodeURIComponent("creation desc")}&limit=5`;
 
   // 7. Recent expenses (last 5)
-  const recentExpensesPath = `api/resource/Gym%20Expense?fields=${encodeURIComponent(
+  const recentExpensesPath = `api/resource/Expense?fields=${encodeURIComponent(
     JSON.stringify(["name", "date", "category", "amount", "vendor"])
   )}&order_by=${encodeURIComponent("date desc")}&limit=5`;
 

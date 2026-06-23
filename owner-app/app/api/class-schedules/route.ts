@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
   if (activeOnly === "1") filters.push(["is_active", "=", "1"]);
   if (q) filters.push(["title", "like", `%${q}%`]);
 
-  let path = `api/resource/Class%20Schedule?fields=${encodeURIComponent(fields)}&limit=100&order_by=${encodeURIComponent("title asc")}`;
+  let path = `api/resource/Session%20Schedule?fields=${encodeURIComponent(fields)}&limit=100&order_by=${encodeURIComponent("title asc")}`;
   if (filters.length > 0) {
     path += `&filters=${encodeURIComponent(JSON.stringify(filters))}`;
   }
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
   const body = await req.text();
 
   const { data, status } = await frappeRequest<{ data: ClassSchedule }>(
-    "api/resource/Class%20Schedule",
+    "api/resource/Session%20Schedule",
     {
       method: "POST",
       body,

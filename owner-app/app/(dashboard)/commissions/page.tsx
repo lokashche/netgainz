@@ -38,7 +38,7 @@ export default async function CommissionsPage() {
     "docstatus",
   ]);
   const res = await frappeRequest<{ data: CoachCommissionRun[] }>(
-    `api/resource/Coach%20Commission%20Run?fields=${encodeURIComponent(
+    `api/resource/Instructor%20Commission%20Run?fields=${encodeURIComponent(
       fields
     )}&order_by=${encodeURIComponent("creation desc")}&limit=50`,
     { sessionCookie: session.frappeCookies }

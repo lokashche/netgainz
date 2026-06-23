@@ -4,7 +4,7 @@ import { getSession } from "@/lib/session";
 import type { CoachCommissionRun } from "@/lib/types";
 
 const CREATE =
-  "netgainz.net_gainz.doctype.coach_commission_run.coach_commission_run.create_commission_run";
+  "netgainz.net_gainz.doctype.instructor_commission_run.instructor_commission_run.create_commission_run";
 
 // List commission runs (drafts + posted).
 export async function GET() {
@@ -22,7 +22,7 @@ export async function GET() {
     "journal_entry",
     "docstatus",
   ]);
-  const path = `api/resource/Coach%20Commission%20Run?fields=${encodeURIComponent(fields)}&limit=100&order_by=${encodeURIComponent("period_end desc")}`;
+  const path = `api/resource/Instructor%20Commission%20Run?fields=${encodeURIComponent(fields)}&limit=100&order_by=${encodeURIComponent("period_end desc")}`;
 
   const { data, status } = await frappeRequest<{ data: CoachCommissionRun[] }>(
     path,

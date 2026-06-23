@@ -4,7 +4,7 @@ import { getSession } from "@/lib/session";
 import type { CoachCommissionRun } from "@/lib/types";
 
 const BASE =
-  "netgainz.net_gainz.doctype.coach_commission_run.coach_commission_run";
+  "netgainz.net_gainz.doctype.instructor_commission_run.instructor_commission_run";
 
 // Fetch one run (with its commission lines).
 export async function GET(
@@ -17,7 +17,7 @@ export async function GET(
   }
   const { id } = await ctx.params;
   const { data, status } = await frappeRequest<{ data: CoachCommissionRun }>(
-    `api/resource/Coach Commission Run/${encodeURIComponent(id)}`,
+    `api/resource/Instructor Commission Run/${encodeURIComponent(id)}`,
     { sessionCookie: session.frappeCookies }
   );
   return NextResponse.json(data, { status });
@@ -55,7 +55,7 @@ export async function DELETE(
   }
   const { id } = await ctx.params;
   const { data, status } = await frappeRequest<unknown>(
-    `api/resource/Coach Commission Run/${encodeURIComponent(id)}`,
+    `api/resource/Instructor Commission Run/${encodeURIComponent(id)}`,
     { method: "DELETE", sessionCookie: session.frappeCookies }
   );
   return NextResponse.json(data, { status });

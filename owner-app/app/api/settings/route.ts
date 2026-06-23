@@ -10,7 +10,7 @@ export async function GET() {
   }
 
   const { data, status } = await frappeRequest<{ data: GymSettings }>(
-    "api/resource/Gym Settings/Gym Settings",
+    "api/resource/Business Settings/Business Settings",
     { sessionCookie: session.frappeCookies }
   );
 
@@ -26,7 +26,7 @@ export async function PUT(req: NextRequest) {
   const body = await req.text();
 
   const { data, status } = await frappeRequest<{ data: GymSettings }>(
-    "api/resource/Gym Settings/Gym Settings",
+    "api/resource/Business Settings/Business Settings",
     {
       method: "PUT",
       body,

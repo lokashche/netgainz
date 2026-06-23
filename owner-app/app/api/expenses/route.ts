@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
   if (recurring === "1") filters.push(["is_recurring", "=", "1"]);
   else if (recurring === "0") filters.push(["is_recurring", "=", "0"]);
 
-  let path = `api/resource/Gym%20Expense?fields=${encodeURIComponent(fields)}&order_by=${encodeURIComponent("date desc")}&limit=100`;
+  let path = `api/resource/Expense?fields=${encodeURIComponent(fields)}&order_by=${encodeURIComponent("date desc")}&limit=100`;
   if (filters.length > 0) {
     path += `&filters=${encodeURIComponent(JSON.stringify(filters))}`;
   }
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
   const body = await req.text();
 
   const { data, status } = await frappeRequest<{ data: GymExpense }>(
-    "api/resource/Gym%20Expense",
+    "api/resource/Expense",
     {
       method: "POST",
       body,

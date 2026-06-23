@@ -66,7 +66,7 @@ export default async function ClassesPage({
   if (status) filters.push(["status", "=", status]);
   if (q) filters.push(["title", "like", `%${q}%`]);
 
-  let path = `api/resource/Class%20Session?fields=${encodeURIComponent(fields)}&limit=100&order_by=${encodeURIComponent("start_time desc")}`;
+  let path = `api/resource/Session?fields=${encodeURIComponent(fields)}&limit=100&order_by=${encodeURIComponent("start_time desc")}`;
   if (filters.length > 0) {
     path += `&filters=${encodeURIComponent(JSON.stringify(filters))}`;
   }

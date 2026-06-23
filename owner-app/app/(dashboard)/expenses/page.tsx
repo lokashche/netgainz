@@ -50,7 +50,7 @@ export default async function ExpensesPage({
   if (recurringFilter === "1") filters.push(["is_recurring", "=", "1"]);
   else if (recurringFilter === "0") filters.push(["is_recurring", "=", "0"]);
 
-  let expensesPath = `api/resource/Gym%20Expense?fields=${encodeURIComponent(fields)}&order_by=${encodeURIComponent("date desc")}&limit=100`;
+  let expensesPath = `api/resource/Expense?fields=${encodeURIComponent(fields)}&order_by=${encodeURIComponent("date desc")}&limit=100`;
   if (filters.length > 0) {
     expensesPath += `&filters=${encodeURIComponent(JSON.stringify(filters))}`;
   }

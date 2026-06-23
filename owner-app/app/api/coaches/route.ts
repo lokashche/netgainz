@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
   if (status) filters.push(["status", "=", status]);
   if (q) filters.push(["coach_name", "like", `%${q}%`]);
 
-  let path = `api/resource/Coach?fields=${encodeURIComponent(fields)}&limit=50&order_by=${encodeURIComponent("coach_name asc")}`;
+  let path = `api/resource/Instructor?fields=${encodeURIComponent(fields)}&limit=50&order_by=${encodeURIComponent("coach_name asc")}`;
   if (filters.length > 0) {
     path += `&filters=${encodeURIComponent(JSON.stringify(filters))}`;
   }
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
   const body = await req.text();
 
   const { data, status: httpStatus } = await frappeRequest<{ data: Coach }>(
-    "api/resource/Coach",
+    "api/resource/Instructor",
     {
       method: "POST",
       body,

@@ -65,7 +65,7 @@ export default async function AttendancePage({
   if (status) filters.push(["status", "=", status]);
   if (q) filters.push(["member_name", "like", `%${q}%`]);
 
-  let path = `api/resource/Class%20Booking?fields=${encodeURIComponent(fields)}&limit=100&order_by=${encodeURIComponent("start_time desc")}`;
+  let path = `api/resource/Session%20Booking?fields=${encodeURIComponent(fields)}&limit=100&order_by=${encodeURIComponent("start_time desc")}`;
   if (filters.length > 0) {
     path += `&filters=${encodeURIComponent(JSON.stringify(filters))}`;
   }

@@ -70,7 +70,7 @@ export default async function SchedulesPage({
   const filters: string[][] = [];
   if (q) filters.push(["title", "like", `%${q}%`]);
 
-  let path = `api/resource/Class%20Schedule?fields=${encodeURIComponent(fields)}&limit=100&order_by=${encodeURIComponent("title asc")}`;
+  let path = `api/resource/Session%20Schedule?fields=${encodeURIComponent(fields)}&limit=100&order_by=${encodeURIComponent("title asc")}`;
   if (filters.length > 0) {
     path += `&filters=${encodeURIComponent(JSON.stringify(filters))}`;
   }

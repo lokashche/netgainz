@@ -90,7 +90,7 @@ export async function getGymSettings(
   sessionCookie: string
 ): Promise<GymSettings> {
   const { data } = await frappeRequest<{ data: GymSettings }>(
-    "api/resource/Gym Settings/Gym Settings",
+    "api/resource/Business Settings/Business Settings",
     { sessionCookie }
   );
   const settings = data?.data;
