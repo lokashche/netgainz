@@ -137,13 +137,17 @@ after_install = "netgainz.net_gainz.profit_first.seed.after_install"
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+# Stage 7 WP-2: provision ERPNext masters from NetGainz records. on_update fires
+# on insert AND every edit; the handlers are idempotent and best-effort (they
+# skip, never block the save, when a prerequisite is missing).
+doc_events = {
+	"Member": {
+		"on_update": "netgainz.net_gainz.accounting.provisioning.on_member_update",
+	},
+	"Membership Plan": {
+		"on_update": "netgainz.net_gainz.accounting.provisioning.on_plan_update",
+	},
+}
 
 # Scheduled Tasks
 # ---------------
