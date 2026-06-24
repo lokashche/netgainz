@@ -28,7 +28,10 @@
   "overdue_days",
   "status",
   "comments_section",
-  "comments"
+  "comments",
+  "erpnext_billing_section",
+  "subscription",
+  "current_sales_invoice"
  ],
  "fields": [
   {
@@ -162,6 +165,30 @@
    "fieldname": "comments",
    "fieldtype": "Small Text",
    "label": "Comments"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "erpnext_billing_section",
+   "fieldtype": "Section Break",
+   "label": "ERPNext Billing"
+  },
+  {
+   "description": "Native ERPNext Subscription auto-provisioned once the tenant is cut over (Stage 7). Read-only; system-managed.",
+   "fieldname": "subscription",
+   "fieldtype": "Link",
+   "label": "Subscription",
+   "no_copy": 1,
+   "options": "Subscription",
+   "read_only": 1
+  },
+  {
+   "description": "The current period's Sales Invoice; status and balance derive from its outstanding amount (Stage 7). Read-only.",
+   "fieldname": "current_sales_invoice",
+   "fieldtype": "Link",
+   "label": "Current Sales Invoice",
+   "no_copy": 1,
+   "options": "Sales Invoice",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,

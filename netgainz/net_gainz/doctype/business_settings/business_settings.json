@@ -6,6 +6,8 @@
  "field_order": [
   "accounting_section",
   "accounting_method",
+  "billing_cutover_date",
+  "days_until_due",
   "member_naming_section",
   "member_id_prefix",
   "terminology_section",
@@ -49,6 +51,19 @@
    "label": "Accounting Method",
    "options": "Cash\nAccrual",
    "reqd": 1
+  },
+  {
+   "description": "Stage 7 cut-over to real ERPNext billing. When set, memberships created on/after this date bill via ERPNext Subscriptions + Sales Invoices and payments post as Payment Entries; collected cash before this date keeps reading the legacy fee_collected. Leave empty to stay fully on the legacy model. One-way per tenant.",
+   "fieldname": "billing_cutover_date",
+   "fieldtype": "Date",
+   "label": "Billing Cut-over Date"
+  },
+  {
+   "default": "0",
+   "description": "Grace days after a membership invoice is issued before it is due (sets the Subscription's days_until_due). 0 = due on issue.",
+   "fieldname": "days_until_due",
+   "fieldtype": "Int",
+   "label": "Days Until Due"
   },
   {
    "fieldname": "member_naming_section",
