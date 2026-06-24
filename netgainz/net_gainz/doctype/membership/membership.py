@@ -11,6 +11,15 @@ from frappe.utils import getdate
 
 class Membership(Document):
 	def before_save(self):
+		if self.subscription:
+			# Cut-over membership: status / balance_due / next_renewal derive from
+			# the Sales Invoice outstanding_amount (R4 single source of truth), not
+			# the legacy fee_collected math. Payments post as Payment Entries
+			# (accounting.billing.record_payment), never by editing fee_collected.
+			from netgainz.net_gainz.accounting import billing
+
+			billing.sync_from_invoice(self)
+			return
 		self.calculate_balance_due()
 		self.calculate_overdue_days()
 		self.auto_update_status()

@@ -15,6 +15,7 @@ money, posts no ledger entries.
 import frappe
 from frappe.utils import add_months, get_first_day, get_last_day, getdate, today
 
+from netgainz.net_gainz.accounting import billing
 from netgainz.net_gainz.profit_first import calc
 
 EXPENSE_CATEGORY = "Expense Category"
@@ -131,23 +132,29 @@ def _period(window: str):
 # income                                                                      #
 # --------------------------------------------------------------------------- #
 def _cash_topline_paise(start, end) -> int:
-	rows = frappe.get_all(
-		"Membership",
-		filters=[["paid_date", "between", [start, end]]],
-		fields=["fee_collected"],
-		limit_page_length=0,
-	)
-	return sum(calc.to_paise(r.fee_collected) for r in rows)
+	# WP-4: collected cash now comes from Payment Entries on/after the billing
+	# cut-over date and from legacy fee_collected before it (date-split inside
+	# the shared helper). Re-pointed together with commissions._collected_between.
+	return billing.membership_collected_paise(start, end)
 
 
 def _excluded_payments(start, end) -> dict:
 	"""Payments with money collected but no paid_date — unplaceable in time and
 	therefore excluded from the cash total. Surfaced so the total is never
 	silently short. (The v0_2 backfill patch + controller fix shrink this to
-	zero going forward.)"""
+	zero going forward.)
+
+	WP-4 leaves this on the legacy fee_collected read on purpose: it reports
+	pre-cut-over dateless cash, and the new Payment-Entry path can never create a
+	null-posting_date collection (PE.posting_date is mandatory — R3), so there is
+	nothing new to surface here post-cut-over."""
 	rows = frappe.get_all(
 		"Membership",
-		filters=[["fee_collected", ">", 0], ["paid_date", "is", "not set"]],
+		filters=[
+			["fee_collected", ">", 0],
+			["paid_date", "is", "not set"],
+			["subscription", "is", "not set"],
+		],
 		fields=["fee_collected"],
 		limit_page_length=0,
 	)

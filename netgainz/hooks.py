@@ -147,12 +147,18 @@ doc_events = {
 	},
 	"Membership": {
 		"before_insert": "netgainz.net_gainz.accounting.branch.stamp_default_branch",
+		"after_insert": "netgainz.net_gainz.accounting.billing.on_membership_insert",
 	},
 	"Membership Plan": {
 		"on_update": "netgainz.net_gainz.accounting.provisioning.on_plan_update",
 	},
 	"Expense": {
 		"before_insert": "netgainz.net_gainz.accounting.branch.stamp_default_branch",
+	},
+	# Keep a membership's current_sales_invoice pointed at the latest period the
+	# native Process Subscription scheduler bills (so renewals collect correctly).
+	"Sales Invoice": {
+		"on_submit": "netgainz.net_gainz.accounting.billing.on_sales_invoice_submit",
 	},
 }
 

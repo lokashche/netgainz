@@ -22,6 +22,7 @@ owner action on the Coach Commission Run.
 import frappe
 from frappe.utils import flt, get_first_day, get_last_day, getdate, today
 
+from netgainz.net_gainz.accounting import billing
 from netgainz.net_gainz.profit_first.calc import round_half_away, to_paise, to_rupees
 
 DEFAULT_PERCENTAGE_BASIS = "Assigned Member Revenue"
@@ -55,17 +56,16 @@ def _period(period_start=None, period_end=None):
 
 
 def _collected_between(start, end, members=None) -> float:
-	"""Subscription fees collected in [start, end] (cash basis, by paid_date),
-	optionally restricted to a set of members. Returns rupees."""
-	filters = [["paid_date", "between", [start, end]]]
-	if members is not None:
-		if not members:
-			return 0.0
-		filters.append(["member", "in", list(members)])
-	rows = frappe.get_all(
-		"Membership", filters=filters, fields=["fee_collected"], limit_page_length=0
-	)
-	return to_rupees(sum(to_paise(r.fee_collected) for r in rows))
+	"""Member fees collected in [start, end] (cash basis), optionally restricted to
+	a set of members. Returns rupees.
+
+	WP-4: re-pointed to the shared billing read — Payment-Entry cash on/after the
+	cut-over date, legacy fee_collected before it (same date-split as Profit
+	First, so the two never disagree). The per-member scope becomes a Payment
+	Entry party filter on those members' Customers."""
+	if members is not None and not members:
+		return 0.0
+	return to_rupees(billing.membership_collected_paise(start, end, members))
 
 
 def _money(value) -> str:
