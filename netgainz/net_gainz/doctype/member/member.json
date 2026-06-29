@@ -2,10 +2,11 @@
  "actions": [],
  "allow_rename": 1,
  "creation": "2026-04-11 15:34:08.640538",
- "search_fields": "full_name,phone,email",
+ "search_fields": "member_code,full_name,phone,email",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "member_code",
   "full_name",
   "column_break_awad",
   "phone",
@@ -22,6 +23,8 @@
   "date_of_joining",
   "coach",
   "category",
+  "sport_goal",
+  "academy",
   "column_break_wbzs",
   "membership_plan",
   "gym_program",
@@ -29,10 +32,20 @@
   "customer",
   "reference_and_status_section",
   "source_of_reference",
+  "referred_by",
   "status",
   "inactive_reason"
  ],
  "fields": [
+  {
+   "description": "The gym's own member ID (e.g. KE1001), imported from the existing register. Unique; the system record name stays MEM-####.",
+   "fieldname": "member_code",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "in_list_view": 1,
+   "label": "Member Code",
+   "unique": 1
+  },
   {
    "fieldname": "full_name",
    "fieldtype": "Data",
@@ -122,6 +135,18 @@
    "options": "Sport\nGeneral"
   },
   {
+   "description": "Primary sport or training goal (e.g. Badminton, Judo, Weight Loss). Imported free text.",
+   "fieldname": "sport_goal",
+   "fieldtype": "Data",
+   "label": "Sport / Goal"
+  },
+  {
+   "description": "External club / academy the athlete trains at (e.g. Fireball). Imported free text.",
+   "fieldname": "academy",
+   "fieldtype": "Data",
+   "label": "Academy"
+  },
+  {
    "fieldname": "column_break_wbzs",
    "fieldtype": "Column Break"
   },
@@ -163,6 +188,13 @@
    "fieldtype": "Select",
    "label": "Source of Reference",
    "options": "Walk-in\nSocial Media\nReferral\nGoogle\nOther"
+  },
+  {
+   "depends_on": "eval:doc.source_of_reference == \"Referral\"",
+   "description": "Name of the person/source who referred this member (free text).",
+   "fieldname": "referred_by",
+   "fieldtype": "Data",
+   "label": "Referred By"
   },
   {
    "default": "Active",
