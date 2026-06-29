@@ -1,5 +1,6 @@
 {
  "actions": [],
+ "allow_import": 1,
  "allow_rename": 1,
  "creation": "2026-04-11 15:34:08.640538",
  "search_fields": "member_code,full_name,phone,email",
