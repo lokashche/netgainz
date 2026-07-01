@@ -179,7 +179,10 @@ def _expense_buckets_paise(start, end, has_field: bool):
 
 	rows = frappe.get_all(
 		"Expense",
-		filters=[["date", "between", [start, end]]],
+		# docstatus < 2 counts drafts + submitted but excludes cancelled/amended-away
+		# rows: since WP-5 an Expense is submittable and amends via cancel + new, so
+		# without this filter the cancelled original would double-count.
+		filters=[["date", "between", [start, end]], ["docstatus", "<", 2]],
 		fields=["amount", "category"],
 		limit_page_length=0,
 	)
