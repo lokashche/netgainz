@@ -1,3 +1,5 @@
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+
 ### Net Gainz
 
 Gym Accounting Application
@@ -30,4 +32,10 @@ Pre-commit is configured to use the following tools for checking and formatting 
 
 ### License
 
-mit
+GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later).
+See [LICENSE](./LICENSE) for the full text.
+
+NetGainz was originally released under the MIT License. It was relicensed
+to AGPLv3 in 2026 to protect the project against hosted-fork competition
+while keeping self-hosting fully free. The story of this change is
+documented in [RELICENSING.md](./RELICENSING.md).

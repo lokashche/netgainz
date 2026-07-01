@@ -3,7 +3,7 @@ app_title = "Net Gainz"
 app_publisher = "Quantslate Solutions"
 app_description = "Gym Accounting Application"
 app_email = "lokash@quantslate.com"
-app_license = "mit"
+app_license = "agpl-3.0"
 
 # Apps
 # ------------------
