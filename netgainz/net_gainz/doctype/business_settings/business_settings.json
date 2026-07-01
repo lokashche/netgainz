@@ -8,6 +8,7 @@
   "accounting_method",
   "billing_cutover_date",
   "days_until_due",
+  "expense_post_to_ledger",
   "member_naming_section",
   "member_id_prefix",
   "terminology_section",
@@ -64,6 +65,13 @@
    "fieldname": "days_until_due",
    "fieldtype": "Int",
    "label": "Days Until Due"
+  },
+  {
+   "default": "0",
+   "description": "When on, submitting an Expense posts a balanced Journal Entry (debit the category's Expense Account, credit the payment-mode cash/bank account). When off, a submitted Expense is a reference-only record and posts nothing. Requires an Expense Account on the category.",
+   "fieldname": "expense_post_to_ledger",
+   "fieldtype": "Check",
+   "label": "Post Expenses to Ledger"
   },
   {
    "fieldname": "member_naming_section",

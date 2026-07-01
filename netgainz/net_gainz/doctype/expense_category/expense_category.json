@@ -8,6 +8,7 @@
  "field_order": [
   "category_name",
   "pf_bucket",
+  "expense_account",
   "description"
  ],
  "fields": [
@@ -29,6 +30,13 @@
    "in_list_view": 1,
    "label": "Profit First Bucket",
    "options": "Operating Expenses\nOwner's Pay\nTax\nPass-Through"
+  },
+  {
+   "description": "P&L expense account this category posts to when an Expense is submitted with ledger posting enabled (Stage 7). Leave empty to skip GL posting for this category.",
+   "fieldname": "expense_account",
+   "fieldtype": "Link",
+   "label": "Expense Account",
+   "options": "Account"
   },
   {
    "fieldname": "description",
