@@ -14,3 +14,4 @@ netgainz.patches.v0_7.rename_terms_drop_academy
 netgainz.patches.v0_7.backfill_masters
 netgainz.patches.v0_7.backfill_branch
 netgainz.patches.v0_7.restore_native_subscription_links
+netgainz.patches.v0_7.backfill_expense_accounts
