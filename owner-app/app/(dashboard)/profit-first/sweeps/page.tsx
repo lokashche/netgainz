@@ -2,10 +2,14 @@ import { frappeRequest } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { fetchListPage, readPageParams, type SearchParamsObj } from "@/lib/pagination";
+import Pagination from "@/app/components/Pagination";
 import type { PFSweep, DocStatus, PFDashboard } from "@/lib/types";
 import NewSweepButton from "./NewSweepButton";
 import SetupAccountsButton from "./SetupAccountsButton";
 import ScheduleEditor from "./ScheduleEditor";
+
+type SearchParams = Promise<SearchParamsObj>;
 
 function money(v: number | null | undefined): string {
   if (v === null || v === undefined) return "—";
@@ -25,32 +29,38 @@ function statusBadge(docstatus: DocStatus) {
   return { cls: `${base} bg-[rgba(138,151,178,0.15)] text-[#8A97B2]`, label: "Draft" };
 }
 
-export default async function SweepsPage() {
+export default async function SweepsPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
   const session = await getSession();
   if (!session.frappeCookies) redirect("/login");
 
-  const fields = JSON.stringify([
-    "name",
-    "sweep_date",
-    "period_label",
-    "real_revenue",
-    "tier_code",
-    "docstatus",
-    "journal_entry",
-  ]);
-  const [res, dashRes] = await Promise.all([
-    frappeRequest<{ data: PFSweep[] }>(
-      `api/resource/PF Sweep?fields=${encodeURIComponent(
-        fields
-      )}&order_by=${encodeURIComponent("creation desc")}&limit=50`,
-      { sessionCookie: session.frappeCookies }
-    ),
+  const sp = await searchParams;
+  const requested = readPageParams(sp);
+  const [listResult, dashRes] = await Promise.all([
+    fetchListPage<PFSweep>({
+      doctype: "PF Sweep",
+      fields: [
+        "name",
+        "sweep_date",
+        "period_label",
+        "real_revenue",
+        "tier_code",
+        "docstatus",
+        "journal_entry",
+      ],
+      orderBy: "creation desc",
+      sessionCookie: session.frappeCookies,
+      ...requested,
+    }),
     frappeRequest<{ message: PFDashboard }>(
       `api/method/netgainz.net_gainz.profit_first.dashboard.get_pf_dashboard`,
       { sessionCookie: session.frappeCookies }
     ),
   ]);
-  const sweeps: PFSweep[] = res.data?.data ?? [];
+  const { rows: sweeps, total, page, pageSize } = listResult;
   const dash = dashRes.data?.message;
 
   return (
@@ -141,6 +151,17 @@ export default async function SweepsPage() {
               </tbody>
             </table>
           </div>
+        )}
+        {total > 0 && (
+          <Pagination
+            basePath="/profit-first/sweeps"
+            searchParams={sp}
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            shown={sweeps.length}
+            noun="sweeps"
+          />
         )}
       </div>
     </div>

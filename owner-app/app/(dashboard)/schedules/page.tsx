@@ -1,6 +1,8 @@
-import { frappeRequest, getGymSettings } from "@/lib/frappe";
+import { getGymSettings } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
+import { fetchListPage, readPageParams } from "@/lib/pagination";
+import Pagination from "@/app/components/Pagination";
 import type { ClassSchedule } from "@/lib/types";
 
 type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
@@ -51,34 +53,38 @@ export default async function SchedulesPage({
   const settings = await getGymSettings(session.frappeCookies);
   const singular = settings.class_term_singular ?? "Class";
 
-  const fields = JSON.stringify([
-    "name",
-    "title",
-    "program",
-    "coach",
-    "start_time",
-    "capacity",
-    "on_monday",
-    "on_tuesday",
-    "on_wednesday",
-    "on_thursday",
-    "on_friday",
-    "on_saturday",
-    "on_sunday",
-    "is_active",
-  ]);
   const filters: string[][] = [];
   if (q) filters.push(["title", "like", `%${q}%`]);
 
-  let path = `api/resource/Session%20Schedule?fields=${encodeURIComponent(fields)}&limit=100&order_by=${encodeURIComponent("title asc")}`;
-  if (filters.length > 0) {
-    path += `&filters=${encodeURIComponent(JSON.stringify(filters))}`;
-  }
-
-  const { data } = await frappeRequest<{ data: ClassSchedule[] }>(path, {
+  const requested = readPageParams(sp);
+  const {
+    rows: schedules,
+    total,
+    page,
+    pageSize,
+  } = await fetchListPage<ClassSchedule>({
+    doctype: "Session Schedule",
+    fields: [
+      "name",
+      "title",
+      "program",
+      "coach",
+      "start_time",
+      "capacity",
+      "on_monday",
+      "on_tuesday",
+      "on_wednesday",
+      "on_thursday",
+      "on_friday",
+      "on_saturday",
+      "on_sunday",
+      "is_active",
+    ],
+    filters,
+    orderBy: "title asc",
     sessionCookie: session.frappeCookies,
+    ...requested,
   });
-  const schedules: ClassSchedule[] = data?.data ?? [];
 
   return (
     <div>
@@ -97,6 +103,7 @@ export default async function SchedulesPage({
       </p>
 
       <form method="GET" className="flex gap-2 max-w-sm mb-6">
+        <input type="hidden" name="size" value={pageSize} />
         <input
           type="search"
           name="q"
@@ -177,6 +184,17 @@ export default async function SchedulesPage({
               </tbody>
             </table>
           </div>
+        )}
+        {total > 0 && (
+          <Pagination
+            basePath="/schedules"
+            searchParams={sp}
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            shown={schedules.length}
+            noun="schedules"
+          />
         )}
       </div>
     </div>

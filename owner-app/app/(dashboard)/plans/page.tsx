@@ -1,7 +1,10 @@
-import { frappeRequest } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
+import { fetchListPage, readPageParams, type SearchParamsObj } from "@/lib/pagination";
+import Pagination from "@/app/components/Pagination";
 import type { MembershipPlan } from "@/lib/types";
+
+type SearchParams = Promise<SearchParamsObj>;
 
 function activeBadge(isActive: 0 | 1): string {
   const base = "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium";
@@ -16,25 +19,28 @@ function formatCurrency(value?: number): string {
   return Number(value).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-export default async function PlansPage() {
+export default async function PlansPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
   const session = await getSession();
   if (!session.frappeCookies) redirect("/login");
 
-  const fields = JSON.stringify([
-    "name",
-    "plan_name",
-    "duration_in_days",
-    "amount",
-    "is_active",
-  ]);
-
-  const path = `api/resource/Membership Plan?fields=${encodeURIComponent(fields)}&order_by=${encodeURIComponent("plan_name asc")}`;
-
-  const { data } = await frappeRequest<{ data: MembershipPlan[] }>(path, {
+  const sp = await searchParams;
+  const requested = readPageParams(sp);
+  const {
+    rows: plans,
+    total,
+    page,
+    pageSize,
+  } = await fetchListPage<MembershipPlan>({
+    doctype: "Membership Plan",
+    fields: ["name", "plan_name", "duration_in_days", "amount", "is_active"],
+    orderBy: "plan_name asc",
     sessionCookie: session.frappeCookies,
+    ...requested,
   });
-
-  const plans: MembershipPlan[] = data?.data ?? [];
 
   return (
     <div>
@@ -117,6 +123,17 @@ export default async function PlansPage() {
               </tbody>
             </table>
           </div>
+        )}
+        {total > 0 && (
+          <Pagination
+            basePath="/plans"
+            searchParams={sp}
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            shown={plans.length}
+            noun="plans"
+          />
         )}
       </div>
     </div>

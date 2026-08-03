@@ -1,6 +1,7 @@
-import { frappeRequest } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
+import { buildHref, fetchListPage, readPageParams } from "@/lib/pagination";
+import Pagination from "@/app/components/Pagination";
 import type { Program } from "@/lib/types";
 
 type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
@@ -30,22 +31,25 @@ export default async function ProgramsPage({
   const status = typeof sp.status === "string" ? sp.status : "";
   const q = typeof sp.q === "string" ? sp.q : "";
 
-  const fields = JSON.stringify(["name", "program_name", "description", "is_active"]);
   const filters: string[][] = [];
   if (status === "active") filters.push(["is_active", "=", "1"]);
   if (status === "inactive") filters.push(["is_active", "=", "0"]);
   if (q) filters.push(["program_name", "like", `%${q}%`]);
 
-  let path = `api/resource/Program?fields=${encodeURIComponent(fields)}&limit=50&order_by=${encodeURIComponent("program_name asc")}`;
-  if (filters.length > 0) {
-    path += `&filters=${encodeURIComponent(JSON.stringify(filters))}`;
-  }
-
-  const { data } = await frappeRequest<{ data: Program[] }>(path, {
+  const requested = readPageParams(sp);
+  const {
+    rows: programs,
+    total,
+    page,
+    pageSize,
+  } = await fetchListPage<Program>({
+    doctype: "Program",
+    fields: ["name", "program_name", "description", "is_active"],
+    filters,
+    orderBy: "program_name asc",
     sessionCookie: session.frappeCookies,
+    ...requested,
   });
-
-  const programs: Program[] = data?.data ?? [];
 
   return (
     <div>
@@ -66,10 +70,11 @@ export default async function ProgramsPage({
         <div className="flex gap-1 bg-[#111A2E] p-1 rounded-lg">
           {STATUS_TABS.map((tab) => {
             const isActive = status === tab.value;
-            const href =
-              tab.value
-                ? `/programs?status=${tab.value}${q ? `&q=${encodeURIComponent(q)}` : ""}`
-                : `/programs${q ? `?q=${encodeURIComponent(q)}` : ""}`;
+            // Changing the filter changes the result set, so drop the page number.
+            const href = buildHref("/programs", sp, {
+              status: tab.value || undefined,
+              page: undefined,
+            });
             return (
               <a
                 key={tab.value}
@@ -89,6 +94,7 @@ export default async function ProgramsPage({
         {/* Search */}
         <form method="GET" className="flex gap-2 flex-1 max-w-sm">
           {status && <input type="hidden" name="status" value={status} />}
+          <input type="hidden" name="size" value={pageSize} />
           <input
             type="search"
             name="q"
@@ -162,6 +168,17 @@ export default async function ProgramsPage({
               </tbody>
             </table>
           </div>
+        )}
+        {total > 0 && (
+          <Pagination
+            basePath="/programs"
+            searchParams={sp}
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            shown={programs.length}
+            noun="programs"
+          />
         )}
       </div>
     </div>

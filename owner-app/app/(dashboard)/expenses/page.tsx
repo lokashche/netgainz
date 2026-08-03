@@ -1,9 +1,15 @@
 import { frappeRequest } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
+import { buildHref, fetchListPage, readPageParams } from "@/lib/pagination";
+import Pagination from "@/app/components/Pagination";
 import type { GymExpense, ExpenseCategory } from "@/lib/types";
 
 type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
+
+// One row per is_recurring value, so the summary cards can cover every matching
+// expense without pulling them all down.
+type ExpenseSummaryRow = { is_recurring: 0 | 1; cnt: number; amt: number | null };
 
 function formatDate(dateStr?: string): string {
   if (!dateStr) return "—";
@@ -34,55 +40,58 @@ export default async function ExpensesPage({
   const categoryFilter = typeof sp.category === "string" ? sp.category : "";
   const recurringFilter = typeof sp.recurring === "string" ? sp.recurring : "";
 
-  // Build expenses query
-  const fields = JSON.stringify([
-    "name",
-    "date",
-    "category",
-    "amount",
-    "vendor",
-    "is_recurring",
-    "frequency",
-  ]);
-
   const filters: string[][] = [];
   if (categoryFilter) filters.push(["category", "=", categoryFilter]);
   if (recurringFilter === "1") filters.push(["is_recurring", "=", "1"]);
   else if (recurringFilter === "0") filters.push(["is_recurring", "=", "0"]);
 
-  let expensesPath = `api/resource/Expense?fields=${encodeURIComponent(fields)}&order_by=${encodeURIComponent("date desc")}&limit=100`;
-  if (filters.length > 0) {
-    expensesPath += `&filters=${encodeURIComponent(JSON.stringify(filters))}`;
-  }
+  // Roll the summary up in the database so the cards describe every matching
+  // expense rather than only the page on screen.
+  const summaryParams = new URLSearchParams();
+  summaryParams.set(
+    "fields",
+    JSON.stringify(["is_recurring", "count(name) as cnt", "sum(amount) as amt"])
+  );
+  if (filters.length > 0) summaryParams.set("filters", JSON.stringify(filters));
+  summaryParams.set("group_by", "is_recurring");
+  summaryParams.set("limit_page_length", "0");
 
-  // Fetch expenses and categories in parallel
-  const [expensesRes, categoriesRes] = await Promise.all([
-    frappeRequest<{ data: GymExpense[] }>(expensesPath, {
+  const requested = readPageParams(sp);
+
+  const [listResult, categoriesRes, summaryRes] = await Promise.all([
+    fetchListPage<GymExpense>({
+      doctype: "Expense",
+      fields: ["name", "date", "category", "amount", "vendor", "is_recurring", "frequency"],
+      filters,
+      orderBy: "date desc",
       sessionCookie: session.frappeCookies,
+      ...requested,
     }),
     frappeRequest<{ data: ExpenseCategory[] }>(
-      `api/resource/Expense%20Category?fields=${encodeURIComponent(JSON.stringify(["name", "category_name"]))}&order_by=${encodeURIComponent("category_name asc")}`,
+      `api/resource/Expense%20Category?fields=${encodeURIComponent(JSON.stringify(["name", "category_name"]))}&order_by=${encodeURIComponent("category_name asc")}&limit_page_length=0`,
+      { sessionCookie: session.frappeCookies }
+    ),
+    frappeRequest<{ data: ExpenseSummaryRow[] }>(
+      `api/resource/Expense?${summaryParams.toString()}`,
       { sessionCookie: session.frappeCookies }
     ),
   ]);
 
-  const expenses: GymExpense[] = expensesRes.data?.data ?? [];
+  const { rows: expenses, total, page, pageSize } = listResult;
   const categories: ExpenseCategory[] = categoriesRes.data?.data ?? [];
 
-  // Summary stats
-  const totalAmount = expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
-  const recurringCount = expenses.filter((e) => e.is_recurring === 1).length;
-  const oneTimeCount = expenses.filter((e) => e.is_recurring === 0).length;
+  // Summary stats, across all expenses matching the current filters
+  const summary: ExpenseSummaryRow[] = summaryRes.data?.data ?? [];
+  const totalAmount = summary.reduce((sum, r) => sum + (Number(r.amt) || 0), 0);
+  const recurringCount =
+    summary.find((r) => Number(r.is_recurring) === 1)?.cnt ?? 0;
+  const oneTimeCount = summary.find((r) => Number(r.is_recurring) === 0)?.cnt ?? 0;
 
   const hasFilters = Boolean(categoryFilter || recurringFilter);
 
-  // Build tab hrefs — preserve category param
+  // Changing the filter changes the result set, so drop the page number.
   function recurringTabHref(val: string): string {
-    const params = new URLSearchParams();
-    if (val) params.set("recurring", val);
-    if (categoryFilter) params.set("category", categoryFilter);
-    const qs = params.toString();
-    return `/expenses${qs ? `?${qs}` : ""}`;
+    return buildHref("/expenses", sp, { recurring: val || undefined, page: undefined });
   }
 
   // Build clear filters href
@@ -148,6 +157,7 @@ export default async function ExpensesPage({
         {/* Category filter form */}
         <form method="GET" className="flex gap-2 items-center">
           {recurringFilter && <input type="hidden" name="recurring" value={recurringFilter} />}
+          <input type="hidden" name="size" value={pageSize} />
           <select
             name="category"
             defaultValue={categoryFilter}
@@ -275,6 +285,17 @@ export default async function ExpensesPage({
               </tbody>
             </table>
           </div>
+        )}
+        {total > 0 && (
+          <Pagination
+            basePath="/expenses"
+            searchParams={sp}
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            shown={expenses.length}
+            noun="expenses"
+          />
         )}
       </div>
     </div>

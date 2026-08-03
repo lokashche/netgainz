@@ -1,6 +1,7 @@
-import { frappeRequest } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
+import { buildHref, fetchListPage, readPageParams } from "@/lib/pagination";
+import Pagination from "@/app/components/Pagination";
 import type { ClassBooking, ClassBookingStatus } from "@/lib/types";
 
 type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
@@ -51,30 +52,33 @@ export default async function AttendancePage({
   const status = typeof sp.status === "string" ? sp.status : "";
   const q = typeof sp.q === "string" ? sp.q : "";
 
-  const fields = JSON.stringify([
-    "name",
-    "class_session",
-    "member",
-    "member_name",
-    "coach",
-    "start_time",
-    "status",
-    "check_in_time",
-  ]);
   const filters: string[][] = [];
   if (status) filters.push(["status", "=", status]);
   if (q) filters.push(["member_name", "like", `%${q}%`]);
 
-  let path = `api/resource/Session%20Booking?fields=${encodeURIComponent(fields)}&limit=100&order_by=${encodeURIComponent("start_time desc")}`;
-  if (filters.length > 0) {
-    path += `&filters=${encodeURIComponent(JSON.stringify(filters))}`;
-  }
-
-  const { data } = await frappeRequest<{ data: ClassBooking[] }>(path, {
+  const requested = readPageParams(sp);
+  const {
+    rows: bookings,
+    total,
+    page,
+    pageSize,
+  } = await fetchListPage<ClassBooking>({
+    doctype: "Session Booking",
+    fields: [
+      "name",
+      "class_session",
+      "member",
+      "member_name",
+      "coach",
+      "start_time",
+      "status",
+      "check_in_time",
+    ],
+    filters,
+    orderBy: "start_time desc",
     sessionCookie: session.frappeCookies,
+    ...requested,
   });
-
-  const bookings: ClassBooking[] = data?.data ?? [];
 
   return (
     <div>
@@ -89,10 +93,11 @@ export default async function AttendancePage({
         <div className="flex gap-1 bg-[#111A2E] p-1 rounded-lg">
           {STATUS_TABS.map((tab) => {
             const isActive = status === tab.value;
-            const href =
-              tab.value
-                ? `/attendance?status=${encodeURIComponent(tab.value)}${q ? `&q=${encodeURIComponent(q)}` : ""}`
-                : `/attendance${q ? `?q=${encodeURIComponent(q)}` : ""}`;
+            // Changing the filter changes the result set, so drop the page number.
+            const href = buildHref("/attendance", sp, {
+              status: tab.value || undefined,
+              page: undefined,
+            });
             return (
               <a
                 key={tab.value}
@@ -112,6 +117,7 @@ export default async function AttendancePage({
         {/* Search */}
         <form method="GET" className="flex gap-2 flex-1 max-w-sm">
           {status && <input type="hidden" name="status" value={status} />}
+          <input type="hidden" name="size" value={pageSize} />
           <input
             type="search"
             name="q"
@@ -199,6 +205,17 @@ export default async function AttendancePage({
               </tbody>
             </table>
           </div>
+        )}
+        {total > 0 && (
+          <Pagination
+            basePath="/attendance"
+            searchParams={sp}
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            shown={bookings.length}
+            noun="records"
+          />
         )}
       </div>
     </div>

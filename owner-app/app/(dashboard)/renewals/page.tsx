@@ -54,7 +54,7 @@ export default async function RenewalsPage() {
             <div className="bg-[#111A2E] border border-[#1E2D45] rounded-xl overflow-hidden">
               <div className="px-4 py-3 border-b border-[#1E2D45] bg-[rgba(248,113,113,0.15)]">
                 <h2 className="text-sm font-semibold text-[#F87171]">
-                  Overdue
+                  Overdue ({overdue.length})
                 </h2>
               </div>
               <div className="overflow-x-auto">
@@ -117,7 +117,9 @@ export default async function RenewalsPage() {
 
           <div className="bg-[#111A2E] border border-[#1E2D45] rounded-xl overflow-hidden">
             <div className="px-4 py-3 border-b border-[#1E2D45]">
-              <h2 className="text-sm font-semibold text-[#E6EDF7]">Due Soon</h2>
+              <h2 className="text-sm font-semibold text-[#E6EDF7]">
+                Due Soon ({dueSoon.length})
+              </h2>
             </div>
             {dueSoon.length === 0 ? (
               <div className="p-8 text-center text-[#8A97B2]">

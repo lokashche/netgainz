@@ -1,10 +1,13 @@
-import { frappeRequest } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { fetchListPage, readPageParams, type SearchParamsObj } from "@/lib/pagination";
+import Pagination from "@/app/components/Pagination";
 import type { CoachCommissionRun, DocStatus } from "@/lib/types";
 import NewRunButton from "./NewRunButton";
 import SetupAccountsButton from "./SetupAccountsButton";
+
+type SearchParams = Promise<SearchParamsObj>;
 
 function money(v: number | null | undefined): string {
   if (v === null || v === undefined) return "—";
@@ -24,26 +27,36 @@ function statusBadge(docstatus: DocStatus) {
   return { cls: `${base} bg-[rgba(138,151,178,0.15)] text-[#8A97B2]`, label: "Draft" };
 }
 
-export default async function CommissionsPage() {
+export default async function CommissionsPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
   const session = await getSession();
   if (!session.frappeCookies) redirect("/login");
 
-  const fields = JSON.stringify([
-    "name",
-    "period_start",
-    "period_end",
-    "total_commission",
-    "post_to_ledger",
-    "journal_entry",
-    "docstatus",
-  ]);
-  const res = await frappeRequest<{ data: CoachCommissionRun[] }>(
-    `api/resource/Instructor%20Commission%20Run?fields=${encodeURIComponent(
-      fields
-    )}&order_by=${encodeURIComponent("creation desc")}&limit=50`,
-    { sessionCookie: session.frappeCookies }
-  );
-  const runs: CoachCommissionRun[] = res.data?.data ?? [];
+  const sp = await searchParams;
+  const requested = readPageParams(sp);
+  const {
+    rows: runs,
+    total,
+    page,
+    pageSize,
+  } = await fetchListPage<CoachCommissionRun>({
+    doctype: "Instructor Commission Run",
+    fields: [
+      "name",
+      "period_start",
+      "period_end",
+      "total_commission",
+      "post_to_ledger",
+      "journal_entry",
+      "docstatus",
+    ],
+    orderBy: "creation desc",
+    sessionCookie: session.frappeCookies,
+    ...requested,
+  });
 
   return (
     <div>
@@ -119,6 +132,17 @@ export default async function CommissionsPage() {
               </tbody>
             </table>
           </div>
+        )}
+        {total > 0 && (
+          <Pagination
+            basePath="/commissions"
+            searchParams={sp}
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            shown={runs.length}
+            noun="runs"
+          />
         )}
       </div>
     </div>

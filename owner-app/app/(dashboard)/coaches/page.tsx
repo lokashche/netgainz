@@ -1,6 +1,7 @@
-import { frappeRequest } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
+import { buildHref, fetchListPage, readPageParams } from "@/lib/pagination";
+import Pagination from "@/app/components/Pagination";
 import type { Coach, CoachStatus } from "@/lib/types";
 
 type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
@@ -52,30 +53,33 @@ export default async function CoachesPage({
   const status = typeof sp.status === "string" ? sp.status : "";
   const q = typeof sp.q === "string" ? sp.q : "";
 
-  const fields = JSON.stringify([
-    "name",
-    "coach_name",
-    "phone",
-    "email",
-    "specialization",
-    "commission_type",
-    "commission_amount",
-    "status",
-  ]);
   const filters: string[][] = [];
   if (status) filters.push(["status", "=", status]);
   if (q) filters.push(["coach_name", "like", `%${q}%`]);
 
-  let path = `api/resource/Instructor?fields=${encodeURIComponent(fields)}&limit=50&order_by=${encodeURIComponent("coach_name asc")}`;
-  if (filters.length > 0) {
-    path += `&filters=${encodeURIComponent(JSON.stringify(filters))}`;
-  }
-
-  const { data } = await frappeRequest<{ data: Coach[] }>(path, {
+  const requested = readPageParams(sp);
+  const {
+    rows: coaches,
+    total,
+    page,
+    pageSize,
+  } = await fetchListPage<Coach>({
+    doctype: "Instructor",
+    fields: [
+      "name",
+      "coach_name",
+      "phone",
+      "email",
+      "specialization",
+      "commission_type",
+      "commission_amount",
+      "status",
+    ],
+    filters,
+    orderBy: "coach_name asc",
     sessionCookie: session.frappeCookies,
+    ...requested,
   });
-
-  const coaches: Coach[] = data?.data ?? [];
 
   return (
     <div>
@@ -96,10 +100,11 @@ export default async function CoachesPage({
         <div className="flex gap-1 bg-[#111A2E] p-1 rounded-lg">
           {STATUS_TABS.map((tab) => {
             const isActive = status === tab.value;
-            const href =
-              tab.value
-                ? `/coaches?status=${tab.value}${q ? `&q=${encodeURIComponent(q)}` : ""}`
-                : `/coaches${q ? `?q=${encodeURIComponent(q)}` : ""}`;
+            // Changing the filter changes the result set, so drop the page number.
+            const href = buildHref("/coaches", sp, {
+              status: tab.value || undefined,
+              page: undefined,
+            });
             return (
               <a
                 key={tab.value}
@@ -119,6 +124,7 @@ export default async function CoachesPage({
         {/* Search */}
         <form method="GET" className="flex gap-2 flex-1 max-w-sm">
           {status && <input type="hidden" name="status" value={status} />}
+          <input type="hidden" name="size" value={pageSize} />
           <input
             type="search"
             name="q"
@@ -212,6 +218,17 @@ export default async function CoachesPage({
               </tbody>
             </table>
           </div>
+        )}
+        {total > 0 && (
+          <Pagination
+            basePath="/coaches"
+            searchParams={sp}
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            shown={coaches.length}
+            noun="coaches"
+          />
         )}
       </div>
     </div>

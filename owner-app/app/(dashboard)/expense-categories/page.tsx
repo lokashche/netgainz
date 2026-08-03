@@ -1,20 +1,33 @@
-import { frappeRequest } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
+import { fetchListPage, readPageParams, type SearchParamsObj } from "@/lib/pagination";
+import Pagination from "@/app/components/Pagination";
 import type { ExpenseCategory } from "@/lib/types";
 
-export default async function ExpenseCategoriesPage() {
+type SearchParams = Promise<SearchParamsObj>;
+
+export default async function ExpenseCategoriesPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
   const session = await getSession();
   if (!session.frappeCookies) redirect("/login");
 
-  const fields = JSON.stringify(["name", "category_name", "description"]);
-  const path = `api/resource/Expense%20Category?fields=${encodeURIComponent(fields)}&order_by=${encodeURIComponent("category_name asc")}`;
-
-  const { data } = await frappeRequest<{ data: ExpenseCategory[] }>(path, {
+  const sp = await searchParams;
+  const requested = readPageParams(sp);
+  const {
+    rows: categories,
+    total,
+    page,
+    pageSize,
+  } = await fetchListPage<ExpenseCategory>({
+    doctype: "Expense Category",
+    fields: ["name", "category_name", "description"],
+    orderBy: "category_name asc",
     sessionCookie: session.frappeCookies,
+    ...requested,
   });
-
-  const categories: ExpenseCategory[] = data?.data ?? [];
 
   return (
     <div>
@@ -76,6 +89,17 @@ export default async function ExpenseCategoriesPage() {
               </tbody>
             </table>
           </div>
+        )}
+        {total > 0 && (
+          <Pagination
+            basePath="/expense-categories"
+            searchParams={sp}
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            shown={categories.length}
+            noun="categories"
+          />
         )}
       </div>
     </div>

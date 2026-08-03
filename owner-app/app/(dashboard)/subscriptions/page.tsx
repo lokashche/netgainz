@@ -1,6 +1,7 @@
-import { frappeRequest } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
+import { buildHref, fetchListPage, readPageParams } from "@/lib/pagination";
+import Pagination from "@/app/components/Pagination";
 import type { Subscription, SubscriptionStatus } from "@/lib/types";
 
 type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
@@ -63,33 +64,35 @@ export default async function SubscriptionsPage({
   const statusFilter = typeof sp.status === "string" ? sp.status : "";
   const memberFilter = typeof sp.member === "string" ? sp.member : "";
 
-  const fields = JSON.stringify([
-    "name",
-    "member",
-    "member_name",
-    "membership_plan",
-    "month",
-    "tariff",
-    "fee_collected",
-    "balance_due",
-    "status",
-    "due_date",
-  ]);
-
   const filters: string[][] = [];
   if (statusFilter) filters.push(["status", "=", statusFilter]);
   if (memberFilter) filters.push(["member", "=", memberFilter]);
 
-  let path = `api/resource/Membership?fields=${encodeURIComponent(fields)}&order_by=${encodeURIComponent("due_date desc")}&limit=100`;
-  if (filters.length > 0) {
-    path += `&filters=${encodeURIComponent(JSON.stringify(filters))}`;
-  }
-
-  const { data } = await frappeRequest<{ data: Subscription[] }>(path, {
+  const requested = readPageParams(sp);
+  const {
+    rows: subscriptions,
+    total,
+    page,
+    pageSize,
+  } = await fetchListPage<Subscription>({
+    doctype: "Membership",
+    fields: [
+      "name",
+      "member",
+      "member_name",
+      "membership_plan",
+      "month",
+      "tariff",
+      "fee_collected",
+      "balance_due",
+      "status",
+      "due_date",
+    ],
+    filters,
+    orderBy: "due_date desc",
     sessionCookie: session.frappeCookies,
+    ...requested,
   });
-
-  const subscriptions: Subscription[] = data?.data ?? [];
 
   return (
     <div>
@@ -108,10 +111,11 @@ export default async function SubscriptionsPage({
       <div className="flex gap-1 bg-[#111A2E] p-1 rounded-lg mb-6 flex-wrap">
         {STATUS_TABS.map((tab) => {
           const isActive = statusFilter === tab.value;
-          const href =
-            tab.value
-              ? `/subscriptions?status=${tab.value}${memberFilter ? `&member=${encodeURIComponent(memberFilter)}` : ""}`
-              : `/subscriptions${memberFilter ? `?member=${encodeURIComponent(memberFilter)}` : ""}`;
+          // Changing the filter changes the result set, so drop the page number.
+          const href = buildHref("/subscriptions", sp, {
+            status: tab.value || undefined,
+            page: undefined,
+          });
           return (
             <a
               key={tab.value}
@@ -247,6 +251,17 @@ export default async function SubscriptionsPage({
               </tbody>
             </table>
           </div>
+        )}
+        {total > 0 && (
+          <Pagination
+            basePath="/subscriptions"
+            searchParams={sp}
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            shown={subscriptions.length}
+            noun="subscriptions"
+          />
         )}
       </div>
     </div>
