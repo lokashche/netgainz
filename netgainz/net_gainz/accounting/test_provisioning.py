@@ -82,23 +82,27 @@ class TestProvisioning(FrappeTestCase):
 		self.assertEqual(sub.billing_interval, "Month")
 		self.assertEqual(sub.billing_interval_count, 3)
 
-	def test_plan_without_sac_skips_item_and_subscription_plan(self):
+	def test_plan_without_sac_gets_the_tenant_default_and_provisions(self):
+		"""WP-10 fix: a plan created WITHOUT a tax code (which is every plan the
+		owner app creates — it never asks for one, and shouldn't) now inherits the
+		tenant default, so it provisions and can bill. Previously it silently got
+		no Item and no Subscription Plan, i.e. it could not be billed at all."""
 		plan = self._make_plan("WP2 Plan No SAC", amount=1000.0, duration=30, sac=None)
 		plan.reload()
-		self.assertFalse(plan.item, "no SAC -> no sellable Item")
-		self.assertFalse(plan.subscription_plan, "no Item -> no Subscription Plan")
-		# The plan itself is still created normally.
-		self.assertTrue(frappe.db.exists("Membership Plan", plan.name))
+		self.assertTrue(plan.gst_hsn_code, "the tenant default tax code is applied")
+		self.assertTrue(plan.item, "so a sellable Item is provisioned")
+		self.assertTrue(plan.subscription_plan, "and billing can happen")
 
-	def test_adding_sac_later_provisions_on_save(self):
-		plan = self._make_plan("WP2 Plan Late SAC", amount=2000.0, duration=30, sac=None)
+	def test_provision_item_still_skips_when_no_code_can_be_resolved(self):
+		"""The defensive skip in provision_item stays: if a plan somehow has no
+		code (default cleared, or a legacy row), provisioning must skip rather than
+		throw — india_compliance rejects a sellable Item without an HSN/SAC."""
+		plan = self._make_plan("WP2 Plan Forced No SAC", amount=1000.0, duration=30, sac=None)
+		# Bypass the controller default to reach the skip path.
+		frappe.db.set_value("Membership Plan", plan.name, "gst_hsn_code", None, update_modified=False)
+		frappe.db.set_value("Membership Plan", plan.name, "item", None, update_modified=False)
 		plan.reload()
-		self.assertFalse(plan.item)
-		plan.gst_hsn_code = SAC
-		plan.save(ignore_permissions=True)
-		plan.reload()
-		self.assertTrue(plan.item, "setting a SAC then saving should provision the Item")
-		self.assertTrue(plan.subscription_plan)
+		self.assertIsNone(provisioning.provision_item(plan))
 
 	def test_amount_change_resyncs_item_price(self):
 		plan = self._make_plan("WP2 Plan Reprice", amount=1000.0, duration=30, sac=SAC)
@@ -137,8 +141,14 @@ class TestProvisioning(FrappeTestCase):
 		# A member whose customer link we clear, simulating a pre-WP-2 row.
 		member = self._make_member("WP2 Backfill Member")
 		frappe.db.set_value("Member", member.name, "customer", None, update_modified=False)
-		# A plan with no SAC -> the on_update hook skipped its Item.
+		# A legacy plan with no SAC and no Item (pre-WP-2 shape). The controller now
+		# defaults the code, so strip both fields directly to recreate that state.
 		plan = self._make_plan("WP2 Backfill Plan", amount=3000.0, duration=30, sac=None)
+		frappe.db.set_value(
+			"Membership Plan", plan.name,
+			{"gst_hsn_code": None, "item": None, "subscription_plan": None},
+			update_modified=False,
+		)
 		plan.reload()
 		self.assertFalse(plan.item)
 

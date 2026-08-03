@@ -16,6 +16,12 @@ PLAN_TYPE_DURATIONS = {
 }
 DURATION_PLAN_TYPES = {days: name for name, days in PLAN_TYPE_DURATIONS.items()}
 
+# SAC 999723 = fitness / health-club services. Used when Business Settings has no
+# explicit code — a Single's JSON default is not written to the database until the
+# Single is saved, so a tenant that never opened Settings would otherwise have no
+# code at all and every plan would silently fail to bill.
+DEFAULT_HSN_SAC = "999723"
+
 COMMITMENT = "Commitment"
 PAY_AS_YOU_GO = "Pay-as-you-go"
 
@@ -23,8 +29,30 @@ PAY_AS_YOU_GO = "Pay-as-you-go"
 class MembershipPlan(Document):
 	def validate(self):
 		self._apply_plan_type()
+		self._apply_default_hsn_sac()
 		self._validate_installments()
 		payment_terms.sync_plan_template(self)
+
+	def _apply_default_hsn_sac(self):
+		"""Fill the tax classification code from Business Settings when blank.
+
+		india_compliance makes an HSN/SAC MANDATORY on any sellable Item, and
+		``provisioning.provision_item`` SKIPS silently without one — so a plan with
+		no code gets no Item, no Subscription Plan, and therefore cannot bill at
+		all. The owner app never asked for this code (nor should it: a gym owner
+		has no reason to know what a SAC is), which meant every plan created
+		through the app was silently unbillable.
+
+		The tenant-wide default (999723 = fitness services) is applied here so the
+		owner never sees the concept; an accountant can still override it per plan.
+		"""
+		if self.gst_hsn_code:
+			return
+		default = (
+			frappe.db.get_single_value("Business Settings", "default_hsn_sac") or DEFAULT_HSN_SAC
+		)
+		if default and frappe.db.exists("GST HSN Code", default):
+			self.gst_hsn_code = default
 
 	def _apply_plan_type(self):
 		"""Derive duration_in_days from the chosen cadence.

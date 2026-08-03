@@ -305,6 +305,23 @@ class TestPlanConfiguration(FrappeTestCase):
 		template = frappe.get_doc("Payment Terms Template", ms.payment_terms_template)
 		self.assertEqual(len(template.terms), 2)
 
+	def test_plan_without_a_tax_code_still_bills(self):
+		"""Regression: the owner app never sends an HSN/SAC, and provision_item
+		SKIPS silently without one — so every plan created through the app was
+		unbillable (no Item, no Subscription Plan). The tenant default fills it."""
+		plan = frappe.get_doc(
+			{
+				"doctype": "Membership Plan",
+				"plan_name": "No SAC From Owner App Plan",
+				"plan_type": "Monthly",
+				"amount": 1500.0,
+			}
+		).insert(ignore_permissions=True)
+		plan.reload()
+		self.assertTrue(plan.gst_hsn_code, "the tenant default tax code is applied")
+		self.assertTrue(plan.item, "a sellable Item is provisioned")
+		self.assertTrue(plan.subscription_plan, "so billing can actually happen")
+
 	def test_split_due_date_field_is_gone(self):
 		"""It was declared but never read — an abandoned first attempt at this."""
 		self.assertFalse(frappe.get_meta("Membership").has_field("split_due_date"))

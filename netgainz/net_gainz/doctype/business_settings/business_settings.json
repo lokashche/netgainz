@@ -7,6 +7,7 @@
   "accounting_section",
   "accounting_method",
   "days_until_due",
+  "default_hsn_sac",
   "expense_post_to_ledger",
   "member_naming_section",
   "member_id_prefix",
@@ -241,6 +242,14 @@
   {
    "fieldname": "column_break_term_c",
    "fieldtype": "Column Break"
+  },
+  {
+   "default": "999723",
+   "description": "Tax classification code for membership services, used on the invoice line. 999723 covers fitness/gym services. Change only if your accountant tells you to.",
+   "fieldname": "default_hsn_sac",
+   "fieldtype": "Link",
+   "label": "Default Service Tax Code (HSN/SAC)",
+   "options": "GST HSN Code"
   }
  ],
  "issingle": 1,
