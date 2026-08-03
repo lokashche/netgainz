@@ -10,7 +10,6 @@
   "rounding_sink",
   "column_break_cfg",
   "company",
-  "accounting_basis",
   "schedule_section",
   "sweep_auto_create",
   "allocation_days",
@@ -62,14 +61,6 @@
    "fieldtype": "Link",
    "label": "Company",
    "options": "Company"
-  },
-  {
-   "default": "Cash",
-   "description": "Stage 5a computes Real Revenue on a CASH basis (income recognised when fee_collected is received, by Paid Date). Accrual support is planned for a later slice.",
-   "fieldname": "accounting_basis",
-   "fieldtype": "Data",
-   "label": "Accounting Basis",
-   "read_only": 1
   },
   {
    "fieldname": "schedule_section",

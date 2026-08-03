@@ -36,6 +36,7 @@ import frappe
 from frappe.model.document import Document
 from frappe.utils import flt
 
+from netgainz.net_gainz.accounting import deferred
 from netgainz.net_gainz.accounting.billing_intervals import duration_to_billing_interval
 from netgainz.net_gainz.profit_first import accounts as pf_accounts
 
@@ -184,6 +185,9 @@ def provision_item(plan, company=None) -> str | None:
 		item.is_purchase_item = 0
 		item.include_item_in_manufacturing = 0
 		item.gst_hsn_code = plan.gst_hsn_code
+		# WP-6: under Accrual, defer revenue over the service period (the native
+		# Subscription supplies the exact service dates per invoice). Off under Cash.
+		item.enable_deferred_revenue = 1 if deferred.is_accrual() else 0
 		if plan.get("description"):
 			item.description = plan.description
 		item.insert(ignore_permissions=True)
