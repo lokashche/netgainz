@@ -59,10 +59,10 @@ def _collected_between(start, end, members=None) -> float:
 	"""Member fees collected in [start, end] (cash basis), optionally restricted to
 	a set of members. Returns rupees.
 
-	WP-4: re-pointed to the shared billing read — Payment-Entry cash on/after the
-	cut-over date, legacy fee_collected before it (same date-split as Profit
-	First, so the two never disagree). The per-member scope becomes a Payment
-	Entry party filter on those members' Customers."""
+	WP-11: the shared billing read — ex-GST Payment-Entry cash against
+	subscription-generated invoices, the same single source Profit First uses, so
+	the two can never disagree. The per-member scope becomes a Payment Entry party
+	filter on those members' Customers."""
 	if members is not None and not members:
 		return 0.0
 	return to_rupees(billing.membership_collected_paise(start, end, members))

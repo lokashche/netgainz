@@ -61,12 +61,22 @@ export default function SubscriptionDetailPage({ params }: { params: Params }) {
   const [tariff, setTariff] = useState<number>(0);
   const [nextRenewal, setNextRenewal] = useState("");
 
-  // Editable fields
-  const [fee_collected, setFeeCollected] = useState("");
-  const [payment_mode, setPaymentMode] = useState("");
+  // Derived from the membership's Sales Invoice — read-only (WP-11)
+  const [collected, setCollected] = useState<number>(0);
   const [paid_date, setPaidDate] = useState("");
   const [due_date, setDueDate] = useState("");
+
+  // Editable
   const [comments, setComments] = useState("");
+
+  // Record-payment panel: posts a real Payment Entry (WP-11). Writing
+  // fee_collected would record no revenue — Profit First and commissions read
+  // collected cash from Payment Entries only.
+  const [payAmount, setPayAmount] = useState("");
+  const [payMode, setPayMode] = useState("");
+  const [payDate, setPayDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [paying, setPaying] = useState(false);
+  const [payError, setPayError] = useState<string | null>(null);
 
   async function loadSub() {
     try {
@@ -86,11 +96,12 @@ export default function SubscriptionDetailPage({ params }: { params: Params }) {
       setTariff(s.tariff ?? 0);
       setNextRenewal(s.next_renewal ?? "");
 
-      setFeeCollected(s.fee_collected !== undefined ? String(s.fee_collected) : "0");
-      setPaymentMode(s.payment_mode ?? "");
+      setCollected((s.tariff ?? 0) - (s.balance_due ?? 0));
       setPaidDate(s.paid_date ?? "");
       setDueDate(s.due_date ?? "");
       setComments(s.comments ?? "");
+      // Default the payment amount to whatever is still outstanding.
+      setPayAmount(s.balance_due ? String(s.balance_due) : "");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load subscription");
     } finally {
@@ -103,19 +114,47 @@ export default function SubscriptionDetailPage({ params }: { params: Params }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  async function handleRecordPayment() {
+    setPaying(true);
+    setPayError(null);
+    try {
+      const res = await fetch(
+        `/api/subscriptions/${encodeURIComponent(id)}/payment`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amount: Number(payAmount),
+            payment_mode: payMode,
+            posting_date: payDate,
+          }),
+        }
+      );
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setPayError(extractFrappeError(body) ?? `Error ${res.status}`);
+        return;
+      }
+      // Re-fetch so the derived status / balance reflect the new Payment Entry.
+      setLoading(true);
+      await loadSub();
+    } catch (err) {
+      setPayError(err instanceof Error ? err.message : "Failed to record payment");
+    } finally {
+      setPaying(false);
+    }
+  }
+
   async function handleSubmit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
     setSuccess(false);
 
-    const payload: Record<string, string | number> = {
-      fee_collected: Number(fee_collected),
-    };
-    payload.payment_mode = payment_mode;
-    payload.paid_date = paid_date;
-    payload.due_date = due_date;
-    payload.comments = comments;
+    // WP-11: status / balance_due / due_date / next_renewal are all derived from
+    // the Sales Invoice, and money is recorded as a Payment Entry — so the only
+    // thing this form still writes is the note.
+    const payload: Record<string, string | number> = { comments };
 
     try {
       const res = await fetch(`/api/subscriptions/${encodeURIComponent(id)}`, {
@@ -247,53 +286,83 @@ export default function SubscriptionDetailPage({ params }: { params: Params }) {
 
         <hr className="border-[#1E2D45]" />
 
-        {/* Editable fields */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Collected so far / dates — all derived from the invoice, not editable */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
-            <label className={labelClass}>Fee Collected</label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={fee_collected}
-              onChange={(e) => setFeeCollected(e.target.value)}
-              className={inputClass}
-            />
+            <label className={labelClass}>Collected</label>
+            <div className={readonlyClass}>{formatCurrency(collected)}</div>
           </div>
-          <div>
-            <label className={labelClass}>Payment Mode</label>
-            <select
-              value={payment_mode}
-              onChange={(e) => setPaymentMode(e.target.value)}
-              className={inputClass}
-            >
-              <option value="">Select mode…</option>
-              {PAYMENT_MODES.map((pm) => (
-                <option key={pm} value={pm}>{pm}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className={labelClass}>Due Date</label>
-            <input
-              type="date"
-              value={due_date}
-              onChange={(e) => setDueDate(e.target.value)}
-              className={inputClass}
-            />
+            <div className={readonlyClass}>{due_date || "—"}</div>
           </div>
           <div>
             <label className={labelClass}>Paid Date</label>
-            <input
-              type="date"
-              value={paid_date}
-              onChange={(e) => setPaidDate(e.target.value)}
-              className={inputClass}
-            />
+            <div className={readonlyClass}>{paid_date || "—"}</div>
           </div>
+        </div>
+
+        <hr className="border-[#1E2D45]" />
+
+        {/* Record a payment — posts a real Payment Entry */}
+        <div className="rounded-lg border border-[#1E2D45] p-4 space-y-4">
+          <div className="flex items-baseline justify-between">
+            <h3 className="text-sm font-semibold text-[#E5EDF7]">Record a Payment</h3>
+            {balanceDue > 0 && (
+              <span className="text-xs text-[#8FA3BF]">
+                {formatCurrency(balanceDue)} outstanding
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className={labelClass}>Amount</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={payAmount}
+                onChange={(e) => setPayAmount(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Payment Mode</label>
+              <select
+                value={payMode}
+                onChange={(e) => setPayMode(e.target.value)}
+                className={inputClass}
+              >
+                <option value="">Select mode…</option>
+                {PAYMENT_MODES.map((pm) => (
+                  <option key={pm} value={pm}>{pm}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>Payment Date</label>
+              <input
+                type="date"
+                value={payDate}
+                onChange={(e) => setPayDate(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+          </div>
+
+          {payError && (
+            <div className="text-sm text-[#F87171]">{payError}</div>
+          )}
+
+          <button
+            type="button"
+            onClick={handleRecordPayment}
+            disabled={paying || balanceDue <= 0 || !payAmount || !payDate}
+            className="bg-[#22D38C] text-[#0B1220] font-semibold rounded-lg py-2 px-5 text-sm hover:bg-[#5EEAD4] disabled:opacity-50 transition-colors"
+          >
+            {paying ? "Recording…" : "Record Payment"}
+          </button>
         </div>
 
         <div>

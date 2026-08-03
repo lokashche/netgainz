@@ -8,15 +8,15 @@ that period's Sales Invoice. Profit First and commissions then read COLLECTED CA
 from Payment Entries, never from the invoice (cash basis), via the single shared
 read :func:`membership_collected_paise`.
 
-``Business Settings.billing_cutover_date`` gates the WRITE path: a membership
-created on/after it provisions a Subscription and bills via ERPNext; before it,
-nothing changes. The cash READ discriminates per-membership by **whether the
-membership has a Subscription** (not by date): legacy memberships contribute their
-``fee_collected``, cut-over memberships their Payment-Entry net cash. That keeps
-the trailing window continuous with NO migration (a legacy late payment is never
-dropped, a cut-over membership's stale fee_collected is never double-counted); the
-WP-7 backfill is a later consolidation. The cut-over date is one-way once billing
-exists (Business Settings guards against moving it — it would orphan revenue).
+**WP-11 (fresh-start): ERPNext billing is ON for every membership, always.** There
+was never any production data — no tenant ever set a cut-over date, and no Sales
+Invoice, Payment Entry or Subscription was ever created — so the date-gated
+cut-over and its dual cash read (legacy ``fee_collected`` + Payment Entries) were
+deleted rather than migrated. One path, one source of truth: cash is what a
+submitted Payment Entry allocated to a subscription-generated Sales Invoice.
+``Membership.fee_collected`` / ``tariff`` survive only as deprecated display
+fields and feed NO calculation; payments post exclusively through
+:func:`record_payment`.
 
 Design conventions mirror provisioning.py / payment_modes.py: idempotent,
 best-effort (skip — never block the save — when a prerequisite is missing),
@@ -48,19 +48,6 @@ def _company(company=None):
 	return company or pf_accounts.default_company()
 
 
-def cutover_date():
-	"""The tenant's billing cut-over date, or None. Direct DB read (a Single's
-	scalar can be served stale from the singles cache within the request it was
-	last changed in — same caution as pf_sweep.py).
-
-	Normalises a cleared/zero date (``0001-01-01``, which Frappe can store when a
-	Date field is blanked) to None, so an unset cut-over reads as falsy rather
-	than as a truthy ancient date that would wrongly switch the tenant on."""
-	value = frappe.db.get_single_value("Business Settings", "billing_cutover_date")
-	value = getdate(value) if value else None
-	return value if (value and value.year > 1900) else None
-
-
 # --------------------------------------------------------------------------- #
 # Membership -> native Subscription -> Sales Invoice
 # --------------------------------------------------------------------------- #
@@ -86,12 +73,9 @@ def ensure_subscription(membership, company=None) -> str | None:
 	if not sub_plan:
 		return None
 
-	# start_date never predates the cut-over, so the daily Process Subscription
-	# scheduler can't retroactively bill periods already collected as fee_collected.
-	cutover = cutover_date()
+	# WP-11: no cut-over to floor against — billing is on from day one. (WP-10.0
+	# will re-anchor this to Member.date_of_joining.)
 	start = getdate(today())
-	if cutover and getdate(cutover) > start:
-		start = getdate(cutover)
 
 	sub = frappe.new_doc("Subscription")
 	sub.party_type = "Customer"
@@ -135,15 +119,16 @@ def force_generate_invoice(membership, posting_date=None) -> str | None:
 
 
 def on_membership_insert(doc, method=None):
-	"""``after_insert`` doc_event: once the tenant is cut over, stand up the
-	Subscription and bill the first (prepaid) period. Best-effort — never blocks
-	the membership save (a billing hiccup must not fail member enrolment; the owner
-	can retry via generate_membership_invoice)."""
-	if frappe.flags.in_install or not cutover_date():
+	"""``after_insert`` doc_event: stand up the Subscription and bill the first
+	(prepaid) period. Best-effort — never blocks the membership save (a billing
+	hiccup must not fail member enrolment; the owner can retry via
+	generate_membership_invoice)."""
+	if frappe.flags.in_install:
 		return
 	try:
 		if ensure_subscription(doc):
 			force_generate_invoice(doc)
+			sync_derived_fields(doc)
 	except Exception:
 		frappe.log_error(title=f"WP-4 billing provisioning failed for membership {doc.name}")
 
@@ -230,10 +215,14 @@ def record_payment(
 # derived membership state (R4: one source of truth = invoice outstanding)
 # --------------------------------------------------------------------------- #
 def sync_from_invoice(membership) -> None:
-	"""Set status / balance_due / next_renewal on a cut-over membership from its
+	"""Set status / balance_due / due_date / next_renewal on a membership from its
 	current Sales Invoice's outstanding_amount + the Subscription period. Operates
 	in-memory (controller calls it in before_save); never infers CASH from
-	outstanding (write-offs zero outstanding without collecting)."""
+	outstanding (write-offs zero outstanding without collecting).
+
+	A no-op when billing has not been provisioned yet — provisioning is best-effort
+	and must never block enrolment, so a membership can briefly exist without an
+	invoice."""
 	# Anchor to the CURRENT period's invoice (the subscription's latest), not a
 	# stale current_sales_invoice — else a renewal period's open SI is missed and
 	# the membership wrongly reports Paid.
@@ -251,6 +240,11 @@ def sync_from_invoice(membership) -> None:
 	)
 	membership.current_sales_invoice = si_name
 	membership.balance_due = si.outstanding_amount
+	# WP-11: due_date is invoice-derived, never hand-typed (it also drives
+	# overdue_days on the controller). WP-10 will re-derive it from the earliest
+	# unpaid payment-schedule row once installments exist.
+	if si.due_date:
+		membership.due_date = getdate(si.due_date)
 	if flt(si.outstanding_amount) <= 0:
 		membership.status = "Paid"
 	elif si.status == "Overdue" or (si.due_date and getdate(today()) > getdate(si.due_date)):
@@ -267,6 +261,31 @@ def sync_from_invoice(membership) -> None:
 		start = frappe.db.get_value("Subscription", membership.subscription, "current_invoice_start")
 		if start:
 			membership.next_renewal = getdate(start)
+
+
+def sync_derived_fields(membership) -> None:
+	"""Re-derive AND persist status / balance_due / due_date / next_renewal.
+
+	``sync_from_invoice`` runs from the controller's ``before_save``, but a
+	membership's Subscription and first invoice are provisioned in ``after_insert``
+	— i.e. after that hook has already run. Without this a freshly enrolled
+	membership would keep empty derived fields until something saved it again.
+	Writes with ``db_set`` rather than ``save()`` so the just-inserted document is
+	not re-validated (and cannot trip a modified-timestamp conflict)."""
+	membership = _as_doc("Membership", membership)
+	sync_from_invoice(membership)
+	membership.calculate_overdue_days()
+	for field in (
+		"current_sales_invoice",
+		"status",
+		"balance_due",
+		"due_date",
+		"next_renewal",
+		"overdue_days",
+	):
+		value = membership.get(field)
+		if value is not None:
+			membership.db_set(field, value, update_modified=False)
 
 
 # --------------------------------------------------------------------------- #
@@ -291,9 +310,8 @@ def collected_paise(start, end, customers=None) -> int:
 
 	Each allocation is scaled by ``net_total / grand_total`` so only the **ex-GST**
 	portion counts — GST collected is a pass-through liability, not revenue, and PF
-	must allocate real revenue (this also keeps continuity with the legacy ex-GST
-	fee_collected). For a non-GST tenant grand_total == net_total, so the scale is
-	1 and it is a no-op. Single-currency (the SI document currency)."""
+	must allocate real revenue. For a non-GST tenant grand_total == net_total, so the
+	scale is 1 and it is a no-op. Single-currency (the SI document currency)."""
 	if customers is not None and not customers:
 		return 0
 	params = {"start": getdate(start), "end": getdate(end)}
@@ -321,33 +339,16 @@ def collected_paise(start, end, customers=None) -> int:
 	return sum(calc.to_paise(r.amt) for r in rows)
 
 
-def _legacy_collected_paise(start, end, members=None) -> int:
-	"""Legacy cash: Membership.fee_collected by paid_date, for memberships that are
-	NOT on ERPNext billing (no Subscription). Excluding subscription-bearing
-	memberships means a cut-over membership's stale fee_collected can never be
-	double-counted alongside its Payment Entries."""
-	filters = [["paid_date", "between", [start, end]], ["subscription", "is", "not set"]]
-	if members is not None:
-		if not members:
-			return 0
-		filters.append(["member", "in", list(members)])
-	rows = frappe.get_all("Membership", filters=filters, fields=["fee_collected"], limit_page_length=0)
-	return sum(calc.to_paise(r.fee_collected) for r in rows)
-
-
 def membership_collected_paise(start, end, members=None) -> int:
 	"""THE shared cash read for Profit First + commissions (integer paise).
 
-	Sums legacy memberships' fee_collected + cut-over memberships' Payment-Entry net
-	cash. The discriminator is whether a membership carries a native Subscription
-	(provisioned at cut-over), NOT the calendar date — so a legacy LATE payment is
-	never dropped and a cut-over membership's stale fee_collected is never
-	double-counted. Continuity holds with no migration: pre-cut-over memberships stay
-	legacy, post-cut-over ones bill via Payment Entries. ``members`` (Member names)
-	optionally scopes the total (legacy by member; PE by the members' Customers)."""
-	legacy = _legacy_collected_paise(start, end, members)
-	pe = collected_paise(start, end, _members_to_customers(members))
-	return legacy + pe
+	WP-11: a single Payment-Entry read. Every membership bills through ERPNext, so
+	collected cash is always the ex-GST allocation of a submitted Receive Payment
+	Entry against a subscription-generated Sales Invoice — never
+	``Membership.fee_collected``, which is a deprecated display field feeding no
+	calculation. ``members`` (Member names) optionally scopes the total, translated
+	to the members' Customers."""
+	return collected_paise(start, end, _members_to_customers(members))
 
 
 # --------------------------------------------------------------------------- #

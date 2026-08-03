@@ -16,3 +16,4 @@ netgainz.patches.v0_7.backfill_branch
 netgainz.patches.v0_7.restore_native_subscription_links
 netgainz.patches.v0_7.backfill_expense_accounts
 netgainz.patches.v0_7.drop_accounting_basis
+netgainz.patches.v0_7.drop_billing_cutover_date

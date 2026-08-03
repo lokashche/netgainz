@@ -2,7 +2,7 @@
 # For license information, please see license.txt
 
 # Custom imports
-from datetime import date, timedelta
+from datetime import date
 
 import frappe
 from frappe.model.document import Document
@@ -10,49 +10,35 @@ from frappe.utils import getdate
 
 
 class Membership(Document):
+	"""A member's enrolment on a plan, billed through ERPNext.
+
+	WP-11 (fresh-start): there is exactly ONE billing path. Every membership drives
+	a native ERPNext Subscription, so ``status`` / ``balance_due`` / ``due_date`` /
+	``next_renewal`` all derive from that period's Sales Invoice (R4 — the invoice's
+	``outstanding_amount`` is the single source of truth). The legacy
+	``fee_collected``-vs-``tariff`` controller math is gone; those two fields remain
+	only as deprecated display values and feed no calculation. Money is recorded
+	exclusively as Payment Entries via ``accounting.billing.record_payment`` — never
+	by editing ``fee_collected``.
+	"""
+
 	def before_save(self):
-		if self.subscription:
-			# Cut-over membership: status / balance_due / next_renewal derive from
-			# the Sales Invoice outstanding_amount (R4 single source of truth), not
-			# the legacy fee_collected math. Payments post as Payment Entries
-			# (accounting.billing.record_payment), never by editing fee_collected.
-			from netgainz.net_gainz.accounting import billing
+		from netgainz.net_gainz.accounting import billing
 
-			billing.sync_from_invoice(self)
-			return
-		self.calculate_balance_due()
+		# Derives status / balance_due / due_date / next_renewal from the current
+		# Sales Invoice. A no-op while billing has not been provisioned yet
+		# (provisioning is best-effort and must never block enrolment).
+		billing.sync_from_invoice(self)
 		self.calculate_overdue_days()
-		self.auto_update_status()
-		self.set_paid_date_on_payment()
-		self.calculate_next_renewal()
-
-	def set_paid_date_on_payment(self):
-		"""Stamp paid_date the first time money is recorded.
-
-		Cash-basis reporting (and the Profit First Instant Assessment) scopes
-		income by paid_date. SQL BETWEEN excludes NULLs, so a collected payment
-		with no paid_date is silently dropped from cash totals. Default it to
-		today when fees are first collected, without overwriting a date the
-		owner set explicitly.
-		"""
-		if (self.fee_collected or 0) > 0 and not self.paid_date:
-			self.paid_date = date.today()
 
 	def after_save(self):
 		self.sync_member_status()
 
-	def calculate_balance_due(self):
-		# Ensure we treat None as 0 so the math doesn't break
-		tariff = self.tariff or 0
-		collected = self.fee_collected or 0
-		if tariff and collected:
-			self.balance_due = tariff - collected
-		elif tariff:
-			self.balance_due = tariff
-		else:
-			self.balance_due = 0
-
 	def calculate_overdue_days(self):
+		"""Days past the current invoice's due date, once it is genuinely overdue.
+
+		``due_date`` is invoice-derived (set by ``sync_from_invoice``), never typed.
+		"""
 		if self.due_date and self.status != "Paid":
 			due_date = getdate(self.due_date)
 			diff = (date.today() - due_date).days
@@ -60,36 +46,8 @@ class Membership(Document):
 		else:
 			self.overdue_days = 0
 
-	def auto_update_status(self):
-		# 1. PREPARATION: Make sure we have numbers to work with
-		tariff = self.tariff or 0
-		collected = self.fee_collected or 0
-
-		# 2. THE MONEY CHECK: Decide status based only on payment
-		if tariff > 0:
-			if collected >= tariff:
-				self.status = "Paid"
-			elif collected > 0:
-				self.status = "Partial"
-			else:
-				self.status = "Pending"
-
-		# 3. THE DEADLINE CHECK: If it's late, "Overdue" wins
-		if self.due_date and date.today() > getdate(self.due_date):
-			# If the date has passed and the status is NOT "Paid"...
-			if self.status != "Paid":
-				# This marks it "Overdue" even if they paid a little bit (Partial)
-				self.status = "Overdue"
-
-	def calculate_next_renewal(self):
-		if self.membership_plan and self.paid_date:
-			plan = frappe.get_doc("Membership Plan", self.membership_plan)
-			if plan.duration_in_days:
-				paid_date = getdate(self.paid_date)
-				self.next_renewal = paid_date + timedelta(days=plan.duration_in_days)
-
 	def sync_member_status(self):
-		"""If all subscriptions are overdue, freeze the member"""
+		"""If all memberships are overdue, freeze the member"""
 		if self.member and self.status == "Overdue":
 			active_subs = frappe.get_all(
 				"Membership",

@@ -6,15 +6,19 @@ Run with: bench --site <site> run-tests --module \
   netgainz.net_gainz.profit_first.test_instant_assessment
 
 These complement the pure-maths coverage in test_calc.py by exercising the
-frappe data-fetch (cash top-line by paid_date, expense bucketing, exclusion of
-paid_date-less payments). FrappeTestCase wraps each test in a transaction and
-rolls back, so the slate-clearing deletes and Single edits below are temporary.
+frappe data-fetch (cash top-line from Payment Entries, expense bucketing).
+FrappeTestCase wraps each test in a transaction and rolls back, so the
+slate-clearing deletes and Single edits below are temporary.
+
+WP-11: revenue is built with real billing (billing_fixtures.enrol_and_collect),
+not by setting the deprecated Membership.fee_collected, which feeds nothing.
 """
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import today
 
+from netgainz.net_gainz.accounting import billing_fixtures as fx
 from netgainz.net_gainz.profit_first import calc
 from netgainz.net_gainz.profit_first.instant_assessment import get_instant_assessment
 from netgainz.net_gainz.profit_first.seed import seed_profit_first_defaults
@@ -23,8 +27,10 @@ from netgainz.net_gainz.profit_first.seed import seed_profit_first_defaults
 class TestInstantAssessment(FrappeTestCase):
 	def setUp(self):
 		# Deterministic slate (rolled back after the test).
-		frappe.db.delete("Membership")
+		fx.clear_billing_data()
 		frappe.db.delete("Expense")
+		fx.ensure_cash_account()
+		self._seq = 0
 
 		seed_profit_first_defaults()
 		settings = frappe.get_single("Profit First Settings")
@@ -33,14 +39,10 @@ class TestInstantAssessment(FrappeTestCase):
 		settings.save(ignore_permissions=True)
 
 	# ---- helpers --------------------------------------------------------- #
-	def _sub(self, fee, with_paid_date=True):
-		doc = frappe.get_doc({"doctype": "Membership", "tariff": fee, "fee_collected": fee}).insert(
-			ignore_permissions=True
-		)
-		if not with_paid_date:
-			# Simulate legacy data: money collected but no paid_date.
-			frappe.db.set_value("Membership", doc.name, "paid_date", None, update_modified=False)
-		return doc
+	def _sub(self, fee):
+		"""A member who has actually PAID ``fee`` (ex-GST) — invoice + Payment Entry."""
+		self._seq += 1
+		return fx.enrol_and_collect(f"IA{self._seq}", amount=fee)
 
 	def _category(self, name, bucket):
 		if not frappe.db.exists("Expense Category", name):
@@ -57,14 +59,9 @@ class TestInstantAssessment(FrappeTestCase):
 		).insert(ignore_permissions=True)
 
 	# ---- tests ----------------------------------------------------------- #
-	def test_controller_stamps_paid_date(self):
-		doc = self._sub(1000)
-		self.assertEqual(str(doc.paid_date), today())
-
 	def test_real_revenue_and_buckets(self):
 		self._sub(200000)
 		self._sub(150000)
-		self._sub(50000, with_paid_date=False)  # excluded from cash total
 		rent = self._category("ZZ Test Rent", "Operating Expenses")
 		draw = self._category("ZZ Test Owner Draw", "Owner's Pay")
 		supp = self._category("ZZ Test Supplements", "Pass-Through")
@@ -76,7 +73,7 @@ class TestInstantAssessment(FrappeTestCase):
 
 		self.assertTrue(out["enabled"])
 		self.assertTrue(out["applicable"])
-		self.assertEqual(out["topline"], 350000.00)  # excludes the paid_date-less 50000
+		self.assertEqual(out["topline"], 350000.00)
 		self.assertEqual(out["passthrough"], 50000.00)
 		self.assertEqual(out["real_revenue"], 300000.00)
 
@@ -101,12 +98,6 @@ class TestInstantAssessment(FrappeTestCase):
 		# Gaps must NOT sum to Real Revenue.
 		gaps = sum(calc.to_paise(r["gap"]) for r in out["rows"])
 		self.assertNotEqual(gaps, calc.to_paise(out["real_revenue"]))
-
-	def test_excluded_payments_warning(self):
-		self._sub(100000)
-		self._sub(40000, with_paid_date=False)
-		out = get_instant_assessment()
-		self.assertTrue(any("no Paid Date" in w for w in out["warnings"]))
 
 	def test_passthrough_breakdown_listed(self):
 		self._sub(200000)

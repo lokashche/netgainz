@@ -37,7 +37,6 @@ def get_instant_assessment(window: str | None = None):
 	start, end, period_label = _period(window)
 
 	topline_paise = _cash_topline_paise(start, end)
-	excluded = _excluded_payments(start, end)
 	has_field = frappe.get_meta(EXPENSE_CATEGORY).has_field("pf_bucket")
 	buckets_paise, passthrough_breakdown = _expense_buckets_paise(start, end, has_field)
 	tier_bands = _tier_bands(settings)
@@ -50,7 +49,10 @@ def get_instant_assessment(window: str | None = None):
 		period_label=period_label,
 		basis="Cash",
 		rounding_sink=settings.rounding_sink or calc.OPEX,
-		excluded_payments=excluded,
+		# WP-11: no excluded_payments — a Payment Entry cannot exist without a
+		# posting_date (R3), so dateless collected cash is structurally impossible.
+		# calc.build_assessment keeps the optional param (still unit-tested) for any
+		# future exclusion source.
 		has_pf_bucket_field=has_field,
 	)
 	result["enabled"] = True
@@ -132,36 +134,10 @@ def _period(window: str):
 # income                                                                      #
 # --------------------------------------------------------------------------- #
 def _cash_topline_paise(start, end) -> int:
-	# WP-4: collected cash now comes from Payment Entries on/after the billing
-	# cut-over date and from legacy fee_collected before it (date-split inside
-	# the shared helper). Re-pointed together with commissions._collected_between.
+	# WP-11: one path — collected cash is always the ex-GST allocation of submitted
+	# Payment Entries against subscription-generated Sales Invoices. Shared with
+	# commissions._collected_between so the two can never diverge.
 	return billing.membership_collected_paise(start, end)
-
-
-def _excluded_payments(start, end) -> dict:
-	"""Payments with money collected but no paid_date — unplaceable in time and
-	therefore excluded from the cash total. Surfaced so the total is never
-	silently short. (The v0_2 backfill patch + controller fix shrink this to
-	zero going forward.)
-
-	WP-4 leaves this on the legacy fee_collected read on purpose: it reports
-	pre-cut-over dateless cash, and the new Payment-Entry path can never create a
-	null-posting_date collection (PE.posting_date is mandatory — R3), so there is
-	nothing new to surface here post-cut-over."""
-	rows = frappe.get_all(
-		"Membership",
-		filters=[
-			["fee_collected", ">", 0],
-			["paid_date", "is", "not set"],
-			["subscription", "is", "not set"],
-		],
-		fields=["fee_collected"],
-		limit_page_length=0,
-	)
-	return {
-		"count": len(rows),
-		"amount_paise": sum(calc.to_paise(r.fee_collected) for r in rows),
-	}
 
 
 # --------------------------------------------------------------------------- #

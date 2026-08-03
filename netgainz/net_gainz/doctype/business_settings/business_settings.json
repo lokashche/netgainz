@@ -6,7 +6,6 @@
  "field_order": [
   "accounting_section",
   "accounting_method",
-  "billing_cutover_date",
   "days_until_due",
   "expense_post_to_ledger",
   "member_naming_section",
@@ -52,12 +51,6 @@
    "label": "Accounting Method",
    "options": "Cash\nAccrual",
    "reqd": 1
-  },
-  {
-   "description": "Stage 7 cut-over to real ERPNext billing. When set, memberships created on/after this date bill via ERPNext Subscriptions + Sales Invoices and payments post as Payment Entries; collected cash before this date keeps reading the legacy fee_collected. Leave empty to stay fully on the legacy model. One-way per tenant.",
-   "fieldname": "billing_cutover_date",
-   "fieldtype": "Date",
-   "label": "Billing Cut-over Date"
   },
   {
    "default": "0",

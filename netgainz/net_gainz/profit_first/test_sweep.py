@@ -12,12 +12,15 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import flt, today
 
+from netgainz.net_gainz.accounting import billing_fixtures as fx
 from netgainz.net_gainz.profit_first import accounts, calc
 from netgainz.net_gainz.profit_first.seed import seed_profit_first_defaults
 
 
 class TestPFSweep(FrappeTestCase):
 	def setUp(self):
+		fx.clear_billing_data()
+		fx.ensure_cash_account()
 		# FrappeTestCase shares one transaction across the class; clear prior
 		# sweeps so a posted sweep from an earlier test can't trip another test's
 		# one-sweep-per-date idempotency guard.
@@ -44,9 +47,9 @@ class TestPFSweep(FrappeTestCase):
 
 	# ---- helpers --------------------------------------------------------- #
 	def _sub(self, fee):
-		frappe.get_doc({"doctype": "Membership", "tariff": fee, "fee_collected": fee}).insert(
-			ignore_permissions=True
-		)
+		"""Real collected revenue: enrol a member and pay the invoice (WP-11)."""
+		self._seq = getattr(self, "_seq", 0) + 1
+		fx.enrol_and_collect(f"Sweep{self._seq}", amount=fee)
 
 	def _new_sweep(self):
 		return frappe.get_doc({"doctype": "PF Sweep", "sweep_date": today()}).insert(ignore_permissions=True)

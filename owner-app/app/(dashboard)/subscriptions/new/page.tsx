@@ -39,7 +39,6 @@ const MONTHS = [
   "July", "August", "September", "October", "November", "December",
 ];
 
-const PAYMENT_MODES = ["Cash", "UPI", "Card", "Bank Transfer", "Online"];
 
 const inputClass =
   "w-full px-3 py-2.5 rounded-lg text-sm focus:outline-none focus:ring-2 focus:border-transparent bg-[#1A2540] border border-[#1E2D45] text-[#E6EDF7] placeholder:text-[#8A97B2] focus:ring-[#22D38C] appearance-none";
@@ -54,11 +53,6 @@ export default function NewSubscriptionPage() {
   const [membership_plan, setMembershipPlan] = useState("");
   const [planLabel, setPlanLabel] = useState("");
   const [month, setMonth] = useState("");
-  const [tariff, setTariff] = useState("");
-  const [fee_collected, setFeeCollected] = useState("0");
-  const [payment_mode, setPaymentMode] = useState("");
-  const [due_date, setDueDate] = useState("");
-  const [paid_date, setPaidDate] = useState("");
   const [comments, setComments] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
@@ -73,12 +67,7 @@ export default function NewSubscriptionPage() {
       member,
       membership_plan,
       month,
-      tariff: Number(tariff),
-      fee_collected: Number(fee_collected),
     };
-    if (payment_mode) payload.payment_mode = payment_mode;
-    if (due_date) payload.due_date = due_date;
-    if (paid_date) payload.paid_date = paid_date;
     if (comments) payload.comments = comments;
 
     try {
@@ -178,72 +167,14 @@ export default function NewSubscriptionPage() {
               ))}
             </select>
           </div>
-          <div>
-            <label className={labelClass}>Payment Mode</label>
-            <select
-              value={payment_mode}
-              onChange={(e) => setPaymentMode(e.target.value)}
-              className={inputClass}
-            >
-              <option value="">Select mode…</option>
-              {PAYMENT_MODES.map((pm) => (
-                <option key={pm} value={pm}>{pm}</option>
-              ))}
-            </select>
-          </div>
         </div>
 
-        {/* Tariff + Fee Collected */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className={labelClass}>
-              Tariff / Fee Amount <span className="text-[#F87171]">*</span>
-            </label>
-            <input
-              type="number"
-              required
-              min="0"
-              step="0.01"
-              value={tariff}
-              onChange={(e) => setTariff(e.target.value)}
-              placeholder="e.g. 1500"
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className={labelClass}>Fee Collected</label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={fee_collected}
-              onChange={(e) => setFeeCollected(e.target.value)}
-              placeholder="0"
-              className={inputClass}
-            />
-          </div>
-        </div>
-
-        {/* Due Date + Paid Date */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className={labelClass}>Due Date</label>
-            <input
-              type="date"
-              value={due_date}
-              onChange={(e) => setDueDate(e.target.value)}
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className={labelClass}>Paid Date</label>
-            <input
-              type="date"
-              value={paid_date}
-              onChange={(e) => setPaidDate(e.target.value)}
-              className={inputClass}
-            />
-          </div>
+        {/* WP-11: fee, dates and status are all derived from the ERPNext Sales
+            Invoice generated on enrolment. Money is recorded afterwards on the
+            membership page ("Record a Payment"), which posts a Payment Entry. */}
+        <div className="rounded-lg border border-[#1E2D45] bg-[#0F1B2D] p-4 text-sm text-[#8FA3BF]">
+          The fee comes from the selected plan. On save, the first invoice is
+          raised automatically — record the payment from the membership page.
         </div>
 
         {/* Comments */}

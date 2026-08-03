@@ -9,12 +9,15 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import getdate, today
 
+from netgainz.net_gainz.accounting import billing_fixtures as fx
 from netgainz.net_gainz.profit_first import accounts, dashboard, schedule
 from netgainz.net_gainz.profit_first.seed import seed_profit_first_defaults
 
 
 class TestPFSchedule(FrappeTestCase):
 	def setUp(self):
+		fx.clear_billing_data()
+		fx.ensure_cash_account()
 		frappe.db.delete("PF Sweep")
 		frappe.db.delete("Membership")
 
@@ -36,9 +39,9 @@ class TestPFSchedule(FrappeTestCase):
 		accounts.setup_pf_accounts(company)
 
 	def _income(self, fee):
-		frappe.get_doc({"doctype": "Membership", "tariff": fee, "fee_collected": fee}).insert(
-			ignore_permissions=True
-		)
+		"""Real collected revenue: enrol a member and pay the invoice (WP-11)."""
+		self._seq = getattr(self, "_seq", 0) + 1
+		fx.enrol_and_collect(f"Sched{self._seq}", amount=fee)
 
 	# ---- pure logic ------------------------------------------------------ #
 	def test_parse_allocation_days(self):
