@@ -6,7 +6,7 @@ from datetime import date
 
 import frappe
 from frappe.model.document import Document
-from frappe.utils import getdate
+from frappe.utils import flt, getdate
 
 
 class Membership(Document):
@@ -25,13 +25,48 @@ class Membership(Document):
 	def before_save(self):
 		from netgainz.net_gainz.accounting import billing
 
+		self.resolve_payment_terms()
 		# Derives status / balance_due / due_date / next_renewal from the current
 		# Sales Invoice. A no-op while billing has not been provisioned yet
 		# (provisioning is best-effort and must never block enrolment).
-		billing.sync_from_invoice(self)
+		billing.sync_from_billing(self)
 		self.calculate_overdue_days()
 
-	def after_save(self):
+	def resolve_payment_terms(self):
+		"""WP-10.1 (D2/D7): resolve this membership's payment terms.
+
+		A per-member override (its own due rule / installment settings) wins;
+		otherwise the plan's policy applies. The resolved template is stored
+		read-only — the owner configures gym-language dropdowns, never a template.
+		"""
+		from netgainz.net_gainz.accounting import payment_terms
+
+		if self.payment_due_rule or int(self.installment_count or 0) > 1:
+			plan = (
+				frappe.db.get_value(
+					"Membership Plan",
+					self.membership_plan,
+					["payment_due_rule", "installment_count", "installment_gap_days"],
+					as_dict=True,
+				)
+				if self.membership_plan
+				else None
+			)
+			due_rule = self.payment_due_rule or (plan and plan.payment_due_rule)
+			parts = int(self.installment_count or 0) or int((plan and plan.installment_count) or 1)
+			gap = int(self.installment_gap_days or 0) or int(
+				(plan and plan.installment_gap_days) or 30
+			)
+			self.payment_terms_template = payment_terms.ensure_template(due_rule, parts, gap)
+		elif self.membership_plan:
+			self.payment_terms_template = frappe.db.get_value(
+				"Membership Plan", self.membership_plan, "payment_terms_template"
+			)
+
+	def on_update(self):
+		# NB: `on_update` is Frappe's post-save hook. This used to be spelled
+		# `after_save`, which Frappe never calls — so member freezing silently did
+		# nothing from the day it was written until WP-10.6's tests caught it.
 		self.sync_member_status()
 
 	def calculate_overdue_days(self):
@@ -46,19 +81,40 @@ class Membership(Document):
 		else:
 			self.overdue_days = 0
 
+	def has_collected_this_period(self) -> bool:
+		"""True when ANY money has been collected against the current period."""
+		from netgainz.net_gainz.accounting import billing
+
+		obligations = billing.open_obligations(self)
+		if not obligations:
+			return False
+		total = sum(flt(o["amount"]) for o in obligations)
+		outstanding = sum(flt(o["outstanding"]) for o in obligations)
+		return total - outstanding > 0
+
 	def sync_member_status(self):
-		"""If all memberships are overdue, freeze the member"""
-		if self.member and self.status == "Overdue":
-			active_subs = frappe.get_all(
-				"Membership",
-				filters={
-					"member": self.member,
-					"status": ["in", ["Paid", "Pending", "Partial"]],
-					"name": ["!=", self.name],
-				},
-			)
-			if not active_subs:
-				member = frappe.get_doc("Member", self.member)
-				if member.status == "Active":
-					member.status = "Frozen"
-					member.save(ignore_permissions=True)
+		"""If all memberships are overdue, freeze the member.
+
+		WP-10.6 (D3): a member who has PAID something this period is never frozen
+		for missing a later installment. They are marked Overdue and surface in the
+		owner's collections list, but keep access — freezing someone who has already
+		handed the gym money (and may just be a few days late on installment 2) is
+		the wrong default. A member who has paid nothing at all still freezes.
+		"""
+		if not self.member or self.status != "Overdue":
+			return
+		if self.has_collected_this_period():
+			return
+		active_subs = frappe.get_all(
+			"Membership",
+			filters={
+				"member": self.member,
+				"status": ["in", ["Paid", "Pending", "Partial"]],
+				"name": ["!=", self.name],
+			},
+		)
+		if not active_subs:
+			member = frappe.get_doc("Member", self.member)
+			if member.status == "Active":
+				member.status = "Frozen"
+				member.save(ignore_permissions=True)

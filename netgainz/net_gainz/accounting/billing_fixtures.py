@@ -77,46 +77,68 @@ def ensure_cash_account(company=None) -> str | None:
 	return cash
 
 
-def make_plan(name, amount=1000.0, duration=30):
+def make_plan(
+	name,
+	amount=1000.0,
+	duration=30,
+	plan_type="Monthly",
+	billing_mode="Commitment",
+	due_rule="On joining",
+	parts=1,
+	gap_days=30,
+):
 	"""A Membership Plan (auto-provisions Item + Item Price + Subscription Plan).
 
-	If the plan already exists its ``amount`` is re-synced, so a caller can never
-	silently bill at some other test's price."""
+	``plan_type`` drives ``duration_in_days`` via the controller; pass ``"Custom"``
+	with an explicit ``duration`` for a non-standard cadence. If the plan already
+	exists its ``amount`` is re-synced, so a caller can never silently bill at some
+	other test's price."""
 	if frappe.db.exists("Membership Plan", name):
 		plan = frappe.get_doc("Membership Plan", name)
 		if flt(plan.amount) != flt(amount):
 			plan.amount = amount
 			plan.save(ignore_permissions=True)  # re-syncs the Item Price
 		return plan
-	return frappe.get_doc(
-		{
-			"doctype": "Membership Plan",
-			"plan_name": name,
-			"duration_in_days": duration,
-			"amount": amount,
-			"gst_hsn_code": SAC,
-		}
-	).insert(ignore_permissions=True)
+	doc = {
+		"doctype": "Membership Plan",
+		"plan_name": name,
+		"plan_type": plan_type,
+		"billing_mode": billing_mode,
+		"amount": amount,
+		"gst_hsn_code": SAC,
+		"payment_due_rule": due_rule,
+		"installment_count": parts,
+		"installment_gap_days": gap_days,
+	}
+	# Mirror the owner app: the day count is set BY the cadence, and is only
+	# supplied directly for a Custom plan. Sending both would make the controller
+	# infer the cadence from the duration and override the plan_type asked for.
+	if plan_type == "Custom":
+		doc["duration_in_days"] = duration
+	return frappe.get_doc(doc).insert(ignore_permissions=True)
 
 
-def make_member(name, plan=None):
+def make_member(name, plan=None, date_of_joining=None):
 	"""A Member (auto-provisions the ERPNext Customer)."""
-	return frappe.get_doc(
-		{"doctype": "Member", "full_name": name, "membership_plan": plan}
-	).insert(ignore_permissions=True)
+	doc = {"doctype": "Member", "full_name": name, "membership_plan": plan}
+	if date_of_joining:
+		doc["date_of_joining"] = date_of_joining
+	return frappe.get_doc(doc).insert(ignore_permissions=True)
 
 
-def enrol(tag, amount=1000.0, duration=30):
+def enrol(tag, amount=1000.0, duration=30, date_of_joining=None, **plan_kwargs):
 	"""Enrol a fresh member on a fresh plan; returns the reloaded Membership.
 
 	``after_insert`` provisions the Subscription and bills the first prepaid period,
 	so the returned membership already carries ``subscription`` +
 	``current_sales_invoice``. ``tag`` is suffixed with a process-unique sequence so
-	repeated calls can never collide on a master's name.
+	repeated calls can never collide on a master's name. Extra keyword arguments
+	(``plan_type``, ``billing_mode``, ``due_rule``, ``parts``, ``gap_days``) go
+	straight to :func:`make_plan`.
 	"""
 	tag = f"{tag}-{next(_SEQ)}"
-	plan = make_plan(f"{tag} Plan", amount=amount, duration=duration)
-	member = make_member(f"{tag} Member", plan.name)
+	plan = make_plan(f"{tag} Plan", amount=amount, duration=duration, **plan_kwargs)
+	member = make_member(f"{tag} Member", plan.name, date_of_joining=date_of_joining)
 	ms = frappe.get_doc(
 		{"doctype": "Membership", "member": member.name, "membership_plan": plan.name}
 	).insert(ignore_permissions=True)
@@ -140,13 +162,13 @@ def collect(membership, amount=None, posting_date=None, payment_mode="Cash") -> 
 	)["payment_entry"]
 
 
-def enrol_and_collect(tag, amount=1000.0, posting_date=None, duration=30):
+def enrol_and_collect(tag, amount=1000.0, posting_date=None, duration=30, **plan_kwargs):
 	"""The one-liner most tests want: a member who has PAID ``amount`` (ex-GST).
 
 	Returns the reloaded Membership. Contributes exactly ``amount`` to
 	``billing.membership_collected_paise`` for a window containing ``posting_date``.
 	"""
-	ms = enrol(tag, amount=amount, duration=duration)
+	ms = enrol(tag, amount=amount, duration=duration, **plan_kwargs)
 	collect(ms, posting_date=posting_date)
 	ms.reload()
 	return ms

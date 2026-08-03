@@ -6,8 +6,12 @@ Pure logic, no site/frappe needed -- plain unittest.TestCase.
 """
 
 import unittest
+from datetime import date
 
-from netgainz.net_gainz.accounting.billing_intervals import duration_to_billing_interval
+from netgainz.net_gainz.accounting.billing_intervals import (
+	duration_to_billing_interval,
+	latest_cycle_start,
+)
 
 
 class TestBillingIntervals(unittest.TestCase):
@@ -52,3 +56,69 @@ class TestBillingIntervals(unittest.TestCase):
 	def test_string_digits_are_coerced(self):
 		# Int-like input (e.g. a stored field) is coerced via int().
 		self.assertEqual(duration_to_billing_interval("30"), ("Month", 1))
+
+
+class TestLatestCycleStart(unittest.TestCase):
+	"""WP-10.0: the billing cycle anchors on the member's JOINING day, and never
+	back-bills elapsed periods."""
+
+	def test_new_joiner_starts_today(self):
+		d = date(2026, 8, 3)
+		self.assertEqual(latest_cycle_start(d, "Month", 1, d), d)
+
+	def test_future_joiner_starts_on_joining(self):
+		self.assertEqual(
+			latest_cycle_start(date(2026, 9, 1), "Month", 1, date(2026, 8, 3)),
+			date(2026, 9, 1),
+		)
+
+	def test_monthly_keeps_the_joining_day_of_month(self):
+		# Joined the 15th -> every period starts on the 15th, not on today's date.
+		self.assertEqual(
+			latest_cycle_start(date(2026, 1, 15), "Month", 1, date(2026, 8, 3)),
+			date(2026, 7, 15),
+		)
+
+	def test_quarterly_lands_on_a_quarter_boundary(self):
+		# 15 Jan -> 15 Apr -> 15 Jul (15 Oct is still in the future).
+		self.assertEqual(
+			latest_cycle_start(date(2026, 1, 15), "Month", 3, date(2026, 8, 3)),
+			date(2026, 7, 15),
+		)
+
+	def test_half_yearly(self):
+		self.assertEqual(
+			latest_cycle_start(date(2026, 2, 10), "Month", 6, date(2026, 9, 1)),
+			date(2026, 8, 10),
+		)
+
+	def test_yearly(self):
+		self.assertEqual(
+			latest_cycle_start(date(2024, 1, 15), "Year", 1, date(2026, 8, 3)),
+			date(2026, 1, 15),
+		)
+
+	def test_month_end_joining_day_is_clamped(self):
+		# Joined the 31st: February has no 31st, so the period start clamps.
+		self.assertEqual(
+			latest_cycle_start(date(2026, 1, 31), "Month", 1, date(2026, 2, 28)),
+			date(2026, 2, 28),
+		)
+
+	def test_weekly_intervals(self):
+		self.assertEqual(
+			latest_cycle_start(date(2026, 1, 1), "Week", 2, date(2026, 8, 3)),
+			date(2026, 7, 30),
+		)
+
+	def test_never_returns_a_future_period(self):
+		"""The anchor is always on/before `on` — otherwise the first invoice would
+		be raised for a period that has not started."""
+		on = date(2026, 8, 3)
+		for joining in (date(2020, 3, 31), date(2026, 1, 1), date(2026, 8, 2)):
+			for interval, count in (("Month", 1), ("Month", 3), ("Year", 1), ("Week", 2)):
+				self.assertLessEqual(latest_cycle_start(joining, interval, count, on), on)
+
+	def test_unknown_interval_raises(self):
+		with self.assertRaises(ValueError):
+			latest_cycle_start(date(2026, 1, 1), "Fortnight", 1, date(2026, 8, 3))

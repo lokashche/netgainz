@@ -14,6 +14,12 @@ export default function NewPlanPage() {
 
   const [plan_name, setPlanName] = useState("");
   const [duration_in_days, setDuration] = useState("");
+  const [plan_type, setPlanType] = useState("Monthly");
+  const [billing_mode, setBillingMode] = useState("Commitment");
+  const [payment_due_rule, setPaymentDueRule] = useState("On joining");
+  const [installment_count, setInstallmentCount] = useState("1");
+  const [installment_gap_days, setInstallmentGapDays] = useState("30");
+
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [is_active, setIsActive] = useState(true);
@@ -30,6 +36,11 @@ export default function NewPlanPage() {
       plan_name,
       is_active: is_active ? 1 : 0,
     };
+    payload.plan_type = plan_type;
+    payload.billing_mode = billing_mode;
+    payload.payment_due_rule = payment_due_rule;
+    payload.installment_count = Number(installment_count);
+    payload.installment_gap_days = Number(installment_gap_days);
     if (duration_in_days) payload.duration_in_days = Number(duration_in_days);
     if (amount) payload.amount = Number(amount);
     if (description) payload.description = description;
@@ -86,6 +97,76 @@ export default function NewPlanPage() {
           />
         </div>
 
+        {/* Cadence + Billing mode (WP-10) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className={labelClass}>Plan Type</label>
+            <select
+              value={plan_type}
+              onChange={(e) => setPlanType(e.target.value)}
+              className={inputClass}
+            >
+              {["Monthly", "Quarterly", "Half-Yearly", "Yearly", "Custom"].map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={labelClass}>Billing Mode</label>
+            <select
+              value={billing_mode}
+              onChange={(e) => setBillingMode(e.target.value)}
+              className={inputClass}
+            >
+              <option value="Commitment">One invoice for the period</option>
+              <option value="Pay-as-you-go">A separate invoice each installment</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Payment policy — becomes the ERPNext payment terms behind the scenes */}
+        <div className="rounded-lg border border-[#1E2D45] p-4 space-y-4">
+          <h3 className="text-sm font-semibold text-[#E5EDF7]">Payment Policy</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className={labelClass}>Payment Due</label>
+              <select
+                value={payment_due_rule}
+                onChange={(e) => setPaymentDueRule(e.target.value)}
+                className={inputClass}
+              >
+                {["On joining", "Within 7 days", "By the 5th of next month"].map((r) => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>Allow Installments</label>
+              <select
+                value={installment_count}
+                onChange={(e) => setInstallmentCount(e.target.value)}
+                className={inputClass}
+              >
+                <option value="1">Pay in full</option>
+                {[2, 3, 4, 6, 12].map((n) => (
+                  <option key={n} value={String(n)}>{n} parts</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>Days Between Parts</label>
+              <input
+                type="number"
+                min="1"
+                value={installment_gap_days}
+                onChange={(e) => setInstallmentGapDays(e.target.value)}
+                disabled={installment_count === "1"}
+                className={`${inputClass} disabled:opacity-50`}
+              />
+            </div>
+          </div>
+        </div>
+
         {/* Duration + Amount */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
@@ -96,8 +177,12 @@ export default function NewPlanPage() {
               value={duration_in_days}
               onChange={(e) => setDuration(e.target.value)}
               placeholder="e.g. 30"
-              className={inputClass}
+              disabled={plan_type !== "Custom"}
+              className={`${inputClass} disabled:opacity-50`}
             />
+            {plan_type !== "Custom" && (
+              <p className="mt-1 text-xs text-[#8FA3BF]">Set by the plan type.</p>
+            )}
           </div>
           <div>
             <label className={labelClass}>Amount</label>

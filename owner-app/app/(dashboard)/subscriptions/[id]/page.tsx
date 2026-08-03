@@ -3,7 +3,7 @@
 import { useState, useEffect, SyntheticEvent, use } from "react";
 import { extractFrappeError } from "@/lib/frappe";
 import { useRouter } from "next/navigation";
-import type { Subscription, SubscriptionStatus } from "@/lib/types";
+import type { Obligation, Subscription, SubscriptionStatus } from "@/lib/types";
 
 type Params = Promise<{ id: string }>;
 
@@ -75,6 +75,7 @@ export default function SubscriptionDetailPage({ params }: { params: Params }) {
   const [payAmount, setPayAmount] = useState("");
   const [payMode, setPayMode] = useState("");
   const [payDate, setPayDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [obligations, setObligations] = useState<Obligation[]>([]);
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
 
@@ -109,8 +110,24 @@ export default function SubscriptionDetailPage({ params }: { params: Params }) {
     }
   }
 
+  async function loadObligations() {
+    try {
+      const res = await fetch(
+        `/api/subscriptions/${encodeURIComponent(id)}/obligations`
+      );
+      if (!res.ok) return;
+      const body = (await res.json()) as {
+        message?: { obligations?: Obligation[] };
+      };
+      setObligations(body.message?.obligations ?? []);
+    } catch {
+      // The schedule is supplementary — never block the page on it.
+    }
+  }
+
   useEffect(() => {
     loadSub();
+    loadObligations();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
@@ -137,7 +154,7 @@ export default function SubscriptionDetailPage({ params }: { params: Params }) {
       }
       // Re-fetch so the derived status / balance reflect the new Payment Entry.
       setLoading(true);
-      await loadSub();
+      await Promise.all([loadSub(), loadObligations()]);
     } catch (err) {
       setPayError(err instanceof Error ? err.message : "Failed to record payment");
     } finally {
@@ -303,6 +320,54 @@ export default function SubscriptionDetailPage({ params }: { params: Params }) {
         </div>
 
         <hr className="border-[#1E2D45]" />
+
+        {/* Installment schedule — the same obligations the backend bills against */}
+        {obligations.length > 1 && (
+          <div className="rounded-lg border border-[#1E2D45] p-4 space-y-3">
+            <h3 className="text-sm font-semibold text-[#E5EDF7]">Installments</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-[#8FA3BF]">
+                    <th className="py-1 pr-4 font-medium">#</th>
+                    <th className="py-1 pr-4 font-medium">Due</th>
+                    <th className="py-1 pr-4 font-medium text-right">Amount</th>
+                    <th className="py-1 font-medium">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {obligations.map((o) => {
+                    const paid = o.outstanding <= 0;
+                    const overdue =
+                      !paid && !!o.due_date && new Date(o.due_date) < new Date();
+                    return (
+                      <tr key={o.idx} className="border-t border-[#1E2D45]">
+                        <td className="py-2 pr-4 text-[#8FA3BF]">{o.idx}</td>
+                        <td className="py-2 pr-4">{o.due_date ?? "—"}</td>
+                        <td className="py-2 pr-4 text-right">
+                          {formatCurrency(o.amount)}
+                        </td>
+                        <td className="py-2">
+                          <span
+                            className={
+                              paid
+                                ? "text-[#22D38C]"
+                                : overdue
+                                  ? "text-[#F87171]"
+                                  : "text-[#8FA3BF]"
+                            }
+                          >
+                            {paid ? "Paid" : overdue ? "Overdue" : "Due"}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         {/* Record a payment — posts a real Payment Entry */}
         <div className="rounded-lg border border-[#1E2D45] p-4 space-y-4">

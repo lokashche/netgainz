@@ -16,13 +16,32 @@ export type Member = {
   inactive_reason?: string;
 };
 
+export type PlanType = 'Monthly' | 'Quarterly' | 'Half-Yearly' | 'Yearly' | 'Custom';
+export type BillingMode = 'Commitment' | 'Pay-as-you-go';
+export type PaymentDueRule = 'On joining' | 'Within 7 days' | 'By the 5th of next month';
+
 export type MembershipPlan = {
   name: string;         // same as plan_name
   plan_name: string;
+  plan_type?: PlanType;
+  billing_mode?: BillingMode;
   duration_in_days?: number;
   amount?: number;
+  payment_due_rule?: PaymentDueRule;
+  installment_count?: number;
+  installment_gap_days?: number;
   description?: string;
   is_active: 0 | 1;
+};
+
+/** One thing the member owes, and when. Both billing modes reduce to this. */
+export type Obligation = {
+  due_date: string | null;
+  amount: number;
+  outstanding: number;
+  sales_invoice: string;
+  payment_term: string | null;
+  idx: number;
 };
 
 export type SubscriptionStatus = 'Pending' | 'Paid' | 'Overdue' | 'Partial';

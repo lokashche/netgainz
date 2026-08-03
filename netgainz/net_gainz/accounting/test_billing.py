@@ -64,6 +64,36 @@ class TestBilling(FrappeTestCase):
 		self.assertTrue(ms.due_date, "due_date is derived from the invoice on enrolment")
 		self.assertTrue(ms.next_renewal, "next_renewal is derived from the subscription period")
 
+	def test_subscription_anchors_on_member_joining_date(self):
+		"""WP-10.0: the cycle keys off date_of_joining, not the enrolment day — so a
+		member who joined on the 15th is billed on the 15th. The start is the CURRENT
+		period, never the joining date itself, so past periods are not back-billed."""
+		joined = add_days(today(), -70)  # ~2 months + 10 days ago
+		plan = fx.make_plan("WP10 Anchor Plan", amount=1000.0, duration=30)
+		member = frappe.get_doc(
+			{
+				"doctype": "Member",
+				"full_name": "WP10 Anchor Member",
+				"membership_plan": plan.name,
+				"date_of_joining": joined,
+			}
+		).insert(ignore_permissions=True)
+		ms = frappe.get_doc(
+			{"doctype": "Membership", "member": member.name, "membership_plan": plan.name}
+		).insert(ignore_permissions=True)
+		ms.reload()
+
+		start = getdate(frappe.db.get_value("Subscription", ms.subscription, "start_date"))
+		# Same day-of-month as joining -> the cycle is anchored, not drifted.
+		self.assertEqual(start.day, getdate(joined).day)
+		# Current period, not the joining date: no retroactive billing.
+		self.assertGreater(start, getdate(joined))
+		self.assertLessEqual(start, getdate(today()))
+		# Exactly ONE invoice was raised, not one per elapsed period.
+		self.assertEqual(
+			frappe.db.count("Sales Invoice", {"subscription": ms.subscription, "docstatus": 1}), 1
+		)
+
 	# ---- payments (R3 / R4) --------------------------------------------- #
 	def test_record_payment_reduces_outstanding_and_sets_paid_to(self):
 		ms, _ = self._enrol("WP4 Pay")

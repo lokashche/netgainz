@@ -30,7 +30,13 @@ import frappe
 from frappe.model.document import Document
 from frappe.utils import add_days, flt, getdate, today
 
-from netgainz.net_gainz.accounting import branch, payment_modes, period_lock, provisioning
+from netgainz.net_gainz.accounting import (
+	billing_intervals,
+	branch,
+	payment_modes,
+	period_lock,
+	provisioning,
+)
 from netgainz.net_gainz.profit_first import accounts as pf_accounts
 from netgainz.net_gainz.profit_first import calc
 
@@ -51,6 +57,34 @@ def _company(company=None):
 # --------------------------------------------------------------------------- #
 # Membership -> native Subscription -> Sales Invoice
 # --------------------------------------------------------------------------- #
+def cycle_start(member, subscription_plan) -> object:
+	"""WP-10.0: the billing cycle's anchor date for ``member``.
+
+	Dues fall on the member's JOINING day — a member who joined on the 15th is
+	billed on the 15th — instead of drifting to whenever their first payment
+	happened to land (the defect this fixes: ``next_renewal`` used to be
+	``paid_date + duration``, so paying 10 days late bought 10 free days, every
+	cycle, forever).
+
+	Returns the CURRENT period's start rather than the joining date itself, so
+	enrolling a member who joined months ago cannot make the native daily
+	``Process Subscription`` scheduler back-bill every elapsed period. Falls back
+	to today when the member has no joining date or the plan has no interval.
+	"""
+	today_ = getdate(today())
+	joining = frappe.db.get_value("Member", member, "date_of_joining") if member else None
+	if not joining:
+		return today_
+	interval, count = frappe.db.get_value(
+		"Subscription Plan", subscription_plan, ["billing_interval", "billing_interval_count"]
+	) or (None, None)
+	if not interval:
+		return today_
+	return billing_intervals.latest_cycle_start(
+		getdate(joining), interval, int(count or 1), today_
+	)
+
+
 def ensure_subscription(membership, company=None) -> str | None:
 	"""Idempotently create the native ERPNext Subscription for a membership and
 	link it back. Returns its name, or None if a prerequisite is missing."""
@@ -73,9 +107,7 @@ def ensure_subscription(membership, company=None) -> str | None:
 	if not sub_plan:
 		return None
 
-	# WP-11: no cut-over to floor against — billing is on from day one. (WP-10.0
-	# will re-anchor this to Member.date_of_joining.)
-	start = getdate(today())
+	start = cycle_start(membership.member, sub_plan)
 
 	sub = frappe.new_doc("Subscription")
 	sub.party_type = "Customer"
@@ -111,7 +143,14 @@ def force_generate_invoice(membership, posting_date=None) -> str | None:
 	if not sub_name or not frappe.db.exists("Subscription", sub_name):
 		return None
 	sub = frappe.get_doc("Subscription", sub_name)
-	sub.process(getdate(posting_date) if posting_date else getdate(today()))
+	# ERPNext only generates a "Beginning of the current subscription period"
+	# invoice when the posting date IS that period's start
+	# (Subscription.can_generate_new_invoice). WP-10.0 anchors the cycle on the
+	# member's joining day, so a member enrolling mid-cycle has a period start in
+	# the PAST — posting "today" would silently raise nothing. Default to the
+	# period start so the current period is always billed.
+	when = getdate(posting_date) if posting_date else getdate(sub.current_invoice_start or today())
+	sub.process(when)
 	invoice = _latest_invoice(sub_name)
 	if invoice:
 		membership.db_set("current_sales_invoice", invoice, update_modified=False)
@@ -133,6 +172,76 @@ def on_membership_insert(doc, method=None):
 		frappe.log_error(title=f"WP-4 billing provisioning failed for membership {doc.name}")
 
 
+def _membership_for_invoice(doc):
+	"""The Membership behind a subscription-generated Sales Invoice, or None."""
+	if not doc.get("subscription"):
+		return None
+	name = frappe.db.get_value("Membership", {"subscription": doc.subscription}, "name")
+	return frappe.get_doc("Membership", name) if name else None
+
+
+def on_sales_invoice_before_validate(doc, method=None):
+	"""WP-10.3 (Mode A): put the membership's payment terms on the invoice.
+
+	ERPNext's native Subscription hardcodes a SINGLE 100% ``payment_schedule`` row
+	from ``days_until_due`` (subscription.py ``create_invoice``) and has no
+	``payment_terms_template`` field of its own — and
+	``accounts_controller.set_payment_schedule`` only builds from a template when
+	the schedule is EMPTY. So the schedule the Subscription pre-seeded is cleared
+	here and the resolved template attached, letting ERPNext build the real
+	installment rows during validate.
+
+	Pay-as-you-go is skipped: there, each installment is already its own invoice,
+	so a single due date per invoice is correct.
+	"""
+	if frappe.flags.in_install or not doc.get("subscription"):
+		return
+	membership = _membership_for_invoice(doc)
+	if not membership or billing_mode(membership) == PAY_AS_YOU_GO:
+		return
+	template = membership.get("payment_terms_template")
+	if not template or not frappe.db.exists("Payment Terms Template", template):
+		return
+	doc.payment_terms_template = template
+	doc.ignore_default_payment_terms_template = 1
+	doc.payment_schedule = []
+
+
+def on_sales_invoice_validate(doc, method=None):
+	"""WP-10.3 (D6): restate the installment amounts as clean numbers.
+
+	Runs AFTER the controller's own validate (frappe runs doc_event hooks after the
+	class method), so ``set_payment_schedule`` has already produced percentage-derived
+	amounts — 10,000 in 3 becomes 3,334 / 3,333 / 3,333. The owner asked for clean
+	numbers instead: 3,400 / 3,300 / 3,300.
+
+	``invoice_portion`` is zeroed on each row deliberately: on any later save
+	``set_payment_schedule`` RE-derives ``payment_amount`` from the portion, which
+	would silently undo this. With no portion it preserves the explicit amount.
+	The split always totals the grand total, which ERPNext independently enforces.
+	"""
+	if frappe.flags.in_install or not doc.get("subscription"):
+		return
+	rows = doc.get("payment_schedule") or []
+	if len(rows) < 2:
+		return
+	membership = _membership_for_invoice(doc)
+	if not membership or billing_mode(membership) == PAY_AS_YOU_GO:
+		return
+
+	from netgainz.net_gainz.accounting import payment_terms
+
+	total = flt(doc.get("rounded_total") or doc.grand_total)
+	amounts = payment_terms.split_amounts(total, len(rows))
+	conversion = flt(doc.get("conversion_rate")) or 1.0
+	for row, amount in zip(rows, amounts, strict=True):
+		row.invoice_portion = 0
+		row.payment_amount = amount
+		row.base_payment_amount = flt(amount * conversion)
+		row.outstanding = amount
+		row.base_outstanding = row.base_payment_amount
+
+
 def on_sales_invoice_submit(doc, method=None):
 	"""``on_submit`` doc_event for Sales Invoice: when the native daily Process
 	Subscription scheduler bills a new membership period, re-point the membership's
@@ -148,6 +257,41 @@ def on_sales_invoice_submit(doc, method=None):
 # --------------------------------------------------------------------------- #
 # payments -> Payment Entry
 # --------------------------------------------------------------------------- #
+def _allocate_oldest_first(pe, si_name, amount) -> None:
+	"""WP-10.5: spend ``amount`` on the OLDEST unpaid installment first.
+
+	When the invoice carries a payment schedule, ``get_payment_entry`` returns one
+	reference row per installment (the template sets
+	``allocate_payment_based_on_payment_terms``). A member paying part of what they
+	owe must clear installment 1 before installment 2 — otherwise a part payment
+	would be spread across every installment and none would ever read as settled,
+	so nothing would show as overdue.
+
+	Rows for other invoices are zeroed; each row's own outstanding caps what it can
+	absorb, so the payment can never over-allocate.
+	"""
+	remaining = flt(amount)
+	rows = [r for r in pe.references if r.reference_name == si_name]
+	others = [r for r in pe.references if r.reference_name != si_name]
+	for row in others:
+		row.allocated_amount = 0
+
+	# Oldest first: by due date, then by the schedule's own order.
+	rows.sort(key=lambda r: (getdate(r.due_date) if r.get("due_date") else getdate(today()), r.idx))
+	for row in rows:
+		capacity = flt(row.get("payment_term_outstanding") or row.get("outstanding_amount") or 0)
+		if capacity <= 0 or remaining <= 0:
+			row.allocated_amount = 0
+			continue
+		take = min(capacity, remaining)
+		row.allocated_amount = take
+		remaining -= take
+
+	# No schedule (a single obligation) -> the one row takes the whole payment.
+	if remaining > 0 and len(rows) == 1:
+		rows[0].allocated_amount = flt(amount)
+
+
 def record_payment(
 	membership, amount, payment_mode, posting_date, sales_invoice=None, reference_no=None, company=None
 ) -> str:
@@ -202,8 +346,7 @@ def record_payment(
 	pe.cost_center = branch.branch_cost_center(membership.get("branch"), company)
 	if reference_no:
 		pe.reference_no = reference_no
-	for ref in pe.references:
-		ref.allocated_amount = amount if ref.reference_name == si_name else 0
+	_allocate_oldest_first(pe, si_name, amount)
 	pe.insert(ignore_permissions=True)
 	pe.submit()
 
@@ -214,42 +357,147 @@ def record_payment(
 # --------------------------------------------------------------------------- #
 # derived membership state (R4: one source of truth = invoice outstanding)
 # --------------------------------------------------------------------------- #
-def sync_from_invoice(membership) -> None:
-	"""Set status / balance_due / due_date / next_renewal on a membership from its
-	current Sales Invoice's outstanding_amount + the Subscription period. Operates
-	in-memory (controller calls it in before_save); never infers CASH from
-	outstanding (write-offs zero outstanding without collecting).
+PAY_AS_YOU_GO = "Pay-as-you-go"
 
-	A no-op when billing has not been provisioned yet — provisioning is best-effort
-	and must never block enrolment, so a membership can briefly exist without an
-	invoice."""
-	# Anchor to the CURRENT period's invoice (the subscription's latest), not a
-	# stale current_sales_invoice — else a renewal period's open SI is missed and
-	# the membership wrongly reports Paid.
+
+def billing_mode(membership) -> str:
+	"""The membership's plan's billing mode (defaults to Commitment)."""
+	plan = membership.get("membership_plan")
+	if not plan:
+		return "Commitment"
+	return frappe.db.get_value("Membership Plan", plan, "billing_mode") or "Commitment"
+
+
+def open_obligations(membership) -> list[dict]:
+	"""**The seam.** What this member owes and when — oldest first.
+
+	Both billing modes reduce to the same list of ``(due_date, amount, outstanding)``
+	rows; they differ only in where those rows physically live:
+
+	* **Commitment** — one invoice for the period carrying a ``payment_schedule``
+      row per installment.
+	* **Pay-as-you-go** — one invoice per installment, each its own obligation.
+
+	Everything downstream (status, balance, next-due, payment allocation, the
+	collections list) reads THIS and never touches an invoice directly, so the
+	two modes cost one function instead of branching through the codebase.
+
+	Each row: ``{due_date, amount, outstanding, sales_invoice, payment_term, idx}``.
+	"""
+	membership = _as_doc("Membership", membership)
+	if billing_mode(membership) == PAY_AS_YOU_GO:
+		return _obligations_from_invoices(membership)
+	return _obligations_from_schedule(membership)
+
+
+def _obligations_from_schedule(membership) -> list[dict]:
+	"""Commitment mode: the current invoice's payment_schedule rows."""
 	si_name = None
 	if membership.get("subscription"):
 		si_name = _latest_invoice(membership.subscription)
 	si_name = si_name or membership.get("current_sales_invoice")
 	if not si_name or not frappe.db.exists("Sales Invoice", si_name):
-		return
-	si = frappe.db.get_value(
-		"Sales Invoice",
-		si_name,
-		["outstanding_amount", "grand_total", "status", "due_date"],
-		as_dict=True,
+		return []
+
+	rows = frappe.get_all(
+		"Payment Schedule",
+		filters={"parent": si_name, "parenttype": "Sales Invoice"},
+		fields=["due_date", "payment_amount", "outstanding", "paid_amount", "payment_term", "idx"],
+		order_by="due_date asc, idx asc",
 	)
-	membership.current_sales_invoice = si_name
-	membership.balance_due = si.outstanding_amount
-	# WP-11: due_date is invoice-derived, never hand-typed (it also drives
-	# overdue_days on the controller). WP-10 will re-derive it from the earliest
-	# unpaid payment-schedule row once installments exist.
-	if si.due_date:
-		membership.due_date = getdate(si.due_date)
-	if flt(si.outstanding_amount) <= 0:
+	if rows:
+		return [
+			{
+				"due_date": getdate(r.due_date) if r.due_date else None,
+				"amount": flt(r.payment_amount),
+				"outstanding": flt(r.outstanding),
+				"sales_invoice": si_name,
+				"payment_term": r.payment_term,
+				"idx": r.idx,
+			}
+			for r in rows
+		]
+
+	# No schedule (a plain single-due-date invoice) -> the invoice IS the obligation.
+	si = frappe.db.get_value(
+		"Sales Invoice", si_name, ["due_date", "grand_total", "outstanding_amount"], as_dict=True
+	)
+	return [
+		{
+			"due_date": getdate(si.due_date) if si.due_date else None,
+			"amount": flt(si.grand_total),
+			"outstanding": flt(si.outstanding_amount),
+			"sales_invoice": si_name,
+			"payment_term": None,
+			"idx": 1,
+		}
+	]
+
+
+def _obligations_from_invoices(membership) -> list[dict]:
+	"""Pay-as-you-go mode: each submitted invoice of the subscription is one
+	obligation. Settled invoices are kept (with zero outstanding) so callers can
+	still tell Partial from Pending."""
+	if not membership.get("subscription"):
+		return []
+	rows = frappe.get_all(
+		"Sales Invoice",
+		filters={"subscription": membership.subscription, "docstatus": 1},
+		fields=["name", "due_date", "grand_total", "outstanding_amount"],
+		order_by="due_date asc, posting_date asc",
+	)
+	return [
+		{
+			"due_date": getdate(r.due_date) if r.due_date else None,
+			"amount": flt(r.grand_total),
+			"outstanding": flt(r.outstanding_amount),
+			"sales_invoice": r.name,
+			"payment_term": None,
+			"idx": index + 1,
+		}
+		for index, r in enumerate(rows)
+	]
+
+
+def next_due(obligations) -> dict | None:
+	"""The earliest still-unpaid obligation — what the member owes NEXT."""
+	unpaid = [o for o in obligations if flt(o["outstanding"]) > 0]
+	if not unpaid:
+		return None
+	return min(unpaid, key=lambda o: (o["due_date"] or getdate(today()), o["idx"]))
+
+
+def sync_from_billing(membership) -> None:
+	"""Set status / balance_due / due_date / next_renewal from :func:`open_obligations`.
+
+	Operates in-memory (the controller calls it in before_save); never infers CASH
+	from outstanding (a write-off zeroes outstanding without collecting anything).
+
+	R8: status and due_date come from the EARLIEST UNPAID obligation, never from
+	the invoice's own scalar due_date — with installments that date is the LAST
+	one, so a member who missed installment 2 would wrongly read as current.
+
+	A no-op when billing has not been provisioned yet — provisioning is
+	best-effort and must never block enrolment.
+	"""
+	obligations = open_obligations(membership)
+	if not obligations:
+		return
+
+	membership.current_sales_invoice = obligations[-1]["sales_invoice"]
+	total = sum(flt(o["amount"]) for o in obligations)
+	outstanding = sum(flt(o["outstanding"]) for o in obligations)
+	membership.balance_due = outstanding
+
+	upcoming = next_due(obligations)
+	if upcoming and upcoming["due_date"]:
+		membership.due_date = upcoming["due_date"]
+
+	if outstanding <= 0:
 		membership.status = "Paid"
-	elif si.status == "Overdue" or (si.due_date and getdate(today()) > getdate(si.due_date)):
+	elif upcoming and upcoming["due_date"] and getdate(today()) > upcoming["due_date"]:
 		membership.status = "Overdue"
-	elif flt(si.outstanding_amount) < flt(si.grand_total):
+	elif outstanding < total:
 		membership.status = "Partial"
 	else:
 		membership.status = "Pending"
@@ -263,6 +511,10 @@ def sync_from_invoice(membership) -> None:
 			membership.next_renewal = getdate(start)
 
 
+# Kept as the historical name used before the obligations seam existed.
+sync_from_invoice = sync_from_billing
+
+
 def sync_derived_fields(membership) -> None:
 	"""Re-derive AND persist status / balance_due / due_date / next_renewal.
 
@@ -273,7 +525,7 @@ def sync_derived_fields(membership) -> None:
 	Writes with ``db_set`` rather than ``save()`` so the just-inserted document is
 	not re-validated (and cannot trip a modified-timestamp conflict)."""
 	membership = _as_doc("Membership", membership)
-	sync_from_invoice(membership)
+	sync_from_billing(membership)
 	membership.calculate_overdue_days()
 	for field in (
 		"current_sales_invoice",
@@ -370,6 +622,73 @@ def generate_membership_invoice(membership, posting_date=None) -> dict:
 	ensure_subscription(membership, company)
 	invoice = force_generate_invoice(membership, posting_date)
 	return {"sales_invoice": invoice}
+
+
+@frappe.whitelist()
+def get_membership_obligations(membership) -> dict:
+	"""Owner/BFF: what this member owes and when — the installment schedule.
+
+	Serialised straight from :func:`open_obligations`, so the owner app shows the
+	same rows the backend bills and allocates against, in either billing mode."""
+	rows = open_obligations(membership)
+	return {
+		"obligations": [
+			{
+				"due_date": str(o["due_date"]) if o["due_date"] else None,
+				"amount": flt(o["amount"]),
+				"outstanding": flt(o["outstanding"]),
+				"sales_invoice": o["sales_invoice"],
+				"payment_term": o["payment_term"],
+				"idx": o["idx"],
+			}
+			for o in rows
+		],
+		"total": flt(sum(flt(o["amount"]) for o in rows)),
+		"outstanding": flt(sum(flt(o["outstanding"]) for o in rows)),
+	}
+
+
+@frappe.whitelist()
+def report_cycle_anchor_drift() -> dict:
+	"""DRY RUN: which memberships bill on a day other than their joining day.
+
+	Moot on a fresh tenant (every subscription is anchored at enrolment), but kept
+	as the safety rail for re-anchoring a tenant that is already live: run this
+	FIRST, review the list, brief the front desk, and only then apply a
+	convert-once patch (ADR-0007). Reports only — changes nothing.
+	"""
+	rows = []
+	for ms in frappe.get_all(
+		"Membership",
+		filters=[["subscription", "is", "set"]],
+		fields=["name", "member", "member_name", "subscription", "next_renewal"],
+		limit_page_length=0,
+	):
+		sub = frappe.db.get_value(
+			"Subscription", ms.subscription, ["start_date", "plans"], as_dict=True
+		)
+		if not sub or not sub.start_date:
+			continue
+		plan = frappe.db.get_value(
+			"Subscription Plan Detail", {"parent": ms.subscription}, "plan"
+		)
+		expected = cycle_start(ms.member, plan)
+		actual = getdate(sub.start_date)
+		if expected and getdate(expected) != actual:
+			rows.append(
+				{
+					"membership": ms.name,
+					"member": ms.member_name or ms.member,
+					"current_start": str(actual),
+					"anchored_start": str(getdate(expected)),
+					"shift_days": (getdate(expected) - actual).days,
+					"next_renewal": str(ms.next_renewal) if ms.next_renewal else None,
+				}
+			)
+	# Largest backward shift first — those are the members who would suddenly owe
+	# sooner, i.e. the ones the front desk has to be warned about.
+	rows.sort(key=lambda r: r["shift_days"])
+	return {"count": len(rows), "rows": rows}
 
 
 @frappe.whitelist()

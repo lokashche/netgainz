@@ -158,7 +158,7 @@ def provision_item(plan, company=None) -> str | None:
 	"""
 	plan = _as_doc("Membership Plan", plan)
 	if plan.get("item") and frappe.db.exists("Item", plan.item):
-		_sync_item_price(plan.item, plan.amount)
+		_sync_item_price(plan.item, installment_rate(plan))
 		return plan.item
 
 	if not plan.get("gst_hsn_code"):
@@ -193,7 +193,7 @@ def provision_item(plan, company=None) -> str | None:
 		item.insert(ignore_permissions=True)
 		item_name = item.name
 
-	_sync_item_price(item_name, plan.amount)
+	_sync_item_price(item_name, installment_rate(plan))
 	plan.db_set("item", item_name, update_modified=False)
 	return item_name
 
@@ -210,6 +210,34 @@ def _unique_subscription_plan_name(base: str) -> str:
 		name = f"{base} - {suffix}"
 		suffix += 1
 	return name
+
+
+def billing_cadence(plan) -> tuple[str, int]:
+	"""WP-10.4: the ERPNext billing cadence for a Membership Plan.
+
+	**Commitment** bills the whole period once, so the cadence is the plan's own
+	duration. **Pay-as-you-go** raises a separate invoice per installment, so it
+	bills every ``duration / parts`` — quarterly-in-3 becomes Month x 1.
+
+	The Membership Plan controller rejects a Pay-as-you-go split that does not land
+	on a whole calendar interval (R12), so by the time provisioning runs the
+	division is known to be clean.
+	"""
+	duration = int(plan.get("duration_in_days") or 0)
+	parts = int(plan.get("installment_count") or 1)
+	if plan.get("billing_mode") == "Pay-as-you-go" and parts > 1 and duration % parts == 0:
+		duration = duration // parts
+	return duration_to_billing_interval(duration)
+
+
+def installment_rate(plan) -> float:
+	"""The per-invoice price. Pay-as-you-go bills one installment at a time, so its
+	Item Price is the plan fee divided by the number of parts."""
+	amount = flt(plan.get("amount"))
+	parts = int(plan.get("installment_count") or 1)
+	if plan.get("billing_mode") == "Pay-as-you-go" and parts > 1:
+		return flt(amount / parts)
+	return amount
 
 
 def provision_subscription_plan(plan, company=None) -> str | None:
@@ -230,7 +258,7 @@ def provision_subscription_plan(plan, company=None) -> str | None:
 	if not item:
 		return None  # no sellable Item (no SAC) -> no Subscription Plan
 	try:
-		interval, count = duration_to_billing_interval(plan.duration_in_days)
+		interval, count = billing_cadence(plan)
 	except (ValueError, TypeError):
 		return None  # duration not mappable; skip until corrected
 

@@ -155,9 +155,15 @@ doc_events = {
 	"Expense": {
 		"before_insert": "netgainz.net_gainz.accounting.branch.stamp_default_branch",
 	},
-	# Keep a membership's current_sales_invoice pointed at the latest period the
-	# native Process Subscription scheduler bills (so renewals collect correctly).
 	"Sales Invoice": {
+		# WP-10.3: the native Subscription hardcodes a single 100% payment_schedule
+		# row and cannot carry a payment_terms_template, so installments have to be
+		# applied to the invoice it generates: attach the template before validate,
+		# then restate the amounts as clean numbers (D6) after.
+		"before_validate": "netgainz.net_gainz.accounting.billing.on_sales_invoice_before_validate",
+		"validate": "netgainz.net_gainz.accounting.billing.on_sales_invoice_validate",
+		# Keep a membership's current_sales_invoice pointed at the latest period the
+		# native Process Subscription scheduler bills (so renewals collect correctly).
 		"on_submit": "netgainz.net_gainz.accounting.billing.on_sales_invoice_submit",
 	},
 }
