@@ -15,7 +15,7 @@ def before_tests():
 	Item Price cleanup, the "Transit" Warehouse Type, defaults) — which skips its
 	own US company creation because our India company already exists.
 
-	The fiscal year is kept on the CALENDAR year (not India's Apr–Mar) so the
+	The fiscal year is kept on the CALENDAR year (not India's Apr-Mar) so the
 	suite's existing posting dates all fall inside one open FY.
 	"""
 	import frappe
