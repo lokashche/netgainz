@@ -35,6 +35,7 @@
   "installment_gap_days",
   "payment_terms_template",
   "erpnext_billing_section",
+  "is_backfill",
   "subscription",
   "current_sales_invoice"
  ],
@@ -175,6 +176,14 @@
    "label": "ERPNext Billing"
   },
   {
+   "default": "0",
+   "description": "Historical row loaded from the gym's own records. Its invoice and payment already exist, so enrolment must not raise another one.",
+   "fieldname": "is_backfill",
+   "fieldtype": "Check",
+   "label": "Backfilled Record",
+   "read_only": 0
+  },
+  {
    "description": "Native ERPNext Subscription auto-provisioned once the tenant is cut over (Stage 7). Read-only; system-managed.",
    "fieldname": "subscription",
    "fieldtype": "Link",
@@ -222,7 +231,7 @@
    "label": "Days Between Installments (override)"
   },
   {
-   "description": "Resolved from the override above, else the plan. Managed by NetGainz — do not edit.",
+   "description": "Resolved from the override above, else the plan. Managed by NetGainz \u2014 do not edit.",
    "fieldname": "payment_terms_template",
    "fieldtype": "Link",
    "label": "Payment Terms Template",

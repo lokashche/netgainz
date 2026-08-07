@@ -164,13 +164,18 @@ def on_membership_insert(doc, method=None):
 	generate_membership_invoice)."""
 	if frappe.flags.in_install:
 		return
-	# Backfill: a Data Import of past months carries its own already-settled Sales
-	# Invoices, so provisioning here would raise a SECOND, submitted invoice priced
-	# from Membership Plan.amount -- a figure that cannot be right for a tenant who
-	# prices per member. `in_import` is Frappe's standard "suppress side effects"
-	# flag (set by the Data Import runner; ERPNext honours it in accounts_controller
-	# too). Billing for imported memberships is raised explicitly, not implicitly.
-	if frappe.flags.in_import:
+	# Backfill: a historical row loaded from the gym's own records already has its
+	# Sales Invoice and Payment Entry, so provisioning here would raise a SECOND,
+	# submitted invoice priced from Membership Plan.amount -- a figure that cannot
+	# be right for a tenant who prices per member -- and double-count the period.
+	#
+	# This is a field on the row, deliberately NOT `frappe.flags.in_import`: that
+	# flag is also set while importing DocType JSON (migrate/install) and
+	# `modules/import_file.py` sets it with no try/finally, so a raise anywhere in
+	# that path leaves it stuck on and silently disables billing for the rest of
+	# the process. CI caught exactly that. A field is explicit, survives, and shows
+	# on the record why no invoice was raised.
+	if doc.get("is_backfill"):
 		return
 	try:
 		if ensure_subscription(doc):
