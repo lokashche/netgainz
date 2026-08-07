@@ -164,6 +164,14 @@ def on_membership_insert(doc, method=None):
 	generate_membership_invoice)."""
 	if frappe.flags.in_install:
 		return
+	# Backfill: a Data Import of past months carries its own already-settled Sales
+	# Invoices, so provisioning here would raise a SECOND, submitted invoice priced
+	# from Membership Plan.amount -- a figure that cannot be right for a tenant who
+	# prices per member. `in_import` is Frappe's standard "suppress side effects"
+	# flag (set by the Data Import runner; ERPNext honours it in accounts_controller
+	# too). Billing for imported memberships is raised explicitly, not implicitly.
+	if frappe.flags.in_import:
+		return
 	try:
 		if ensure_subscription(doc):
 			force_generate_invoice(doc)

@@ -65,6 +65,7 @@
   },
   {
    "fetch_from": "member.membership_plan",
+   "fetch_if_empty": 1,
    "fieldname": "membership_plan",
    "fieldtype": "Link",
    "label": "Membership Plan",
@@ -85,6 +86,7 @@
   },
   {
    "fetch_from": "membership_plan.amount",
+   "fetch_if_empty": 1,
    "fieldname": "tariff",
    "fieldtype": "Currency",
    "in_list_view": 1,
