@@ -53,6 +53,9 @@ export default function NewSubscriptionPage() {
   const [membership_plan, setMembershipPlan] = useState("");
   const [planLabel, setPlanLabel] = useState("");
   const [month, setMonth] = useState("");
+  // Per-member pricing: a plan holds ONE price, and a gym charges many. Blank
+  // takes the plan's amount; typing a figure is this member's own rate.
+  const [price, setPrice] = useState("");
   const [comments, setComments] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
@@ -68,6 +71,7 @@ export default function NewSubscriptionPage() {
       membership_plan,
       month,
     };
+    if (price !== "" && Number.isFinite(Number(price))) payload.tariff = Number(price);
     if (comments) payload.comments = comments;
 
     try {
@@ -149,7 +153,7 @@ export default function NewSubscriptionPage() {
           />
         </div>
 
-        {/* Month + Payment Mode */}
+        {/* Month + Price */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className={labelClass}>
@@ -167,14 +171,29 @@ export default function NewSubscriptionPage() {
               ))}
             </select>
           </div>
+          <div>
+            <label className={labelClass}>Price</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder="Leave blank to use the plan price"
+              className={inputClass}
+            />
+          </div>
         </div>
 
-        {/* WP-11: fee, dates and status are all derived from the ERPNext Sales
-            Invoice generated on enrolment. Money is recorded afterwards on the
-            membership page ("Record a Payment"), which posts a Payment Entry. */}
+        {/* WP-11: dates and status are all derived from the ERPNext Sales Invoice
+            generated on enrolment. Money is recorded afterwards on the membership
+            page ("Record a Payment"), which posts a Payment Entry. */}
         <div className="rounded-lg border border-[#1E2D45] bg-[#0F1B2D] p-4 text-sm text-[#8FA3BF]">
-          The fee comes from the selected plan. On save, the first invoice is
-          raised automatically — record the payment from the membership page.
+          Leave Price blank and this member pays the plan&rsquo;s rate; enter a figure and
+          they pay that instead — the invoice follows whichever applies. On save the
+          first invoice is raised automatically; record the payment from the
+          membership page. A member with no price on either the membership or the
+          plan is not billed at all, and appears on the &ldquo;cannot be billed&rdquo; list.
         </div>
 
         {/* Comments */}

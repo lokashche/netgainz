@@ -113,6 +113,12 @@ def ensure_subscription(membership, company=None) -> str | None:
 	) or provisioning.provision_subscription_plan(membership.membership_plan, company)
 	if not sub_plan:
 		return None
+	# No resolvable price -> no Subscription, so neither the owner nor the daily
+	# Process Subscription scheduler can raise a Rs.0 invoice for this member. The
+	# membership still enrols; it surfaces in `unbillable_memberships()` until a
+	# price is set, and billing starts on the next generate.
+	if not is_billable(membership):
+		return None
 
 	start = cycle_start(membership.member, sub_plan)
 
@@ -239,7 +245,12 @@ def on_sales_invoice_before_validate(doc, method=None):
 	if frappe.flags.in_install or not doc.get("subscription") or doc.get("is_return"):
 		return
 	membership = _membership_for_invoice(doc)
-	if not membership or billing_mode(membership) == PAY_AS_YOU_GO:
+	if not membership:
+		return
+
+	_apply_membership_price(doc, membership)
+
+	if billing_mode(membership) == PAY_AS_YOU_GO:
 		return
 	template = membership.get("payment_terms_template")
 	if not template or not frappe.db.exists("Payment Terms Template", template):
@@ -247,6 +258,51 @@ def on_sales_invoice_before_validate(doc, method=None):
 	doc.payment_terms_template = template
 	doc.ignore_default_payment_terms_template = 1
 	doc.payment_schedule = []
+
+
+def _apply_membership_price(doc, membership) -> None:
+	"""Price the generated invoice at what THIS member actually pays.
+
+	The native Subscription prices its line from the Subscription Plan — one price
+	for every member on the plan — which is wrong for a gym: the pilot's 64 monthly
+	members pay 18 different amounts. Overriding the rate here is the smallest
+	correct seam, and the only one that works:
+
+	* **A per-customer Item Price does NOT work.** ``get_plan_rate`` -> ``utilities
+	  .product.get_price`` filters Item Price on ``item_code`` + ``price_list`` only
+	  and returns ``price[0]``. Traced 2026-08-09: with both a generic row (1000)
+	  and a row scoped to the customer (4321), the customer still priced at 1000 —
+	  and because the pick is positional, a second row makes the generic price
+	  arbitrary for *everyone*. Actively unsafe.
+	* **A Subscription Plan per price** would work but bypasses Pricing Rules
+	  (``Fixed Rate`` returns before them), which Stage 8 discounts need.
+
+	Setting the rate before validate leaves ERPNext to do everything downstream from
+	the corrected figure — GST on top, the payment schedule, and any Stage 8 Pricing
+	Rule, which still runs during validate. Traced end to end: rate 3333 -> net_total
+	3333, grand_total 3932.94, schedule 3933.
+
+	The margin / discount fields are zeroed so ``set_missing_values`` cannot re-derive
+	a rate from the price list behind us.
+	"""
+	price = membership_price(membership)
+	# 0 means "no price anywhere", not "free": ensure_subscription refuses to
+	# provision those, so reaching here with 0 means an older subscription. Leave
+	# the plan price alone rather than silently invoicing nothing.
+	if price <= 0:
+		return
+	items = doc.get("items") or []
+	if len(items) != 1:
+		# A membership subscription always carries exactly one plan line. Anything
+		# else is not ours to price.
+		return
+	item = items[0]
+	item.rate = price
+	item.price_list_rate = price
+	item.margin_rate_or_amount = 0
+	item.margin_type = ""
+	item.discount_percentage = 0
+	item.discount_amount = 0
 
 
 def on_sales_invoice_validate(doc, method=None):
@@ -436,6 +492,51 @@ def record_payment(
 # derived membership state (R4: one source of truth = invoice outstanding)
 # --------------------------------------------------------------------------- #
 PAY_AS_YOU_GO = "Pay-as-you-go"
+
+
+def installment_parts(membership) -> int:
+	"""How many invoices a Pay-as-you-go period is split into (1 for Commitment)."""
+	if billing_mode(membership) != PAY_AS_YOU_GO:
+		return 1
+	plan = membership.get("membership_plan")
+	parts = int(membership.get("installment_count") or 0) or int(
+		(plan and frappe.db.get_value("Membership Plan", plan, "installment_count")) or 1
+	)
+	return max(1, parts)
+
+
+def membership_price(membership) -> float:
+	"""**What THIS member pays**, per invoice, for their plan.
+
+	A gym does not charge everyone on "Monthly" the same fee — the pilot has 64
+	monthly members paying 18 different prices. A Membership Plan holds exactly one
+	price, so the plan's amount is the *default*, not the truth.
+
+	``Membership.tariff`` is that truth. The field already carried the right
+	semantics — ``fetch_from: membership_plan.amount`` with ``fetch_if_empty``, so a
+	blank price fills itself from the plan and an entered one stands — it simply
+	stopped being read when WP-11 removed the legacy ``fee_collected``-vs-``tariff``
+	status maths. It is the INPUT price again; nothing derives it, and no status or
+	balance is computed from it (those still come from the invoice, R4).
+
+	Pay-as-you-go bills one installment per invoice, so the period price is divided
+	by the number of parts — mirroring ``provisioning.installment_rate``.
+
+	Returns 0 when neither the membership nor its plan carries a price; callers must
+	treat that as **not billable** rather than free (see :func:`is_billable`).
+	"""
+	membership = _as_doc("Membership", membership)
+	price = flt(membership.get("tariff"))
+	if price <= 0 and membership.get("membership_plan"):
+		price = flt(frappe.db.get_value("Membership Plan", membership.membership_plan, "amount"))
+	if price <= 0:
+		return 0.0
+	return flt(price) / installment_parts(membership)
+
+
+def is_billable(membership) -> bool:
+	"""False when no price can be resolved — billing would raise a Rs.0 invoice."""
+	return membership_price(membership) > 0
 
 
 def billing_mode(membership) -> str:
@@ -827,6 +928,46 @@ def get_membership_obligations(membership) -> dict:
 		"written_off": writeoff.written_off_against(si_name) if si_name else 0.0,
 		"advance_balance": advances.advance_balance(membership),
 	}
+
+
+@frappe.whitelist()
+def unbillable_memberships() -> dict:
+	"""Owner/BFF: who cannot be billed yet, and why.
+
+	A membership with no resolvable price is deliberately left without a
+	Subscription — better an obvious gap than a submitted Rs.0 invoice, which is
+	silent revenue leakage and a mess to unwind. This is the list the owner works
+	through before switching billing on: set the member's own price (or the plan's),
+	then generate.
+	"""
+	rows = []
+	for ms in frappe.get_all(
+		"Membership",
+		fields=["name", "member", "member_name", "membership_plan", "tariff", "subscription"],
+		limit_page_length=0,
+	):
+		if is_billable(ms.name):
+			continue
+		plan_amount = flt(
+			frappe.db.get_value("Membership Plan", ms.membership_plan, "amount")
+		) if ms.membership_plan else 0
+		rows.append(
+			{
+				"membership": ms.name,
+				"member": ms.member,
+				"member_name": ms.member_name or ms.member,
+				"membership_plan": ms.membership_plan,
+				"price": flt(ms.tariff),
+				"plan_amount": plan_amount,
+				"has_subscription": bool(ms.subscription),
+				"reason": (
+					"No price on the membership and no amount on the plan"
+					if not plan_amount
+					else "No price on the membership"
+				),
+			}
+		)
+	return {"count": len(rows), "rows": rows}
 
 
 @frappe.whitelist()

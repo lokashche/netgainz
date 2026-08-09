@@ -1,10 +1,34 @@
 import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
+import { frappeRequest } from "@/lib/frappe";
 import { buildHref, fetchListPage, readPageParams } from "@/lib/pagination";
 import Pagination from "@/app/components/Pagination";
 import type { Subscription, SubscriptionStatus } from "@/lib/types";
 
 type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
+
+type UnbillableRow = {
+  membership: string;
+  member_name: string;
+  membership_plan?: string;
+  reason: string;
+};
+
+/**
+ * Memberships with no resolvable price — enrolled, but not being billed.
+ *
+ * A price lives on the membership (blank falls back to the plan). When neither
+ * has one, no Subscription is provisioned at all: better an obvious gap here than
+ * a submitted Rs.0 invoice, which is silent revenue leakage. This is the owner's
+ * worklist before switching billing on.
+ */
+async function fetchUnbillable(sessionCookie: string): Promise<UnbillableRow[]> {
+  const { data } = await frappeRequest<{ message: { rows: UnbillableRow[] } }>(
+    "api/method/netgainz.net_gainz.accounting.billing.unbillable_memberships",
+    { sessionCookie }
+  );
+  return data?.message?.rows ?? [];
+}
 
 const STATUS_TABS: { label: string; value: string }[] = [
   { label: "All", value: "" },
@@ -100,6 +124,8 @@ export default async function SubscriptionsPage({
     ...requested,
   });
 
+  const unbillable = await fetchUnbillable(session.frappeCookies);
+
   return (
     <div>
       {/* Header */}
@@ -112,6 +138,32 @@ export default async function SubscriptionsPage({
           Add Subscription
         </a>
       </div>
+
+      {/* Not being billed — the pre-go-live worklist */}
+      {unbillable.length > 0 && (
+        <div className="rounded-lg bg-[rgba(251,191,36,0.08)] border border-[#FBBF24] px-4 py-3 mb-6 text-sm text-[#FBBF24]">
+          <p className="font-semibold">
+            {unbillable.length} membership{unbillable.length === 1 ? " is" : "s are"} not
+            being billed — no price on the membership or the plan.
+          </p>
+          <ul className="mt-2 space-y-1">
+            {unbillable.slice(0, 8).map((row) => (
+              <li key={row.membership}>
+                <a
+                  href={`/subscriptions/${encodeURIComponent(row.membership)}`}
+                  className="underline hover:text-[#E6EDF7]"
+                >
+                  {row.member_name}
+                </a>
+                {row.membership_plan ? ` — ${row.membership_plan}` : ""}
+              </li>
+            ))}
+          </ul>
+          {unbillable.length > 8 && (
+            <p className="mt-2 text-xs">…and {unbillable.length - 8} more.</p>
+          )}
+        </div>
+      )}
 
       {/* Status filter tabs */}
       <div className="flex gap-1 bg-[#111A2E] p-1 rounded-lg mb-6 flex-wrap">

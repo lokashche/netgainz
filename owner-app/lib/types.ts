@@ -68,6 +68,7 @@ export type Subscription = {
   member_name?: string;
   membership_plan?: string;
   month?: string;
+  /** What THIS member pays. Blank fills from the plan; a figure overrides it. */
   tariff?: number;
   fee_collected?: number;
   payment_mode?: string;
@@ -82,6 +83,10 @@ export type Subscription = {
   // WP-8 settlement, derived per current invoice (read-only).
   refunded_amount?: number;
   written_off_amount?: number;
+  // Set once billing is provisioned. Absent means the membership has no
+  // resolvable price, so nothing is being billed yet.
+  subscription?: string | null;
+  current_sales_invoice?: string | null;
 };
 
 /** WP-8: what a membership's money can still do, and what already happened. */

@@ -70,7 +70,10 @@ export default function SubscriptionDetailPage({ params }: { params: Params }) {
   const [memberName, setMemberName] = useState("");
   const [membershipPlan, setMembershipPlan] = useState("");
   const [month, setMonth] = useState("");
-  const [tariff, setTariff] = useState<number>(0);
+  // Per-member pricing: `tariff` is what THIS member pays, not the plan's rate.
+  // Editable, and it applies to the NEXT period — an issued invoice is never
+  // rewritten behind the member's back.
+  const [tariff, setTariff] = useState<string>("");
   const [nextRenewal, setNextRenewal] = useState("");
 
   // Derived from the membership's Sales Invoice — read-only (WP-11)
@@ -88,6 +91,8 @@ export default function SubscriptionDetailPage({ params }: { params: Params }) {
   const [payMode, setPayMode] = useState("");
   const [payDate, setPayDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [obligations, setObligations] = useState<Obligation[]>([]);
+  const [hasInvoice, setHasInvoice] = useState(true);
+  const [generating, setGenerating] = useState(false);
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
   // WP-8: a member may pay more than this period's invoice; the excess sits on
@@ -131,12 +136,13 @@ export default function SubscriptionDetailPage({ params }: { params: Params }) {
       setMemberName(s.member_name ?? s.member);
       setMembershipPlan(s.membership_plan ?? "");
       setMonth(s.month ?? "");
-      setTariff(s.tariff ?? 0);
+      setTariff(s.tariff === undefined || s.tariff === null ? "" : String(s.tariff));
       setNextRenewal(s.next_renewal ?? "");
 
       setMemberId(s.member ?? "");
       loadAdvances(s.member ?? "");
       setCollected((s.tariff ?? 0) - (s.balance_due ?? 0));
+      setHasInvoice(Boolean(s.current_sales_invoice));
       setPaidDate(s.paid_date ?? "");
       setDueDate(s.due_date ?? "");
       setComments(s.comments ?? "");
@@ -343,6 +349,27 @@ export default function SubscriptionDetailPage({ params }: { params: Params }) {
     }
   }
 
+  async function handleGenerateInvoice() {
+    setGenerating(true);
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/subscriptions/${encodeURIComponent(id)}/generate-invoice`,
+        { method: "POST" }
+      );
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(extractFrappeError(body) ?? `Error ${res.status}`);
+        return;
+      }
+      await reloadAll();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to raise the invoice");
+    } finally {
+      setGenerating(false);
+    }
+  }
+
   async function handleSubmit(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     setSubmitting(true);
@@ -350,9 +377,10 @@ export default function SubscriptionDetailPage({ params }: { params: Params }) {
     setSuccess(false);
 
     // WP-11: status / balance_due / due_date / next_renewal are all derived from
-    // the Sales Invoice, and money is recorded as a Payment Entry — so the only
-    // thing this form still writes is the note.
+    // the Sales Invoice, and money is recorded as a Payment Entry. What the owner
+    // still sets by hand is the note and this member's own price.
     const payload: Record<string, string | number> = { comments };
+    if (tariff !== "" && Number.isFinite(Number(tariff))) payload.tariff = Number(tariff);
 
     try {
       const res = await fetch(`/api/subscriptions/${encodeURIComponent(id)}`, {
@@ -475,6 +503,27 @@ export default function SubscriptionDetailPage({ params }: { params: Params }) {
         </div>
       )}
 
+      {/* No invoice means no price could be resolved — the member is enrolled but
+          not being billed. Deliberate: a submitted Rs.0 invoice is silent revenue
+          leakage and a mess to unwind. */}
+      {!hasInvoice && (
+        <div className="rounded-lg bg-[rgba(251,191,36,0.08)] border border-[#FBBF24] px-4 py-3 mb-6 text-sm text-[#FBBF24]">
+          <p className="font-semibold">This member is not being billed.</p>
+          <p className="mt-1">
+            No price is set on the membership and the plan has no amount either, so no
+            invoice is raised. Enter a Price below, save, then raise the first invoice.
+          </p>
+          <button
+            type="button"
+            onClick={handleGenerateInvoice}
+            disabled={generating}
+            className="mt-3 border border-[#FBBF24] text-[#FBBF24] rounded-lg py-1.5 px-4 text-sm hover:bg-[rgba(251,191,36,0.12)] disabled:opacity-50 transition-colors"
+          >
+            {generating ? "Raising…" : "Raise the first invoice"}
+          </button>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="bg-[#111A2E] rounded-xl border border-[#1E2D45] p-6 sm:p-8 space-y-5">
         {error && (
           <div className="rounded-lg bg-[rgba(248,113,113,0.1)] border border-[#F87171] px-4 py-3 text-sm text-[#F87171]">
@@ -505,8 +554,16 @@ export default function SubscriptionDetailPage({ params }: { params: Params }) {
             <div className={readonlyClass}>{month || "—"}</div>
           </div>
           <div>
-            <label className={labelClass}>Tariff</label>
-            <div className={readonlyClass}>{formatCurrency(tariff)}</div>
+            <label className={labelClass}>Price</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={tariff}
+              onChange={(e) => setTariff(e.target.value)}
+              placeholder="Plan price"
+              className={inputClass}
+            />
           </div>
           <div>
             <label className={labelClass}>Next Renewal</label>
