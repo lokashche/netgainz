@@ -83,7 +83,7 @@
    "label": "Commission Lines"
   },
   {
-   "description": "Computed at creation from each Active coach's commission settings and the gym's data for the period. A snapshot — delete and recreate for a fresh computation.",
+   "description": "Computed at creation from each Active coach's commission settings and the gym's data for the period. A snapshot \u2014 delete and recreate for a fresh computation.",
    "fieldname": "lines",
    "fieldtype": "Table",
    "label": "Lines",
@@ -142,7 +142,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-06-22 00:00:00.000000",
+ "modified": "2026-08-09 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Net Gainz",
  "name": "Instructor Commission Run",
@@ -160,6 +160,21 @@
    "read": 1,
    "report": 1,
    "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "amend": 1,
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Gym Owner",
    "share": 1,
    "submit": 1,
    "write": 1

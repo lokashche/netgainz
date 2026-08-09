@@ -89,6 +89,9 @@ def create_scheduled_sweeps():
 @frappe.whitelist()
 def update_pf_schedule(allocation_days=None, sweep_auto_create=None) -> dict:
 	"""Owner-facing schedule editor: set the allocation days and auto-create toggle."""
+	from netgainz.net_gainz import permissions
+
+	permissions.require_role(permissions.GYM_OWNER)
 	settings = frappe.get_single("Profit First Settings")
 	if allocation_days is not None:
 		settings.allocation_days = ", ".join(str(d) for d in parse_allocation_days(allocation_days))

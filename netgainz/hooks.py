@@ -83,7 +83,12 @@ required_apps = ["erpnext", "india_compliance"]
 # ------------
 
 # before_install = "netgainz.install.before_install"
-after_install = "netgainz.net_gainz.profit_first.seed.after_install"
+after_install = [
+	"netgainz.net_gainz.profit_first.seed.after_install",
+	# Stage 7 WP-8: create the Gym Owner / Gym Staff roles and grant the owner
+	# read access to the ERPNext documents the engine creates for them.
+	"netgainz.net_gainz.permissions.apply_permission_matrix",
+]
 
 # Uninstallation
 # ------------

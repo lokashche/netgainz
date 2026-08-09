@@ -18,6 +18,8 @@
   "column_break_nztb",
   "payment_mode",
   "balance_due",
+  "refunded_amount",
+  "written_off_amount",
   "dates_section",
   "due_date",
   "paid_date",
@@ -116,6 +118,22 @@
    "read_only": 1
   },
   {
+   "description": "Credited back on this period's invoice (WP-8).",
+   "fieldname": "refunded_amount",
+   "fieldtype": "Currency",
+   "label": "Refunded",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "description": "Given up as uncollectable on this period's invoice (WP-8).",
+   "fieldname": "written_off_amount",
+   "fieldtype": "Currency",
+   "label": "Written Off",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
    "fieldname": "dates_section",
    "fieldtype": "Section Break",
    "label": "Dates"
@@ -157,7 +175,7 @@
    "in_filter": 1,
    "in_list_view": 1,
    "label": "Status",
-   "options": "Pending\nPaid\nOverdue\nPartial"
+   "options": "Pending\nPaid\nOverdue\nPartial\nWritten Off"
   },
   {
    "fieldname": "comments_section",
@@ -243,7 +261,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-05-25 00:00:00.000000",
+ "modified": "2026-08-09 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Net Gainz",
  "name": "Membership",
@@ -259,6 +277,26 @@
    "report": 1,
    "role": "System Manager",
    "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Gym Owner",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Gym Staff",
    "write": 1
   }
  ],

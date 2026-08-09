@@ -318,6 +318,9 @@ def provision_all_masters(company=None) -> dict:
 	Plans without a HSN/SAC are reported as ``items_skipped`` (their Item /
 	Subscription Plan are deferred until a SAC is set on the plan).
 	"""
+	from netgainz.net_gainz import permissions
+
+	permissions.require_role(permissions.GYM_OWNER)
 	company = _company(company)
 	if not company:
 		frappe.throw("No default Company is set. Create or set a Company in ERPNext first.")

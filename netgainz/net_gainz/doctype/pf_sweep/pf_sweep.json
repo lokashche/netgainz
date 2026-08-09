@@ -88,7 +88,7 @@
    "label": "Proposed Allocations"
   },
   {
-   "description": "Computed at creation from the cash-basis Real Revenue and the tier's target percentages. A snapshot — delete and recreate for a fresh proposal.",
+   "description": "Computed at creation from the cash-basis Real Revenue and the tier's target percentages. A snapshot \u2014 delete and recreate for a fresh proposal.",
    "fieldname": "allocations",
    "fieldtype": "Table",
    "label": "Allocations",
@@ -140,7 +140,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-06-21 00:00:00.000000",
+ "modified": "2026-08-09 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Net Gainz",
  "name": "PF Sweep",
@@ -158,6 +158,21 @@
    "read": 1,
    "report": 1,
    "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "amend": 1,
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Gym Owner",
    "share": 1,
    "submit": 1,
    "write": 1

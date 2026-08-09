@@ -98,6 +98,9 @@ def setup_payment_modes(company=None, cash_account=None, bank_account=None) -> d
 @frappe.whitelist()
 def setup_payment_mode_accounts(company=None, cash_account=None, bank_account=None) -> dict:
 	"""Whitelisted entry point for the owner to provision payment-mode accounts."""
+	from netgainz.net_gainz import permissions
+
+	permissions.require_role(permissions.GYM_OWNER)
 	return setup_payment_modes(company, cash_account, bank_account)
 
 

@@ -30,6 +30,9 @@ function statusBadge(status: SubscriptionStatus): string {
       return `${base} bg-[rgba(248,113,113,0.15)] text-[#F87171]`;
     case "Partial":
       return `${base} bg-[rgba(94,234,212,0.15)] text-[#5EEAD4]`;
+    case "Written Off":
+      // WP-8: settled as uncollectable, not collected.
+      return `${base} bg-[rgba(251,191,36,0.15)] text-[#FBBF24]`;
     default: {
       const _exhaustive: never = status;
       return `${base} bg-[rgba(138,151,178,0.15)] text-[#8A97B2] /* ${_exhaustive} */`;

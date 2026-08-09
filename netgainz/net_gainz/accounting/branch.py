@@ -87,6 +87,9 @@ def stamp_default_branch(doc, method=None):
 def setup_branches(company=None) -> dict:
 	"""Owner-triggered: ensure the default Main branch exists. Mirrors the other
 	setup_* entry points (payment modes, PF accounts)."""
+	from netgainz.net_gainz import permissions
+
+	permissions.require_role(permissions.GYM_OWNER)
 	company = _company(company)
 	if not company:
 		frappe.throw("No default Company is set. Create or set a Company in ERPNext first.")

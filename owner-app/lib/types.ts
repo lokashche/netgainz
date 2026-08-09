@@ -44,7 +44,23 @@ export type Obligation = {
   idx: number;
 };
 
-export type SubscriptionStatus = 'Pending' | 'Paid' | 'Overdue' | 'Partial';
+export type Obligations = {
+  obligations: Obligation[];
+  total: number;
+  outstanding: number;
+  refunded: number;
+  written_off: number;
+  advance_balance: number;
+};
+
+export type SubscriptionStatus =
+  | 'Pending'
+  | 'Paid'
+  | 'Overdue'
+  | 'Partial'
+  // WP-8: settled as uncollectable rather than collected. ERPNext calls the
+  // invoice "Paid" once the receivable is written off; the owner needs the truth.
+  | 'Written Off';
 
 export type Subscription = {
   name: string;         // SUB-2026-0001
@@ -63,6 +79,57 @@ export type Subscription = {
   overdue_days?: number;
   status: SubscriptionStatus;
   comments?: string;
+  // WP-8 settlement, derived per current invoice (read-only).
+  refunded_amount?: number;
+  written_off_amount?: number;
+};
+
+/** WP-8: what a membership's money can still do, and what already happened. */
+export type RefundContext = {
+  sales_invoice: string | null;
+  invoice_total?: number;
+  refundable: number;
+  credited: number;
+  collected: number;
+  reasons: string[];
+};
+
+export type RefundResult = {
+  credit_note: string;
+  payment_entry: string | null;
+  cash_refunded: number;
+  credit_applied: number;
+  warnings: string[];
+};
+
+export type WriteOffContext = {
+  sales_invoice: string | null;
+  outstanding: number;
+  written_off: number;
+  reasons: string[];
+};
+
+export type MemberAdvance = {
+  payment_entry: string;
+  posting_date: string;
+  paid_amount: number;
+  unapplied: number;
+  payment_mode?: string | null;
+};
+
+export type AdvanceContext = {
+  balance: number;
+  advances: MemberAdvance[];
+};
+
+/** WP-8: which product role the signed-in user holds, so the UI hides what they
+ * cannot do rather than letting the server reject the click. */
+export type Capabilities = {
+  roles: string[];
+  can_refund: boolean;
+  can_write_off: boolean;
+  can_record_payment: boolean;
+  can_manage_finance: boolean;
 };
 
 export type AccountingMethod = 'Cash' | 'Accrual';

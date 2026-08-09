@@ -115,6 +115,9 @@ def sync_membership_items(accrual=None, company=None) -> int:
 def resync_deferred_revenue(company=None) -> dict:
 	"""Owner: re-apply the current accounting_method to deferred-revenue config +
 	all membership Items (mirrors the other setup_* entry points)."""
+	from netgainz.net_gainz import permissions
+
+	permissions.require_role(permissions.GYM_OWNER)
 	accrual = is_accrual()
 	count = sync_membership_items(accrual, company)
 	return {"accounting_method": accounting_method(), "items_synced": count}
