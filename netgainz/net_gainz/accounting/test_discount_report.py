@@ -136,7 +136,11 @@ class TestDiscountReport(FrappeTestCase):
 		self._discounted("DS6 Hand", amount=1000.0, percent=10)
 		by_offer = {r["label"]: r for r in discount_report.discounts_given()["by_offer"]}
 		self.assertEqual(flt(by_offer[offer.name]["given"]), 300.0)
-		self.assertEqual(flt(by_offer[discount_report.UNATTRIBUTED]["given"]), 100.0)
+		self.assertEqual(
+			flt(by_offer[discount_report.GIVEN_AT_THE_DESK]["given"]),
+			100.0,
+			"a hand-typed discount had no campaign behind it, which is not the same as " "having no reason",
+		)
 
 	def test_it_groups_by_who_gave_it(self):
 		self._discounted("DS6 Who", amount=1000.0, percent=10)

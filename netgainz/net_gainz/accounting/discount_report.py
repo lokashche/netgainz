@@ -37,6 +37,8 @@ from netgainz.net_gainz import permissions
 from netgainz.net_gainz.accounting import discounts
 
 UNATTRIBUTED = "Not given a reason"
+# A discount with no offer behind it was negotiated by a person, not by a campaign.
+GIVEN_AT_THE_DESK = "Given at the desk"
 
 
 def _period(start=None, end=None):
@@ -82,20 +84,17 @@ def _rows(start, end, branch=None) -> list[dict]:
 	)
 
 
-def _group(rows, key, label_of=None) -> list[dict]:
-	"""Sum gross / given / net per key, biggest giveaway first."""
+def _group(rows, key, blank_label=UNATTRIBUTED) -> list[dict]:
+	"""Sum gross / given / net per key, biggest giveaway first.
+
+	``blank_label`` names the bucket for rows with nothing in that column — "no offer
+	behind it" and "no reason recorded" are different facts and must not read the same.
+	"""
 	buckets = {}
 	for row in rows:
-		bucket = row.get(key) or UNATTRIBUTED
+		bucket = row.get(key) or blank_label
 		entry = buckets.setdefault(
-			bucket,
-			{
-				"label": label_of(row) if label_of else bucket,
-				"gross": 0.0,
-				"given": 0.0,
-				"net": 0.0,
-				"invoices": 0,
-			},
+			bucket, {"label": bucket, "gross": 0.0, "given": 0.0, "net": 0.0, "invoices": 0}
 		)
 		entry["gross"] += flt(row["gross"])
 		entry["given"] += flt(row["given"])
@@ -130,9 +129,9 @@ def discounts_given(start=None, end=None, branch=None, top=10) -> dict:
 		"given_percent": round(given * 100.0 / gross, 1) if gross else 0.0,
 		"invoices": len(rows),
 		"members": len({r["member"] for r in rows if r["member"]}),
-		"by_offer": _group(rows, "offer"),
+		"by_offer": _group(rows, "offer", blank_label=GIVEN_AT_THE_DESK),
 		"by_reason": _group(rows, "discount_reason"),
-		"by_staff": _group(rows, "discount_granted_by"),
+		"by_staff": _group(rows, "discount_granted_by", blank_label="Unknown"),
 		"by_plan": _group(rows, "membership_plan"),
 		"by_branch": _group(rows, "branch"),
 		"biggest": rows[: int(top or 10)],

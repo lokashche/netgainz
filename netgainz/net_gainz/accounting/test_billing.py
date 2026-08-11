@@ -193,3 +193,28 @@ class TestBilling(FrappeTestCase):
 		# renewal payment with NO explicit SI targets the open SI-2.
 		billing.record_payment(ms.name, self._outstanding(inv2.name), "Cash", today())
 		self.assertEqual(self._outstanding(inv2.name), 0.0)
+
+
+class TestPaymentRefreshesTheMembership(FrappeTestCase):
+	"""Taking money must change what the member's record says, immediately.
+
+	`sync_from_billing` only runs from the controller's before_save, so before this a
+	fully paid membership still read "Pending" on the members list, the dashboard and
+	the renewals screen until some later save happened to refresh it.
+	"""
+
+	def setUp(self):
+		fx.clear_billing_data()
+		fx.ensure_cash_account()
+
+	def test_paying_in_full_marks_the_membership_paid(self):
+		ms = fx.enrol("Refresh Full", amount=1000.0)
+		self.assertEqual(ms.status, "Pending")
+		fx.collect(ms, posting_date=today())
+		self.assertEqual(frappe.db.get_value("Membership", ms.name, "status"), "Paid")
+		self.assertEqual(flt(frappe.db.get_value("Membership", ms.name, "balance_due")), 0.0)
+
+	def test_paying_part_marks_it_partial(self):
+		ms = fx.enrol("Refresh Part", amount=1000.0)
+		fx.collect(ms, amount=400, posting_date=today())
+		self.assertEqual(frappe.db.get_value("Membership", ms.name, "status"), "Partial")

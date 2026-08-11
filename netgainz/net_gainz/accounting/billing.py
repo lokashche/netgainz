@@ -532,6 +532,10 @@ def record_payment(
 	pe.submit()
 
 	membership.db_set("current_sales_invoice", si_name, update_modified=False)
+	# Re-derive status / balance / due date from the invoice this payment just settled.
+	# Refunds and write-offs already did this; collecting money did not, so a paid
+	# member kept reading "Pending" on every list until something else saved the record.
+	sync_derived_fields(membership)
 	return pe.name
 
 
