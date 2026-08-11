@@ -297,6 +297,10 @@ class TestGoLive(FrappeTestCase):
 		self.assertEqual(stub.taxes_and_charges, generated.taxes_and_charges)
 		self.assertEqual(sum(flt(t.rate) for t in stub.taxes), tax_rate)
 		# ...and the tax is actually charged, proportionally to the pro-rata net.
+		# Each tax row (CGST + SGST) is rounded to 2dp on the invoice, so the rounded
+		# grand total can sit up to ~1 paisa per row away from the unrounded product —
+		# and the pro-rata net changes with the calendar day, so a places=2 comparison
+		# fails on the dates where the rounding lands past 0.005 (seen 2026-08-11).
 		self.assertAlmostEqual(
-			flt(stub.grand_total), flt(stub.net_total) * (1 + tax_rate / 100), places=2
+			flt(stub.grand_total), flt(stub.net_total) * (1 + tax_rate / 100), delta=0.02
 		)
