@@ -140,6 +140,9 @@ export type ReadinessRow = {
   joining_date: string | null;
   current_period_start?: string;
   next_period_start?: string;
+  calendar_month_start?: string;
+  part_month_days?: number;
+  part_month_amount?: number;
   warnings: string[];
 };
 
@@ -157,6 +160,8 @@ export type BillingReadiness = {
 export type StartBillingResult = {
   dry_run: boolean;
   start_mode: string;
+  bill_part_month: boolean;
+  part_month_total: number;
   started_count: number;
   skipped_count: number;
   failed_count: number;
@@ -165,6 +170,8 @@ export type StartBillingResult = {
     member_name: string;
     price: number;
     first_invoice_on: string;
+    part_month_amount?: number;
+    part_month_days?: number;
     subscription?: string;
     warnings: string[];
   }[];

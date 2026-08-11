@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { extractFrappeError, frappeRequest } from "@/lib/frappe";
-import { getSession } from "@/lib/session";
+import { assertFrappeSession, getSession } from "@/lib/session";
 import type { BillingReadiness } from "@/lib/types";
 import StartBillingPanel from "./StartBillingPanel";
 
@@ -25,6 +25,7 @@ export default async function StartBillingPage() {
     "api/method/netgainz.net_gainz.accounting.go_live.billing_readiness",
     { sessionCookie: session.frappeCookies }
   );
+  await assertFrappeSession(status);
   const readiness = data?.message;
 
   // Say what actually went wrong. A bare "could not load" on a finance screen

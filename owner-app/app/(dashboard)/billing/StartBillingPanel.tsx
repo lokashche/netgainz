@@ -7,6 +7,7 @@ import type { BillingReadiness, StartBillingResult } from "@/lib/types";
 
 const NEXT_PERIOD = "Next period";
 const CURRENT_PERIOD = "Current period";
+const CALENDAR_MONTH = "Calendar month";
 
 const card = "bg-[#111A2E] border border-[#1E2D45] rounded-xl p-5";
 const labelClass = "block text-xs uppercase tracking-wider mb-1 text-[#8A97B2]";
@@ -25,6 +26,12 @@ const START_OPTIONS = [
     title: "From their next billing date (recommended)",
     blurb:
       "Keeps each member's billing day on their joining anniversary, but starts from the next one. Anything you have already collected in cash stays as it is.",
+  },
+  {
+    value: CALENDAR_MONTH,
+    title: "Calendar month — everyone bills 1st to month end",
+    blurb:
+      "Ignores joining days and puts the whole gym on the same cycle, so each month closes cleanly. Billing starts on the 1st of next month, and the days left in this month are charged once, pro-rata.",
   },
   {
     value: CURRENT_PERIOD,
@@ -47,10 +54,26 @@ export default function StartBillingPanel({ readiness }: { readiness: BillingRea
   const [committed, setCommitted] = useState<StartBillingResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Empty = the whole gym. A gym can also move members over a few at a time.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [billPartMonth, setBillPartMonth] = useState(true);
+
+  const chosen = selected.size > 0 ? [...selected] : undefined;
+  const targetCount = selected.size > 0 ? selected.size : readiness.ready_count;
+
+  function toggle(membership: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(membership)) next.delete(membership);
+      else next.add(membership);
+      return next;
+    });
+    setPreview(null);
+  }
 
   async function run(dryRun: boolean) {
     if (!dryRun) {
-      const count = preview?.started_count ?? readiness.ready_count;
+      const count = preview?.started_count ?? targetCount;
       const when =
         startMode === NEXT_PERIOD ? "their next billing date" : "the period already in progress";
       if (
@@ -69,7 +92,12 @@ export default function StartBillingPanel({ readiness }: { readiness: BillingRea
       const res = await fetch("/api/billing/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ start_mode: startMode, dry_run: dryRun }),
+        body: JSON.stringify({
+          start_mode: startMode,
+          dry_run: dryRun,
+          memberships: chosen,
+          bill_part_month: billPartMonth,
+        }),
       });
       const body = (await res.json().catch(() => ({}))) as { message?: StartBillingResult };
       if (!res.ok) {
@@ -82,6 +110,7 @@ export default function StartBillingPanel({ readiness }: { readiness: BillingRea
       } else {
         setCommitted(body.message ?? null);
         setPreview(null);
+        setSelected(new Set());
         router.refresh();
       }
     } catch (err) {
@@ -147,6 +176,22 @@ export default function StartBillingPanel({ readiness }: { readiness: BillingRea
           </label>
         ))}
 
+        {startMode === CALENDAR_MONTH && (
+          <label className="flex items-center gap-2 text-sm text-[#8FA3BF] pl-1">
+            <input
+              type="checkbox"
+              checked={billPartMonth}
+              onChange={(e) => {
+                setBillPartMonth(e.target.checked);
+                setPreview(null);
+              }}
+              className="accent-[#22D38C]"
+            />
+            Also charge the days left in this month (uncheck to let them run free
+            until the 1st)
+          </label>
+        )}
+
         <div className="flex flex-wrap gap-3 pt-1">
           <button
             type="button"
@@ -162,7 +207,7 @@ export default function StartBillingPanel({ readiness }: { readiness: BillingRea
             disabled={busy || !preview || preview.started_count === 0}
             className="bg-[#22D38C] text-[#0B1220] font-semibold rounded-lg py-2 px-5 text-sm hover:bg-[#5EEAD4] disabled:opacity-50 transition-colors"
           >
-            Start billing
+            Start billing{selected.size > 0 ? ` (${selected.size} selected)` : ""}
           </button>
           {!preview && !committed && (
             <span className="text-xs text-[#8FA3BF] self-center">
@@ -171,6 +216,85 @@ export default function StartBillingPanel({ readiness }: { readiness: BillingRea
           )}
         </div>
       </div>
+
+      {/* Who to switch on. Leave everything unticked to do the whole gym. */}
+      {readiness.ready.length > 0 && (
+        <div className={`${card} mb-6`}>
+          <div className="flex flex-wrap items-baseline justify-between gap-2 mb-1">
+            <h2 className="text-sm font-semibold text-[#E5EDF7]">Ready to bill</h2>
+            <span className="text-xs text-[#8FA3BF]">
+              {selected.size > 0
+                ? `${selected.size} selected`
+                : "Nothing ticked — the whole gym will be switched on"}
+              {selected.size > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelected(new Set());
+                    setPreview(null);
+                  }}
+                  className="ml-3 underline hover:text-[#E6EDF7]"
+                >
+                  clear
+                </button>
+              )}
+            </span>
+          </div>
+          <p className="text-sm text-[#8FA3BF] mb-3">
+            Tick members to switch on just those — useful for trying it with one
+            person first.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-[#8FA3BF]">
+                  <th className="py-1 pr-3 font-medium w-8"> </th>
+                  <th className="py-1 pr-4 font-medium">Member</th>
+                  <th className="py-1 pr-4 font-medium text-right">Price</th>
+                  <th className="py-1 pr-4 font-medium">First invoice</th>
+                  {startMode === CALENDAR_MONTH && billPartMonth && (
+                    <th className="py-1 pr-4 font-medium text-right">Rest of this month</th>
+                  )}
+                  <th className="py-1 font-medium">Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                {readiness.ready.map((row) => {
+                  const firstInvoice =
+                    startMode === CALENDAR_MONTH
+                      ? row.calendar_month_start
+                      : startMode === CURRENT_PERIOD
+                        ? row.current_period_start
+                        : row.next_period_start;
+                  return (
+                    <tr key={row.membership} className="border-t border-[#1E2D45]">
+                      <td className="py-2 pr-3">
+                        <input
+                          type="checkbox"
+                          checked={selected.has(row.membership)}
+                          onChange={() => toggle(row.membership)}
+                          className="accent-[#22D38C]"
+                          aria-label={`Select ${row.member_name}`}
+                        />
+                      </td>
+                      <td className="py-2 pr-4 text-[#E6EDF7]">{row.member_name}</td>
+                      <td className="py-2 pr-4 text-right">{formatCurrency(row.price)}</td>
+                      <td className="py-2 pr-4">{firstInvoice}</td>
+                      {startMode === CALENDAR_MONTH && billPartMonth && (
+                        <td className="py-2 pr-4 text-right text-[#5EEAD4]">
+                          {formatCurrency(row.part_month_amount)}
+                          <span className="text-xs text-[#8FA3BF]"> ({row.part_month_days}d)</span>
+                        </td>
+                      )}
+                      <td className="py-2 text-xs text-[#FBBF24]">{row.warnings.join("; ")}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* What happened / would happen */}
       {result && (
@@ -184,6 +308,8 @@ export default function StartBillingPanel({ readiness }: { readiness: BillingRea
               : `${result.started_count} membership(s) are now billing.`}
             {result.skipped_count > 0 && ` ${result.skipped_count} skipped.`}
             {result.failed_count > 0 && ` ${result.failed_count} failed.`}
+            {result.part_month_total > 0 &&
+              ` Part-month charges: ${formatCurrency(result.part_month_total)}.`}
           </p>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

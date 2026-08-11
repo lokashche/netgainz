@@ -10,7 +10,7 @@ invoice a member for a period the gym already collected in cash.
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
-from frappe.utils import add_days, getdate, today
+from frappe.utils import add_days, flt, get_first_day, get_last_day, getdate, today
 
 from netgainz.net_gainz.accounting import billing_fixtures as fx
 from netgainz.net_gainz.accounting import go_live
@@ -198,3 +198,105 @@ class TestGoLive(FrappeTestCase):
 
 		ms.reload()
 		self.assertEqual(ms.subscription, subscription)
+
+	# ---- calendar-month alignment (some gyms bill 1st to month end) --------- #
+	def test_calendar_month_starts_everyone_on_the_first(self):
+		"""Not every gym wants joining-day billing; many want the month to close
+		cleanly, so everyone bills 1st-to-month-end."""
+		a = self._loaded("GL Cal A", price=3000.0, joined_days_ago=200)
+		b = self._loaded("GL Cal B", price=1000.0, joined_days_ago=17)
+
+		go_live.start_billing(start_mode=go_live.CALENDAR_MONTH, dry_run=0)
+
+		first_of_next = get_first_day(add_days(get_last_day(today()), 1))
+		for ms in (a, b):
+			ms.reload()
+			start = getdate(frappe.db.get_value("Subscription", ms.subscription, "start_date"))
+			self.assertEqual(start, getdate(first_of_next))
+			self.assertEqual(start.day, 1)
+
+	def test_calendar_month_charges_the_rest_of_this_month_pro_rata(self):
+		ms = self._loaded("GL Cal Part", price=3100.0)
+		row = go_live.assess(ms.name)
+
+		month_end = get_last_day(today())
+		days_left = (getdate(month_end) - getdate(today())).days + 1
+		self.assertEqual(row["part_month_days"], days_left)
+		self.assertAlmostEqual(
+			row["part_month_amount"], 3100.0 * days_left / getdate(month_end).day, places=2
+		)
+
+		go_live.start_billing(start_mode=go_live.CALENDAR_MONTH, dry_run=0)
+
+		ms.reload()
+		invoices = frappe.get_all(
+			"Sales Invoice",
+			filters={"subscription": ms.subscription, "docstatus": 1},
+			fields=["name", "net_total"],
+		)
+		self.assertEqual(len(invoices), 1, "exactly one part-month invoice")
+		self.assertAlmostEqual(flt(invoices[0].net_total), row["part_month_amount"], places=2)
+
+	def test_the_part_month_invoice_counts_as_profit_first_cash(self):
+		"""It is stamped with the subscription on purpose — Profit First reads cash
+		from allocations against subscription-linked invoices, so an unstamped stub
+		would take the member's money out of the owner's revenue."""
+		from netgainz.net_gainz.accounting import billing
+
+		ms = self._loaded("GL Cal Cash", price=3100.0)
+		go_live.start_billing(start_mode=go_live.CALENDAR_MONTH, dry_run=0)
+		ms.reload()
+
+		si = billing.current_invoice(ms.name)
+		outstanding = flt(frappe.db.get_value("Sales Invoice", si, "outstanding_amount"))
+		self.assertGreater(outstanding, 0)
+		billing.record_payment(ms.name, outstanding, "Cash", today())
+
+		customer = frappe.db.get_value("Member", ms.member, "customer")
+		expected = go_live.assess(ms.name)
+		self.assertGreater(billing.collected_paise(today(), today(), [customer]), 0)
+		self.assertIsNotNone(expected)
+
+	def test_part_month_can_be_waived(self):
+		ms = self._loaded("GL Cal NoPart", price=3100.0)
+		go_live.start_billing(
+			start_mode=go_live.CALENDAR_MONTH, dry_run=0, bill_part_month=0
+		)
+		ms.reload()
+		self.assertTrue(ms.subscription)
+		self.assertEqual(
+			frappe.db.count("Sales Invoice", {"subscription": ms.subscription}), 0,
+			"no stub invoice when the gym waives the part month",
+		)
+
+	def test_dry_run_shows_the_part_month_before_charging_it(self):
+		self._loaded("GL Cal Dry", price=3100.0)
+		result = go_live.start_billing(start_mode=go_live.CALENDAR_MONTH, dry_run=1)
+		row = result["started"][0]
+		self.assertGreater(row["part_month_amount"], 0)
+		self.assertGreater(row["part_month_days"], 0)
+		self.assertGreater(result["part_month_total"], 0)
+		self.assertEqual(frappe.db.count("Sales Invoice"), 0, "a dry run charges nothing")
+
+	def test_the_part_month_invoice_is_taxed_like_any_other(self):
+		"""Regression: the stub came out with a GST template resolved but its tax
+		ROWS never expanded — 500 -> 500 while a generated invoice went 1000 -> 1180.
+		Invisible for a non-GST tenant, an under-charge for a registered one."""
+		normal = fx.enrol("GL Tax Normal", amount=1000.0)
+		generated = frappe.get_doc("Sales Invoice", normal.current_sales_invoice)
+		tax_rate = sum(flt(t.rate) for t in generated.taxes)
+
+		ms = self._loaded("GL Tax Part", price=1000.0)
+		go_live.start_billing(start_mode=go_live.CALENDAR_MONTH, dry_run=0, memberships=[ms.name])
+		ms.reload()
+		stub = frappe.get_doc(
+			"Sales Invoice",
+			frappe.db.get_value("Sales Invoice", {"subscription": ms.subscription, "docstatus": 1}, "name"),
+		)
+
+		self.assertEqual(stub.taxes_and_charges, generated.taxes_and_charges)
+		self.assertEqual(sum(flt(t.rate) for t in stub.taxes), tax_rate)
+		# ...and the tax is actually charged, proportionally to the pro-rata net.
+		self.assertAlmostEqual(
+			flt(stub.grand_total), flt(stub.net_total) * (1 + tax_rate / 100), places=2
+		)

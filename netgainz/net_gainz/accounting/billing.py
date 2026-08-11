@@ -244,6 +244,11 @@ def on_sales_invoice_before_validate(doc, method=None):
 	"""
 	if frappe.flags.in_install or not doc.get("subscription") or doc.get("is_return"):
 		return
+	# A go-live part-month invoice is priced pro-rata by go_live.py and carries a
+	# single due date on purpose. This hook exists to price a FULL period and to
+	# attach installment terms; both would be wrong here.
+	if doc.flags.get("netgainz_part_month"):
+		return
 	membership = _membership_for_invoice(doc)
 	if not membership:
 		return
