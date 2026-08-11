@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { frappeRequest } from "@/lib/frappe";
+import { extractFrappeError, frappeRequest } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
 import type { BillingReadiness } from "@/lib/types";
 import StartBillingPanel from "./StartBillingPanel";
@@ -21,11 +21,21 @@ export default async function StartBillingPage() {
   const session = await getSession();
   if (!session.frappeCookies) redirect("/login");
 
-  const { data } = await frappeRequest<{ message: BillingReadiness }>(
+  const { data, status } = await frappeRequest<{ message: BillingReadiness }>(
     "api/method/netgainz.net_gainz.accounting.go_live.billing_readiness",
     { sessionCookie: session.frappeCookies }
   );
   const readiness = data?.message;
+
+  // Say what actually went wrong. A bare "could not load" on a finance screen
+  // costs whoever reads it an afternoon; 401/403 in particular almost always
+  // means the Frappe login behind the app session has gone, which looks
+  // identical to "no data" everywhere else in the app.
+  const failure = readiness
+    ? null
+    : status === 401 || status === 403
+      ? "Your session with the backend has expired. Sign out and sign in again."
+      : (extractFrappeError(data) ?? `The backend returned ${status}.`);
 
   return (
     <div className="max-w-4xl">
@@ -39,7 +49,8 @@ export default async function StartBillingPage() {
         <StartBillingPanel readiness={readiness} />
       ) : (
         <div className="rounded-lg bg-[rgba(248,113,113,0.1)] border border-[#F87171] px-4 py-3 text-sm text-[#F87171]">
-          Could not load the billing preview.
+          <p className="font-semibold">Could not load the billing preview.</p>
+          <p className="mt-1">{failure}</p>
         </div>
       )}
     </div>
