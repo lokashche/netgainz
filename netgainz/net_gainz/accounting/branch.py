@@ -64,9 +64,10 @@ def branch_cost_center(branch=None, company=None) -> str | None:
 
 
 def resolve_default_branch(doc) -> str | None:
-	"""The branch to stamp on ``doc`` when it has none: a Membership inherits its
-	member's home branch when set; everything else uses (and seeds) Main."""
-	if doc.doctype == "Membership" and doc.get("member"):
+	"""The branch to stamp on ``doc`` when it has none: any member-bearing doc
+	(Membership, Member Check-in, later OP doctypes) inherits its member's home
+	branch when set; everything else uses (and seeds) Main."""
+	if doc.get("member"):
 		member_branch = frappe.db.get_value("Member", doc.member, "branch")
 		if member_branch:
 			return member_branch

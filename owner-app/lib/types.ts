@@ -393,6 +393,8 @@ export type GymSettings = {
   class_term_plural?: string;
   class_auto_generate?: 0 | 1;
   class_schedule_horizon_days?: number;
+  absence_alert_days?: number;
+  absence_alerts_enabled?: 0 | 1;
 };
 
 export type PFBucket =
@@ -635,4 +637,66 @@ export type RenewalsDue = {
   overdue: RenewalRow[];
   due_soon_count: number;
   overdue_count: number;
+};
+
+// ── OP-1: gym-wide check-in & attendance ────────────────────────────────────
+
+export type CheckinSearchRow = {
+  name: string;
+  member_code?: string;
+  full_name: string;
+  phone?: string | null;
+  status: MemberStatus;
+  branch?: string;
+  /** Timestamp of today's earliest check-in, null when not yet in. */
+  checked_in_today: string | null;
+};
+
+/** The soft prompt: never blocks a check-in, only tells the desk. */
+export type CheckinAlert = {
+  overdue: boolean;
+  frozen: boolean;
+  balance_due: number;
+  due_date: string | null;
+  memberships: string[];
+};
+
+export type CheckinResult = {
+  check_in: string;
+  member: string;
+  member_name?: string;
+  timestamp: string;
+  branch?: string;
+  previous_today: string | null;
+  alert: CheckinAlert | null;
+};
+
+export type VisitRow = {
+  name: string;
+  member: string;
+  member_name?: string;
+  timestamp: string;
+  source: string;
+  branch?: string;
+};
+
+export type TodaysVisits = {
+  visits: VisitRow[];
+  count: number;
+};
+
+export type ChurnRiskRow = {
+  member: string;
+  member_name?: string;
+  phone?: string | null;
+  branch?: string;
+  last_visit: string | null;
+  never_visited: boolean;
+  days_absent: number;
+};
+
+export type ChurnRisk = {
+  threshold_days: number;
+  absent: ChurnRiskRow[];
+  absent_count: number;
 };

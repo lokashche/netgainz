@@ -41,7 +41,11 @@
   "classes_section",
   "column_break_cls",
   "class_auto_generate",
-  "class_schedule_horizon_days"
+  "class_schedule_horizon_days",
+  "checkin_section",
+  "absence_alert_days",
+  "column_break_chk",
+  "absence_alerts_enabled"
  ],
  "fields": [
   {
@@ -211,6 +215,29 @@
    "fieldname": "class_schedule_horizon_days",
    "fieldtype": "Int",
    "label": "Schedule Horizon (days)"
+  },
+  {
+   "fieldname": "checkin_section",
+   "fieldtype": "Section Break",
+   "label": "Check-in & Attendance"
+  },
+  {
+   "default": "14",
+   "description": "An active member is flagged as a churn risk when they have not checked in (at the desk or into a class) for this many days.",
+   "fieldname": "absence_alert_days",
+   "fieldtype": "Int",
+   "label": "Absence Alert Days"
+  },
+  {
+   "fieldname": "column_break_chk",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "description": "When on, a daily background job raises an in-app notification listing active members not seen within the absence window. No email or SMS is sent.",
+   "fieldname": "absence_alerts_enabled",
+   "fieldtype": "Check",
+   "label": "Daily In-App Absence Alert"
   },
   {
    "fieldname": "terminology_section",

@@ -160,6 +160,9 @@ doc_events = {
 	"Expense": {
 		"before_insert": "netgainz.net_gainz.accounting.branch.stamp_default_branch",
 	},
+	"Member Check-in": {
+		"before_insert": "netgainz.net_gainz.accounting.branch.stamp_default_branch",
+	},
 	"Sales Invoice": {
 		# WP-10.3: the native Subscription hardcodes a single 100% payment_schedule
 		# row and cannot carry a payment_terms_template, so installments have to be
@@ -187,6 +190,9 @@ scheduler_events = {
 		# Auto-create the upcoming sessions for each active recurring Class Schedule
 		# (idempotent; opt-out via the class_auto_generate setting).
 		"netgainz.net_gainz.doctype.session_schedule.session_schedule.generate_scheduled_classes",
+		# OP-1: raise an in-app churn-risk alert for active members not seen at the
+		# gym within the absence window (idempotent; notify-only).
+		"netgainz.net_gainz.operations.checkin.notify_absences",
 	],
 }
 

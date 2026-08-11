@@ -1,7 +1,9 @@
 import { frappeRequest, getGymSettings } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import type {
+  ChurnRisk,
   DiscountsThisMonth, Member, Subscription, SubscriptionStatus, GymExpense, RenewalsDue } from "@/lib/types";
 
 // ── helpers ─────────────────────────────────────────────────────────────────
@@ -142,6 +144,7 @@ export default async function DashboardPage() {
     recentSubsRes,
     recentExpensesRes,
     renewalsRes,
+    churnRes,
   ] = await Promise.all([
     frappeRequest<{ data: Pick<Member, "name">[] }>(membersPath, {
       sessionCookie: session.frappeCookies,
@@ -181,6 +184,10 @@ export default async function DashboardPage() {
       `api/method/netgainz.net_gainz.operations.renewals.get_renewals_due`,
       { sessionCookie: session.frappeCookies }
     ),
+    frappeRequest<{ message: ChurnRisk }>(
+      `api/method/netgainz.net_gainz.operations.checkin.get_churn_risk`,
+      { sessionCookie: session.frappeCookies }
+    ),
   ]);
 
   // ── Extract arrays ────────────────────────────────────────────────────────
@@ -198,6 +205,12 @@ export default async function DashboardPage() {
   const renewalsOverdue = renewals?.overdue ?? [];
   const renewalsWithin = renewals?.within_days ?? 7;
   const showRenewals = renewalsDueSoon.length > 0 || renewalsOverdue.length > 0;
+
+  // OP-1: active members drifting away — the earliest churn signal there is.
+  const churn = churnRes.data?.message;
+  const churnAbsent = churn?.absent ?? [];
+  const churnThreshold = churn?.threshold_days ?? 14;
+  const showChurn = churnAbsent.length > 0;
 
   // ── Derived values ────────────────────────────────────────────────────────
 
@@ -363,12 +376,12 @@ export default async function DashboardPage() {
                 ))}
               </ul>
 
-              <a
+              <Link
                 href="/subscriptions?status=Overdue"
                 className="text-[#F87171] text-xs hover:underline mt-3 inline-block"
               >
                 View all overdue →
-              </a>
+              </Link>
             </div>
           )}
 
@@ -402,12 +415,12 @@ export default async function DashboardPage() {
                 ))}
               </ul>
 
-              <a
+              <Link
                 href="/subscriptions?status=Partial"
                 className="text-[#5EEAD4] text-xs hover:underline mt-3 inline-block"
               >
                 View all partial →
-              </a>
+              </Link>
             </div>
           )}
         </div>
@@ -455,6 +468,42 @@ export default async function DashboardPage() {
         </div>
       )}
 
+      {/* ── Churn Risk (OP-1) ── */}
+      {showChurn && (
+        <div className="bg-[rgba(251,191,36,0.05)] border border-[rgba(251,191,36,0.3)] rounded-xl p-5 mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[#FBBF24] font-semibold text-sm uppercase tracking-wider">
+              ⚠ Churn Risk
+            </p>
+            <a href="/churn-risk" className="text-[#FBBF24] text-xs hover:underline">
+              View all →
+            </a>
+          </div>
+          <div className="flex items-baseline gap-2 mb-3">
+            <span className="text-[#E6EDF7] text-2xl font-bold">{churnAbsent.length}</span>
+            <span className="text-[#8A97B2] text-sm">
+              active member{churnAbsent.length === 1 ? "" : "s"} not seen in {churnThreshold}+ days
+            </span>
+          </div>
+          <ul className="space-y-1.5">
+            {churnAbsent.slice(0, 5).map((r) => (
+              <li key={r.member} className="flex items-center justify-between text-xs">
+                <a
+                  href={`/members/${r.member}`}
+                  className="text-[#E6EDF7] truncate mr-2 hover:text-[#FBBF24]"
+                >
+                  {r.member_name ?? r.member}
+                  {r.phone ? ` · ${r.phone}` : ""}
+                </a>
+                <span className="text-[#FBBF24] shrink-0">
+                  {r.never_visited ? "never checked in" : `${r.days_absent}d away`}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* ── Two-column row ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Recent Subscriptions */}
@@ -463,12 +512,12 @@ export default async function DashboardPage() {
             <span className="text-[#E6EDF7] font-semibold text-sm">
               Recent Subscriptions
             </span>
-            <a
+            <Link
               href="/subscriptions"
               className="text-[#22D38C] text-xs hover:underline"
             >
               View all →
-            </a>
+            </Link>
           </div>
 
           {recentSubs.length === 0 ? (
@@ -506,9 +555,9 @@ export default async function DashboardPage() {
         <div className="bg-[#111A2E] border border-[#1E2D45] rounded-xl overflow-hidden">
           <div className="px-5 py-4 border-b border-[#1E2D45] flex items-center justify-between">
             <span className="text-[#E6EDF7] font-semibold text-sm">Recent Expenses</span>
-            <a href="/expenses" className="text-[#22D38C] text-xs hover:underline">
+            <Link href="/expenses" className="text-[#22D38C] text-xs hover:underline">
               View all →
-            </a>
+            </Link>
           </div>
 
           {recentExpenses.length === 0 ? (

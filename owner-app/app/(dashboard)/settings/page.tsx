@@ -34,6 +34,10 @@ export default function SettingsPage() {
   const [class_auto_generate, setClassAuto] = useState(true);
   const [class_schedule_horizon_days, setClassHorizon] = useState("14");
 
+  // OP-1: the absence window behind the Churn Risk list and its daily alert.
+  const [absence_alert_days, setAbsenceDays] = useState("14");
+  const [absence_alerts_enabled, setAbsenceEnabled] = useState(true);
+
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +68,8 @@ export default function SettingsPage() {
           setClassPlural(s.class_term_plural || "Classes");
           setClassAuto(s.class_auto_generate !== 0);
           setClassHorizon(String(s.class_schedule_horizon_days ?? 14));
+          setAbsenceDays(String(s.absence_alert_days ?? 14));
+          setAbsenceEnabled(s.absence_alerts_enabled !== 0);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unexpected error");
@@ -106,6 +112,8 @@ export default function SettingsPage() {
           class_term_plural: class_term_plural.trim() || "Classes",
           class_auto_generate: class_auto_generate ? 1 : 0,
           class_schedule_horizon_days: Number(class_schedule_horizon_days) || 14,
+          absence_alert_days: Number(absence_alert_days) || 14,
+          absence_alerts_enabled: absence_alerts_enabled ? 1 : 0,
         }),
       });
 
@@ -414,6 +422,48 @@ export default function SettingsPage() {
               How many days ahead recurring sessions are kept created.
             </p>
           </div>
+        </section>
+
+        <hr className="border-[#1E2D45]" />
+
+        {/* Check-in & Attendance — OP-1 */}
+        <section>
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-[#22D38C] mb-3">
+            Check-in &amp; Attendance
+          </h2>
+
+          <div className="max-w-xs">
+            <label className={labelClass}>Absence Alert Days</label>
+            <input
+              type="number"
+              min="1"
+              value={absence_alert_days}
+              onChange={(e) => setAbsenceDays(e.target.value)}
+              placeholder="14"
+              className={inputClass}
+            />
+          </div>
+          <p className="mt-2 text-xs text-[#8A97B2]">
+            An active member lands on the Churn Risk list when they have not checked in —
+            at the desk or into a class — for this many days.
+          </p>
+
+          <div className="mt-4 flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="absence_alerts_enabled"
+              checked={absence_alerts_enabled}
+              onChange={(e) => setAbsenceEnabled(e.target.checked)}
+              className="w-4 h-4 rounded accent-[#22D38C] cursor-pointer"
+            />
+            <label htmlFor="absence_alerts_enabled" className="text-sm text-[#E6EDF7]">
+              Daily in-app absence alert
+            </label>
+          </div>
+          <p className="mt-2 text-xs text-[#8A97B2]">
+            Raises an in-app notification each day listing members past the window. No
+            email or SMS is sent.
+          </p>
         </section>
 
         <div className="flex gap-3 pt-2">

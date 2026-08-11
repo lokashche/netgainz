@@ -18,3 +18,4 @@ netgainz.patches.v0_7.backfill_expense_accounts
 netgainz.patches.v0_7.drop_accounting_basis
 netgainz.patches.v0_7.drop_billing_cutover_date
 netgainz.patches.v0_8.apply_permission_matrix
+netgainz.patches.v0_8.apply_permission_matrix #2 OP-1: grant Member Check-in to Gym Owner + Gym Staff
