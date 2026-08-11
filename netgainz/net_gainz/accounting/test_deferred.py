@@ -4,9 +4,10 @@
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
-from frappe.utils import today
+from frappe.utils import getdate, today
 
 from netgainz.net_gainz.accounting import billing, deferred
+from netgainz.net_gainz.accounting import billing_fixtures as fx
 from netgainz.net_gainz.profit_first import accounts as pf_accounts
 
 SAC = "999723"
@@ -50,7 +51,9 @@ class TestDeferred(FrappeTestCase):
 		account = result["deferred_revenue_account"]
 		self.assertTrue(frappe.db.exists("Account", account))
 		self.assertEqual(
-			frappe.db.get_value("Account", account, "root_type"), "Liability", "deferred revenue is a liability"
+			frappe.db.get_value("Account", account, "root_type"),
+			"Liability",
+			"deferred revenue is a liability",
 		)
 		self.assertEqual(
 			frappe.db.get_value("Company", self.company, "default_deferred_revenue_account"), account
@@ -104,9 +107,7 @@ class TestDeferred(FrappeTestCase):
 	def test_accrual_membership_invoice_defers_to_liability(self):
 		self._set_method("Accrual")
 		frappe.db.set_single_value("Business Settings", "billing_cutover_date", today())
-		deferred_account = frappe.db.get_value(
-			"Company", self.company, "default_deferred_revenue_account"
-		)
+		deferred_account = frappe.db.get_value("Company", self.company, "default_deferred_revenue_account")
 
 		plan = self._plan("WP6 Annual Plan")  # 365 days -> Year x1
 		member = frappe.get_doc(
@@ -123,7 +124,9 @@ class TestDeferred(FrappeTestCase):
 			as_dict=True,
 		)
 		self.assertTrue(item.enable_deferred_revenue, "SI item deferred (native propagation from the Item)")
-		self.assertTrue(item.service_start_date and item.service_end_date, "service period set from the subscription")
+		self.assertTrue(
+			item.service_start_date and item.service_end_date, "service period set from the subscription"
+		)
 
 		# The submitted invoice credits the Deferred Revenue liability, not income.
 		deferred_credit = frappe.db.get_value(
@@ -132,3 +135,41 @@ class TestDeferred(FrappeTestCase):
 			"credit",
 		)
 		self.assertTrue(deferred_credit and deferred_credit > 0, "revenue booked to the deferred liability")
+
+
+class TestDeferredServicePeriod(FrappeTestCase):
+	"""The recognition WINDOW, not just the amount (found by the Stage 8 DS-7 pass).
+
+	ERPNext's ``set_missing_values`` overwrites the Subscription's service dates with
+	``add_months(start, Item.no_of_months)`` — and WP-6 deliberately never sets
+	``no_of_months``, so the window used to collapse onto a single day and a month's
+	membership was recognised entirely on day one.
+	"""
+
+	def setUp(self):
+		fx.clear_billing_data()
+		fx.ensure_cash_account()
+		self._original = deferred.accounting_method()
+		frappe.db.set_single_value("Business Settings", "accounting_method", "Accrual")
+		deferred.setup_deferred_revenue(pf_accounts.default_company())
+		self.addCleanup(frappe.db.set_single_value, "Business Settings", "accounting_method", self._original)
+
+	def test_the_service_window_is_the_period_billed(self):
+		plan = fx.make_plan("Deferred Window Plan", amount=3000.0)
+		deferred.sync_item_deferred_revenue(frappe.db.get_value("Membership Plan", plan.name, "item"), True)
+		member = fx.make_member("Deferred Window Member", plan.name)
+		ms = frappe.get_doc(
+			{"doctype": "Membership", "member": member.name, "membership_plan": plan.name}
+		).insert(ignore_permissions=True)
+		ms.reload()
+
+		invoice = frappe.get_doc("Sales Invoice", ms.current_sales_invoice)
+		item = invoice.items[0]
+		self.assertTrue(item.enable_deferred_revenue)
+		self.assertEqual(getdate(item.service_start_date), getdate(invoice.from_date))
+		self.assertEqual(getdate(item.service_end_date), getdate(invoice.to_date))
+		self.assertGreater(
+			getdate(item.service_end_date),
+			getdate(item.service_start_date),
+			"a month of membership is not earned in a single day",
+		)

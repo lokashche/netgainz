@@ -1,6 +1,12 @@
 "use client";
 
 import { useState, useEffect, SyntheticEvent, use } from "react";
+import OfferPicker from "@/app/components/OfferPicker";
+import DiscountBox, {
+  EMPTY_DISCOUNT,
+  discountPayload,
+  type DiscountDraft,
+} from "@/app/components/DiscountBox";
 import { extractFrappeError } from "@/lib/frappe";
 import { useRouter } from "next/navigation";
 import type {
@@ -12,6 +18,7 @@ import type {
   Subscription,
   SubscriptionStatus,
   WriteOffContext,
+  DiscountLogRow,
 } from "@/lib/types";
 
 type Params = Promise<{ id: string }>;
@@ -31,6 +38,9 @@ function statusBadge(status: SubscriptionStatus): string {
   switch (status) {
     case "Paid":
       return `${base} bg-[rgba(34,211,140,0.15)] text-[#22D38C]`;
+    case "Trial":
+      // On a free trial: training, not yet billed.
+      return `${base} bg-[rgba(94,234,212,0.15)] text-[#5EEAD4]`;
     case "Pending":
       return `${base} bg-[rgba(138,151,178,0.15)] text-[#8A97B2]`;
     case "Overdue":
@@ -83,6 +93,14 @@ export default function SubscriptionDetailPage({ params }: { params: Params }) {
 
   // Editable
   const [comments, setComments] = useState("");
+  // Stage 8 DS-1: this member's negotiated discount, with its cost shown before saving.
+  const [discount, setDiscount] = useState<DiscountDraft>(EMPTY_DISCOUNT);
+  const [offer, setOffer] = useState("");
+  // DS-4: read-only here — a trial is decided at enrolment and then runs its course.
+  const [trialEndsOn, setTrialEndsOn] = useState<string>("");
+  // DS-5: who changed this member's discount, when and why. Owner-only — the backend
+  // refuses the read for anyone else, so the panel simply never appears for staff.
+  const [discountHistory, setDiscountHistory] = useState<DiscountLogRow[]>([]);
 
   // Record-payment panel: posts a real Payment Entry (WP-11). Writing
   // fee_collected would record no revenue — Profit First and commissions read
@@ -137,6 +155,18 @@ export default function SubscriptionDetailPage({ params }: { params: Params }) {
       setMembershipPlan(s.membership_plan ?? "");
       setMonth(s.month ?? "");
       setTariff(s.tariff === undefined || s.tariff === null ? "" : String(s.tariff));
+      setOffer(s.offer ?? "");
+      setTrialEndsOn(s.trial_ends_on ?? "");
+      setDiscount({
+        discount_type: s.discount_type ?? "",
+        discount_value:
+          s.discount_value === undefined || s.discount_value === null
+            ? ""
+            : String(s.discount_value),
+        discount_duration: s.discount_duration ?? "First invoice only",
+        discount_until: s.discount_until ?? "",
+        discount_reason: s.discount_reason ?? "",
+      });
       setNextRenewal(s.next_renewal ?? "");
 
       setMemberId(s.member ?? "");
@@ -153,6 +183,13 @@ export default function SubscriptionDetailPage({ params }: { params: Params }) {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function loadDiscountHistory() {
+    const res = await fetch(`/api/subscriptions/${encodeURIComponent(id)}/discount-history`);
+    if (!res.ok) return;
+    const body = (await res.json()) as { message?: DiscountLogRow[] };
+    setDiscountHistory(body.message ?? []);
   }
 
   async function loadObligations() {
@@ -209,13 +246,14 @@ export default function SubscriptionDetailPage({ params }: { params: Params }) {
 
   async function reloadAll() {
     setLoading(true);
-    await Promise.all([loadSub(), loadObligations(), loadMoneyPanels()]);
+    await Promise.all([loadSub(), loadObligations(), loadMoneyPanels(), loadDiscountHistory()]);
   }
 
   useEffect(() => {
     loadSub();
     loadObligations();
     loadMoneyPanels();
+    loadDiscountHistory();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
@@ -379,7 +417,11 @@ export default function SubscriptionDetailPage({ params }: { params: Params }) {
     // WP-11: status / balance_due / due_date / next_renewal are all derived from
     // the Sales Invoice, and money is recorded as a Payment Entry. What the owner
     // still sets by hand is the note and this member's own price.
-    const payload: Record<string, string | number> = { comments };
+    const payload: Record<string, string | number | null> = {
+      comments,
+      ...discountPayload(discount),
+      offer: offer || null,
+    };
     if (tariff !== "" && Number.isFinite(Number(tariff))) payload.tariff = Number(tariff);
 
     try {
@@ -570,6 +612,66 @@ export default function SubscriptionDetailPage({ params }: { params: Params }) {
             <div className={readonlyClass}>{nextRenewal || "—"}</div>
           </div>
         </div>
+
+        {trialEndsOn && (
+          <div className="rounded-lg border border-[#5EEAD4] bg-[rgba(94,234,212,0.08)] p-4 text-sm text-[#8FA3BF]">
+            Free trial until <span className="text-[#E6EDF7]">{trialEndsOn}</span>. Nothing is
+            invoiced while it runs — the first invoice is raised the next day, at the full
+            rate, automatically.
+          </div>
+        )}
+
+        <OfferPicker
+          value={offer}
+          onChange={setOffer}
+          membershipPlan={membershipPlan}
+          member={memberId || undefined}
+          inputClassName={inputClass}
+          labelClassName={labelClass}
+        />
+
+        <DiscountBox
+          value={discount}
+          onChange={setDiscount}
+          price={tariff !== "" && Number.isFinite(Number(tariff)) ? Number(tariff) : undefined}
+          membership={subName || undefined}
+          member={memberId || undefined}
+          capabilities={caps}
+          inputClassName={inputClass}
+          labelClassName={labelClass}
+        />
+
+        <p className="text-xs text-[#8A97B2]">
+          A changed discount applies to the NEXT invoice — one already raised keeps the
+          figures it was billed at.
+        </p>
+
+        {discountHistory.length > 0 && (
+          <div className="rounded-lg border border-[#1E2D45] bg-[#0F1B2D] p-4">
+            <h3 className="text-sm font-semibold text-[#E6EDF7] mb-2">Discount history</h3>
+            <ul className="space-y-2 text-sm text-[#8FA3BF]">
+              {discountHistory.map((h) => (
+                <li key={h.name} className="flex flex-wrap gap-x-2">
+                  <span className="text-[#E6EDF7]">{h.action}</span>
+                  <span>
+                    {h.action === "Removed"
+                      ? `${h.previous_type ?? ""} ${h.previous_value ?? ""}`.trim()
+                      : `${h.discount_type ?? ""} ${h.discount_value ?? ""}`.trim()}
+                    {h.action === "Changed" && h.previous_value !== undefined
+                      ? ` (was ${h.previous_value})`
+                      : ""}
+                  </span>
+                  {h.offer && <span className="text-[#5EEAD4]">via {h.offer}</span>}
+                  {h.approved === 1 && <span className="text-[#FBBF24]">owner-approved</span>}
+                  <span className="text-[#8A97B2]">
+                    · {h.granted_by ?? "—"} · {h.creation?.slice(0, 16)}
+                  </span>
+                  {h.reason && <span className="w-full text-xs text-[#8A97B2]">{h.reason}</span>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <hr className="border-[#1E2D45]" />
 

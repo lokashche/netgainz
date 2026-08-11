@@ -22,6 +22,11 @@ export default function SettingsPage() {
     useState<CommissionPercentageBasis>("Assigned Member Revenue");
   const [commission_post_to_ledger, setCommissionPost] = useState(false);
   const [renewal_reminder_days, setRenewalDays] = useState("7");
+  // DS-5: what the front desk may give away without the owner, and the PIN that lets
+  // the owner approve more at the desk. The PIN is write-only — it is never sent back.
+  const [max_discount_percent, setMaxDiscount] = useState("10");
+  const [complimentary_requires_owner, setCompOwnerOnly] = useState(true);
+  const [owner_approval_pin, setOwnerPin] = useState("");
   const [renewal_reminders_enabled, setRenewalEnabled] = useState(true);
 
   const [class_term_singular, setClassSingular] = useState("Class");
@@ -52,6 +57,8 @@ export default function SettingsPage() {
             setCommissionBasis(s.commission_percentage_basis);
           setCommissionPost(s.commission_post_to_ledger === 1);
           setRenewalDays(String(s.renewal_reminder_days ?? 7));
+          setMaxDiscount(String(s.max_discount_percent ?? 10));
+          setCompOwnerOnly((s.complimentary_requires_owner ?? 1) === 1);
           setRenewalEnabled(s.renewal_reminders_enabled !== 0);
           setClassSingular(s.class_term_singular || "Class");
           setClassPlural(s.class_term_plural || "Classes");
@@ -90,6 +97,9 @@ export default function SettingsPage() {
           member_id_prefix,
           commission_percentage_basis,
           commission_post_to_ledger: commission_post_to_ledger ? 1 : 0,
+          max_discount_percent: Number(max_discount_percent) || 0,
+          complimentary_requires_owner: complimentary_requires_owner ? 1 : 0,
+          ...(owner_approval_pin ? { owner_approval_pin } : {}),
           renewal_reminder_days: Number(renewal_reminder_days) || 7,
           renewal_reminders_enabled: renewal_reminders_enabled ? 1 : 0,
           class_term_singular: class_term_singular.trim() || "Class",
@@ -246,6 +256,59 @@ export default function SettingsPage() {
             When on, approving a commission run posts a balanced Journal Entry (debit Coach
             Commission Expense, credit Coach Commissions Payable). When off, runs are
             recorded for reference only. Provision the accounts from the Commissions page.
+          </p>
+        </section>
+
+        <hr className="border-[#1E2D45]" />
+
+        {/* Discounts — DS-5 */}
+        <section>
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-[#22D38C] mb-3">
+            Discounts
+          </h2>
+
+          <label className={labelClass}>Front Desk May Give Up To (%)</label>
+          <input
+            type="number"
+            min="0"
+            max="100"
+            step="1"
+            value={max_discount_percent}
+            onChange={(e) => setMaxDiscount(e.target.value)}
+            className={inputClass}
+          />
+          <p className="mt-2 text-xs text-[#8A97B2] leading-relaxed">
+            The most a staff member may discount on their own. A flat amount counts as its
+            share of the member&rsquo;s price, so ₹400 off ₹1,000 is 40% and needs you. You
+            are never capped.
+          </p>
+
+          <div className="mt-4 flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="complimentary_requires_owner"
+              checked={complimentary_requires_owner}
+              onChange={(e) => setCompOwnerOnly(e.target.checked)}
+              className="w-4 h-4 rounded accent-[#22D38C] cursor-pointer"
+            />
+            <label htmlFor="complimentary_requires_owner" className="text-sm text-[#E6EDF7]">
+              Only I can give a free membership
+            </label>
+          </div>
+
+          <label className={`${labelClass} mt-4`}>Owner PIN</label>
+          <input
+            type="password"
+            value={owner_approval_pin}
+            onChange={(e) => setOwnerPin(e.target.value)}
+            placeholder="Leave blank to keep the current PIN"
+            autoComplete="new-password"
+            className={inputClass}
+          />
+          <p className="mt-2 text-xs text-[#8A97B2] leading-relaxed">
+            Lets you approve a bigger discount at the desk without logging in: staff enter
+            the discount, you type this PIN, and it applies to that one member at that one
+            size. With no PIN set, anything over the limit simply cannot be given by staff.
           </p>
         </section>
 

@@ -1,7 +1,8 @@
 import { frappeRequest, getGymSettings } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
-import type { Member, Subscription, SubscriptionStatus, GymExpense, RenewalsDue } from "@/lib/types";
+import type {
+  DiscountsThisMonth, Member, Subscription, SubscriptionStatus, GymExpense, RenewalsDue } from "@/lib/types";
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 
@@ -24,6 +25,9 @@ function statusBadge(status: SubscriptionStatus): string {
   switch (status) {
     case "Paid":
       return `${base} bg-[rgba(34,211,140,0.15)] text-[#22D38C]`;
+    case "Trial":
+      // DS-4: on a free trial — training, not yet billed.
+      return `${base} bg-[rgba(94,234,212,0.15)] text-[#5EEAD4]`;
     case "Pending":
       return `${base} bg-[rgba(138,151,178,0.15)] text-[#8A97B2]`;
     case "Overdue":
@@ -47,6 +51,14 @@ export default async function DashboardPage() {
   if (!session.frappeCookies) redirect("/login");
 
   const settings = await getGymSettings(session.frappeCookies);
+
+  // DS-6: what has been given away in discounts so far this month. Owner-only on the
+  // backend, so a staff session simply gets nothing back and the line is not shown.
+  const discountsRes = await frappeRequest<{ message: DiscountsThisMonth }>(
+    "api/method/netgainz.net_gainz.accounting.discount_report.discounts_this_month",
+    { sessionCookie: session.frappeCookies }
+  );
+  const discountsGiven = discountsRes.data?.message;
   const isCashBasis = settings.accounting_method === "Cash";
 
   // Current-month helpers
@@ -293,6 +305,30 @@ export default async function DashboardPage() {
           <p className="text-[#8A97B2] text-xs mt-1">income − expenses</p>
         </div>
       </div>
+
+      {/* ── Discounts given (DS-6) ── */}
+      {discountsGiven && discountsGiven.given > 0 && (
+        <div className="bg-[#111A2E] border border-[#1E2D45] rounded-xl p-5 mb-6">
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
+            <div>
+              <p className="text-[#8A97B2] text-xs uppercase tracking-wider mb-1">
+                Given Away in Discounts
+              </p>
+              <p className="text-[#F87171] text-3xl font-bold">₹{fmt(discountsGiven.given)}</p>
+              <p className="text-[#8A97B2] text-xs mt-1">
+                {discountsGiven.given_percent}% of {currentMonthName} fees, across{" "}
+                {discountsGiven.members} {discountsGiven.members === 1 ? "member" : "members"}
+              </p>
+            </div>
+            <a
+              href="/discounts"
+              className="text-sm text-[#5EEAD4] hover:underline whitespace-nowrap"
+            >
+              See where it went →
+            </a>
+          </div>
+        </div>
+      )}
 
       {/* ── Alert Row (only if there are overdue or partial records) ── */}
       {showAlertRow && (

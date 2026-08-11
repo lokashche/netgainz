@@ -32,6 +32,7 @@ async function fetchUnbillable(sessionCookie: string): Promise<UnbillableRow[]> 
 
 const STATUS_TABS: { label: string; value: string }[] = [
   { label: "All", value: "" },
+  { label: "Trial", value: "Trial" },
   { label: "Pending", value: "Pending" },
   { label: "Paid", value: "Paid" },
   { label: "Overdue", value: "Overdue" },
@@ -44,6 +45,9 @@ function statusBadge(status: SubscriptionStatus): string {
   switch (status) {
     case "Paid":
       return `${base} bg-[rgba(34,211,140,0.15)] text-[#22D38C]`;
+    case "Trial":
+      // On a free trial: training, not yet billed.
+      return `${base} bg-[rgba(94,234,212,0.15)] text-[#5EEAD4]`;
     case "Pending":
       return `${base} bg-[rgba(138,151,178,0.15)] text-[#8A97B2]`;
     case "Overdue":

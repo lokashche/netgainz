@@ -63,6 +63,8 @@ NETGAINZ_MATRIX: dict[str, dict[str, dict]] = {
 		"Member": FULL,
 		"Membership": FULL,
 		"Membership Plan": FULL,
+		"Offer": FULL,
+		"Discount Log": READ,
 		"Program": FULL,
 		"Instructor": FULL,
 		"Instructor Commission Run": SUBMIT,
@@ -85,6 +87,8 @@ NETGAINZ_MATRIX: dict[str, dict[str, dict]] = {
 		"Session Booking": FULL,
 		# Reference data they read but never change.
 		"Membership Plan": READ,
+		# Campaigns and coupons are the owner's to define; the desk gives them out.
+		"Offer": READ,
 		"Program": READ,
 		"Instructor": READ,
 		"Business Branch": READ_ONLY,
@@ -176,12 +180,22 @@ def get_my_capabilities() -> dict:
 	The owner app uses this to hide actions rather than let a user click something
 	that will only fail server-side.
 	"""
+	from netgainz.net_gainz.accounting import discounts
+
+	policy = discounts.policy()
+	is_owner = has_role(GYM_OWNER)
 	return {
 		"roles": [r for r in NETGAINZ_ROLES if has_role(r)],
-		"can_refund": has_role(GYM_OWNER),
-		"can_write_off": has_role(GYM_OWNER),
+		"can_refund": is_owner,
+		"can_write_off": is_owner,
 		"can_record_payment": has_role(GYM_OWNER, GYM_STAFF),
-		"can_manage_finance": has_role(GYM_OWNER),
+		"can_manage_finance": is_owner,
+		# DS-5: the discount policy this user is working under, so the desk can ask for
+		# the owner's PIN at the right moment instead of after a refused save.
+		"can_discount_freely": is_owner,
+		"max_discount_percent": policy["max_staff_percent"],
+		"complimentary_requires_owner": policy["complimentary_requires_owner"],
+		"can_see_discount_history": is_owner,
 	}
 
 

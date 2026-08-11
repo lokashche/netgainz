@@ -30,6 +30,11 @@
   "column_break_comm",
   "commission_expense_account",
   "commission_payable_account",
+  "discounts_section",
+  "max_discount_percent",
+  "complimentary_requires_owner",
+  "column_break_disc_policy",
+  "owner_approval_pin",
   "renewals_section",
   "renewal_reminder_days",
   "renewal_reminders_enabled",
@@ -119,6 +124,37 @@
    "fieldtype": "Link",
    "label": "Commission Payable Account",
    "options": "Account"
+  },
+  {
+   "description": "What the front desk may give away on its own, and how the owner approves the rest.",
+   "fieldname": "discounts_section",
+   "fieldtype": "Section Break",
+   "label": "Discounts"
+  },
+  {
+   "default": "10",
+   "description": "The most a Gym Staff user may discount without the owner. A flat amount counts as its share of the member's price, so it cannot be used to walk around this. Owners are not capped.",
+   "fieldname": "max_discount_percent",
+   "fieldtype": "Float",
+   "label": "Front Desk May Give Up To (%)",
+   "precision": "2"
+  },
+  {
+   "default": "1",
+   "description": "A 100% discount (a complimentary membership) needs the owner, whatever the limit above says.",
+   "fieldname": "complimentary_requires_owner",
+   "fieldtype": "Check",
+   "label": "Only the Owner May Give a Free Membership"
+  },
+  {
+   "fieldname": "column_break_disc_policy",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Lets the owner approve a bigger discount at the desk without logging in. Leave blank and anything over the limit simply cannot be given by staff.",
+   "fieldname": "owner_approval_pin",
+   "fieldtype": "Password",
+   "label": "Owner PIN"
   },
   {
    "fieldname": "renewals_section",
@@ -254,7 +290,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-08-09 00:00:00.000000",
+ "modified": "2026-08-11 16:00:00.000000",
  "modified_by": "Administrator",
  "module": "Net Gainz",
  "name": "Business Settings",

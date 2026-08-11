@@ -30,6 +30,7 @@ export default function PlanDetailPage({ params }: { params: Params }) {
   const [payment_due_rule, setPaymentDueRule] = useState("On joining");
   const [installment_count, setInstallmentCount] = useState("1");
   const [installment_gap_days, setInstallmentGapDays] = useState("30");
+  const [trial_days, setTrialDays] = useState("0");
 
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
@@ -50,6 +51,7 @@ export default function PlanDetailPage({ params }: { params: Params }) {
         setPaymentDueRule(p.payment_due_rule ?? "On joining");
         setInstallmentCount(String(p.installment_count ?? 1));
         setInstallmentGapDays(String(p.installment_gap_days ?? 30));
+        setTrialDays(String(p.trial_days ?? 0));
         setAmount(p.amount !== undefined ? String(p.amount) : "");
         setDescription(p.description ?? "");
         setIsActive(p.is_active === 1);
@@ -77,6 +79,7 @@ export default function PlanDetailPage({ params }: { params: Params }) {
     payload.payment_due_rule = payment_due_rule;
     payload.installment_count = Number(installment_count);
     payload.installment_gap_days = Number(installment_gap_days);
+    payload.trial_days = Number(trial_days) || 0;
     if (duration_in_days) payload.duration_in_days = Number(duration_in_days);
     if (amount) payload.amount = Number(amount);
     payload.description = description;
@@ -235,6 +238,28 @@ export default function PlanDetailPage({ params }: { params: Params }) {
               />
             </div>
           </div>
+        </div>
+
+        {/* Free trial — DS-4. Nothing is invoiced until it ends. */}
+        <div className="rounded-lg border border-[#1E2D45] p-4 space-y-3">
+          <h3 className="text-sm font-semibold text-[#E5EDF7]">Free Trial</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Trial Days</label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={trial_days}
+                onChange={(e) => setTrialDays(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+          </div>
+          <p className="text-xs text-[#8A97B2]">
+            0 = no trial. Changing this affects members enrolled from now on — a trial
+            already running keeps the dates it was given.
+          </p>
         </div>
 
         {/* Duration + Amount */}

@@ -34,9 +34,11 @@ from netgainz.net_gainz.accounting import (
 	billing_intervals,
 	branch,
 	currency,
+	discounts,
 	payment_modes,
 	period_lock,
 	provisioning,
+	trials,
 )
 from netgainz.net_gainz.profit_first import accounts as pf_accounts
 from netgainz.net_gainz.profit_first import calc
@@ -81,9 +83,7 @@ def cycle_start(member, subscription_plan) -> object:
 	) or (None, None)
 	if not interval:
 		return today_
-	return billing_intervals.latest_cycle_start(
-		getdate(joining), interval, int(count or 1), today_
-	)
+	return billing_intervals.latest_cycle_start(getdate(joining), interval, int(count or 1), today_)
 
 
 def ensure_subscription(membership, company=None) -> str | None:
@@ -97,9 +97,9 @@ def ensure_subscription(membership, company=None) -> str | None:
 	if not company or not membership.get("member") or not membership.get("membership_plan"):
 		return None
 
-	customer = frappe.db.get_value("Member", membership.member, "customer") or provisioning.provision_customer(
-		membership.member, company
-	)
+	customer = frappe.db.get_value(
+		"Member", membership.member, "customer"
+	) or provisioning.provision_customer(membership.member, company)
 	if not customer:
 		return None
 	# WP-8: one transaction currency per tenant. A Customer with a foreign default
@@ -131,6 +131,15 @@ def ensure_subscription(membership, company=None) -> str | None:
 	sub.generate_invoice_at = GENERATE_INVOICE_AT
 	sub.submit_invoice = 1
 	sub.days_until_due = frappe.db.get_single_value("Business Settings", "days_until_due") or 0
+	# DS-4: a free trial. ERPNext raises no invoice while `trial_period_*` is running and
+	# starts the first billing period at trial_end + 1 by itself, so the trial also
+	# re-anchors the cycle — which is what a member expects: their first paid period
+	# begins the day the free one stops. `start_date` must not be before the trial
+	# starts (ERPNext validates that), hence both dates move together.
+	window = trials.trial_window(membership, start)
+	if window:
+		sub.trial_period_start, sub.trial_period_end = window
+		sub.start_date = window[0]
 	sub.append("plans", {"plan": sub_plan, "qty": 1})
 	sub.insert(ignore_permissions=True)
 
@@ -214,6 +223,14 @@ def on_membership_insert(doc, method=None):
 		return
 	try:
 		if ensure_subscription(doc):
+			# DS-4: a trial member is NOT billed on day one. `force_generate_invoice`
+			# posts at the subscription's current_invoice_start, which during a trial is
+			# already the post-trial date — so it would raise the first invoice
+			# immediately, dated in the future. The daily Process Subscription job bills
+			# them the day the trial ends, like any other period.
+			if trials.is_on_trial(doc):
+				trials.sync_trial_fields(doc)
+				return
 			force_generate_invoice(doc)
 			sync_derived_fields(doc)
 	except Exception:
@@ -254,6 +271,11 @@ def on_sales_invoice_before_validate(doc, method=None):
 		return
 
 	_apply_membership_price(doc, membership)
+	_restore_service_period(doc)
+	# Stage 8 DS-1: the member's negotiated discount, if it covers THIS invoice.
+	# Deliberately after the price: a percentage comes off what this member actually
+	# pays, and ERPNext then computes GST on the discounted value (R20).
+	discounts.apply_to_invoice(doc, membership)
 
 	if billing_mode(membership) == PAY_AS_YOU_GO:
 		return
@@ -308,6 +330,28 @@ def _apply_membership_price(doc, membership) -> None:
 	item.margin_type = ""
 	item.discount_percentage = 0
 	item.discount_amount = 0
+
+
+def _restore_service_period(doc) -> None:
+	"""Under Accrual, recognise the revenue over the period actually billed.
+
+	The Subscription stamps ``service_start_date`` / ``service_end_date`` = the billing
+	period on each deferred item — and then ``set_missing_values`` immediately overwrites
+	the end with ``add_months(start, Item.no_of_months)``. WP-6 deliberately never sets
+	``no_of_months`` (the Subscription supplies the exact period), so the end collapses
+	back onto the start: a 30-day membership recognised entirely on day one, which is
+	simply not deferral.
+
+	Found by the Stage 8 DS-7 pass while proving R16 (deferred defers the NET); the
+	amount was always right, the window was not. Restored here — the seam that already
+	owns "what this invoice should say" — from the invoice's own period.
+	"""
+	if not doc.get("from_date") or not doc.get("to_date"):
+		return
+	for item in doc.get("items") or []:
+		if item.get("enable_deferred_revenue"):
+			item.service_start_date = doc.from_date
+			item.service_end_date = doc.to_date
 
 
 def on_sales_invoice_validate(doc, method=None):
@@ -461,9 +505,7 @@ def record_payment(
 	if not si_name or not frappe.db.exists("Sales Invoice", si_name):
 		frappe.throw("No open Sales Invoice to record this payment against — generate the invoice first.")
 
-	invoice = frappe.db.get_value(
-		"Sales Invoice", si_name, ["outstanding_amount", "currency"], as_dict=True
-	)
+	invoice = frappe.db.get_value("Sales Invoice", si_name, ["outstanding_amount", "currency"], as_dict=True)
 	currency.assert_company_currency(invoice.currency, company, what="invoice")
 	outstanding = flt(invoice.outstanding_amount)
 	if amount > outstanding and not allow_advance:
@@ -555,18 +597,18 @@ def billing_mode(membership) -> str:
 def open_obligations(membership) -> list[dict]:
 	"""**The seam.** What this member owes and when — oldest first.
 
-	Both billing modes reduce to the same list of ``(due_date, amount, outstanding)``
-	rows; they differ only in where those rows physically live:
+	  Both billing modes reduce to the same list of ``(due_date, amount, outstanding)``
+	  rows; they differ only in where those rows physically live:
 
-	* **Commitment** — one invoice for the period carrying a ``payment_schedule``
-      row per installment.
-	* **Pay-as-you-go** — one invoice per installment, each its own obligation.
+	  * **Commitment** — one invoice for the period carrying a ``payment_schedule``
+	row per installment.
+	  * **Pay-as-you-go** — one invoice per installment, each its own obligation.
 
-	Everything downstream (status, balance, next-due, payment allocation, the
-	collections list) reads THIS and never touches an invoice directly, so the
-	two modes cost one function instead of branching through the codebase.
+	  Everything downstream (status, balance, next-due, payment allocation, the
+	  collections list) reads THIS and never touches an invoice directly, so the
+	  two modes cost one function instead of branching through the codebase.
 
-	Each row: ``{due_date, amount, outstanding, sales_invoice, payment_term, idx}``.
+	  Each row: ``{due_date, amount, outstanding, sales_invoice, payment_term, idx}``.
 	"""
 	membership = _as_doc("Membership", membership)
 	if billing_mode(membership) == PAY_AS_YOU_GO:
@@ -703,6 +745,12 @@ def sync_from_billing(membership) -> None:
 	"""
 	obligations = open_obligations(membership)
 	if not obligations:
+		# DS-4: nothing has been invoiced yet. If that is because the member is on a
+		# free trial, say so — "Pending" would read as money owed, and none is.
+		if trials.is_on_trial(membership):
+			membership.status = trials.TRIAL_STATUS
+			membership.balance_due = 0
+			membership.next_renewal = trials.first_billing_date(membership)
 		return
 
 	membership.current_sales_invoice = obligations[-1]["sales_invoice"]
@@ -900,6 +948,17 @@ def generate_membership_invoice(membership, posting_date=None) -> dict:
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
 	company = _company()
 	ensure_subscription(membership, company)
+	# DS-4: refuse to bill a member whose free trial is still running. ERPNext decides
+	# "am I trialling?" from TODAY's date (Subscription.period_has_passed uses nowdate,
+	# not the posting date), so an invoice generated now would come out 100% discounted
+	# — a submitted Rs.0 invoice that then blocks the real one for that period.
+	membership_doc = _as_doc("Membership", membership)
+	if trials.is_on_trial(membership_doc):
+		ends = trials.trial_end(membership_doc)
+		frappe.throw(
+			f"This member is on a free trial until {frappe.format_value(ends, {'fieldtype': 'Date'})}. "
+			"Billing starts by itself the next day."
+		)
 	invoice = force_generate_invoice(membership, posting_date)
 	return {"sales_invoice": invoice}
 
@@ -953,9 +1012,11 @@ def unbillable_memberships() -> dict:
 	):
 		if is_billable(ms.name):
 			continue
-		plan_amount = flt(
-			frappe.db.get_value("Membership Plan", ms.membership_plan, "amount")
-		) if ms.membership_plan else 0
+		plan_amount = (
+			flt(frappe.db.get_value("Membership Plan", ms.membership_plan, "amount"))
+			if ms.membership_plan
+			else 0
+		)
 		rows.append(
 			{
 				"membership": ms.name,
@@ -994,14 +1055,10 @@ def report_cycle_anchor_drift() -> dict:
 		fields=["name", "member", "member_name", "subscription", "next_renewal"],
 		limit_page_length=0,
 	):
-		sub = frappe.db.get_value(
-			"Subscription", ms.subscription, ["start_date", "plans"], as_dict=True
-		)
+		sub = frappe.db.get_value("Subscription", ms.subscription, ["start_date", "plans"], as_dict=True)
 		if not sub or not sub.start_date:
 			continue
-		plan = frappe.db.get_value(
-			"Subscription Plan Detail", {"parent": ms.subscription}, "plan"
-		)
+		plan = frappe.db.get_value("Subscription Plan Detail", {"parent": ms.subscription}, "plan")
 		expected = cycle_start(ms.member, plan)
 		actual = getdate(sub.start_date)
 		if expected and getdate(expected) != actual:

@@ -19,6 +19,7 @@
   "column_break_ycbo",
   "is_active",
   "payment_policy_section",
+  "trial_days",
   "payment_due_rule",
   "installment_count",
   "column_break_pay",
@@ -127,6 +128,13 @@
    "label": "Payment Policy"
   },
   {
+   "default": "0",
+   "description": "Days a new member on this plan trains free before their first invoice. 0 = no trial. Billing starts by itself the day the trial ends.",
+   "fieldname": "trial_days",
+   "fieldtype": "Int",
+   "label": "Free Trial (days)"
+  },
+  {
    "default": "On joining",
    "description": "When the fee becomes due.",
    "fieldname": "payment_due_rule",
@@ -155,7 +163,7 @@
    "label": "Days Between Installments"
   },
   {
-   "description": "Generated from the payment policy above. Managed by NetGainz \u2014 do not edit.",
+   "description": "Generated from the payment policy above. Managed by NetGainz — do not edit.",
    "fieldname": "payment_terms_template",
    "fieldtype": "Link",
    "label": "Payment Terms Template",
@@ -167,7 +175,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-09 00:00:00.000000",
+ "modified": "2026-08-11 15:00:00.000000",
  "modified_by": "Administrator",
  "module": "Net Gainz",
  "name": "Membership Plan",
