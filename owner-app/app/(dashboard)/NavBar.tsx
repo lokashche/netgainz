@@ -18,6 +18,9 @@ const SETUP_ITEMS: NavItem[] = [
 const CASHFLOW_ITEMS: NavItem[] = [
   { href: "/subscriptions", label: "Subscriptions" },
   { href: "/expenses", label: "Expenses" },
+  // Go-live: members loaded from the gym's own records are not billed until the
+  // owner switches them on here.
+  { href: "/billing", label: "Start Billing" },
 ];
 
 const linkClass =

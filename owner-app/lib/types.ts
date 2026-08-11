@@ -127,6 +127,51 @@ export type AdvanceContext = {
   advances: MemberAdvance[];
 };
 
+/** Go-live: one membership's billing-readiness row. */
+export type ReadinessRow = {
+  membership: string;
+  member: string;
+  member_name: string;
+  membership_plan?: string;
+  price: number;
+  ready: boolean;
+  already_billing: boolean;
+  blocked_reason: string | null;
+  joining_date: string | null;
+  current_period_start?: string;
+  next_period_start?: string;
+  warnings: string[];
+};
+
+export type BillingReadiness = {
+  total: number;
+  ready_count: number;
+  blocked_count: number;
+  already_billing_count: number;
+  warning_count: number;
+  ready: ReadinessRow[];
+  blocked: ReadinessRow[];
+  start_modes: string[];
+};
+
+export type StartBillingResult = {
+  dry_run: boolean;
+  start_mode: string;
+  started_count: number;
+  skipped_count: number;
+  failed_count: number;
+  started: {
+    membership: string;
+    member_name: string;
+    price: number;
+    first_invoice_on: string;
+    subscription?: string;
+    warnings: string[];
+  }[];
+  skipped: { membership: string; reason: string }[];
+  failed: { membership: string; error: string }[];
+};
+
 /** WP-8: which product role the signed-in user holds, so the UI hides what they
  * cannot do rather than letting the server reject the click. */
 export type Capabilities = {
