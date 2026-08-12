@@ -44,7 +44,8 @@ def get_renewals(within_days=None) -> dict:
 		# DS-4: a member on a free trial has a next_renewal (the day billing starts) but
 		# is not "due for renewal" — nothing has been sold to them yet. They get their own
 		# "trials ending" list; showing them here would read as a lapsing membership.
-		filters=[["next_renewal", "is", "set"], ["status", "!=", trials.TRIAL_STATUS]],
+		# OP-3: a cancelled membership never renews and never nags.
+		filters=[["next_renewal", "is", "set"], ["status", "not in", [trials.TRIAL_STATUS, "Cancelled"]]],
 		fields=["name", "member", "member_name", "membership_plan", "next_renewal", "status"],
 		order_by="next_renewal asc",
 		limit_page_length=0,

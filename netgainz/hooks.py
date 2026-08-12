@@ -138,6 +138,14 @@ after_install = [
 # 	"ToDo": "custom_app.overrides.CustomToDo"
 # }
 
+# OP-3 (ADR-0008 §4): a spent free trial must not steer billing. Upstream gives
+# trial_period_end + 1 priority over an explicitly requested period date forever,
+# which silently stops renewals for every ex-trial subscription after its first
+# paid cycle (traced 2026-08-12). See accounting/subscription_override.py.
+override_doctype_class = {
+	"Subscription": "netgainz.net_gainz.accounting.subscription_override.NetGainzSubscription",
+}
+
 # Document Events
 # ---------------
 # Hook on document methods and events
@@ -164,6 +172,9 @@ doc_events = {
 		"before_insert": "netgainz.net_gainz.accounting.branch.stamp_default_branch",
 	},
 	"Enquiry": {
+		"before_insert": "netgainz.net_gainz.accounting.branch.stamp_default_branch",
+	},
+	"Membership Freeze": {
 		"before_insert": "netgainz.net_gainz.accounting.branch.stamp_default_branch",
 	},
 	"Sales Invoice": {

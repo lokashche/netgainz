@@ -39,6 +39,9 @@ function statusBadge(status: SubscriptionStatus): string {
     case "Written Off":
       // WP-8: settled as uncollectable, not collected.
       return `${base} bg-[rgba(251,191,36,0.15)] text-[#FBBF24]`;
+    case "Cancelled":
+      // OP-3: terminal — billing stopped.
+      return `${base} bg-[rgba(138,151,178,0.15)] text-[#8A97B2]`;
     default: {
       const _exhaustive: never = status;
       return `${base} bg-[rgba(138,151,178,0.15)] text-[#8A97B2] /* ${_exhaustive} */`;

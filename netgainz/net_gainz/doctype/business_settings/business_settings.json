@@ -47,7 +47,9 @@
   "column_break_chk",
   "absence_alerts_enabled",
   "enquiries_section",
-  "followup_reminders_enabled"
+  "followup_reminders_enabled",
+  "cancellations_section",
+  "cancellation_refund_policy"
  ],
  "fields": [
   {
@@ -252,6 +254,19 @@
    "fieldname": "followup_reminders_enabled",
    "fieldtype": "Check",
    "label": "Daily In-App Follow-up Reminder"
+  },
+  {
+   "fieldname": "cancellations_section",
+   "fieldtype": "Section Break",
+   "label": "Cancellations"
+  },
+  {
+   "default": "No refund",
+   "description": "What happens to the unused part of an already-paid period when a membership is cancelled mid-cycle. \"Prorated unused days\" pays it back in cash (owner-only, posts through the refund rails). Every gym sets its own policy.",
+   "fieldname": "cancellation_refund_policy",
+   "fieldtype": "Select",
+   "label": "Refund on Cancellation",
+   "options": "No refund\nProrated unused days"
   },
   {
    "fieldname": "terminology_section",

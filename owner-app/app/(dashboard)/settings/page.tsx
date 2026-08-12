@@ -4,6 +4,7 @@ import { useState, useEffect, SyntheticEvent } from "react";
 import { extractFrappeError } from "@/lib/frappe";
 import type {
   AccountingMethod,
+  CancellationRefundPolicy,
   CommissionPercentageBasis,
   GymSettings,
 } from "@/lib/types";
@@ -41,6 +42,10 @@ export default function SettingsPage() {
   // OP-2: the daily in-app reminder for enquiry follow-ups.
   const [followup_reminders_enabled, setFollowupEnabled] = useState(true);
 
+  // OP-3: each gym decides what a mid-cycle cancellation gives back.
+  const [cancellation_refund_policy, setRefundPolicy] =
+    useState<CancellationRefundPolicy>("No refund");
+
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,6 +79,7 @@ export default function SettingsPage() {
           setAbsenceDays(String(s.absence_alert_days ?? 14));
           setAbsenceEnabled(s.absence_alerts_enabled !== 0);
           setFollowupEnabled(s.followup_reminders_enabled !== 0);
+          setRefundPolicy(s.cancellation_refund_policy || "No refund");
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unexpected error");
@@ -119,6 +125,7 @@ export default function SettingsPage() {
           absence_alert_days: Number(absence_alert_days) || 14,
           absence_alerts_enabled: absence_alerts_enabled ? 1 : 0,
           followup_reminders_enabled: followup_reminders_enabled ? 1 : 0,
+          cancellation_refund_policy,
         }),
       });
 
@@ -494,6 +501,32 @@ export default function SettingsPage() {
           <p className="mt-2 text-xs text-[#8A97B2]">
             Raises an in-app notification each day listing enquiry follow-ups that are due
             or overdue. No email or SMS is sent.
+          </p>
+        </section>
+
+        <hr className="border-[#1E2D45]" />
+
+        {/* Cancellations — OP-3 */}
+        <section>
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-[#22D38C] mb-3">
+            Cancellations
+          </h2>
+
+          <label className={labelClass}>Refund on Cancellation</label>
+          <select
+            value={cancellation_refund_policy}
+            onChange={(e) => setRefundPolicy(e.target.value as CancellationRefundPolicy)}
+            className={inputClass}
+          >
+            <option value="No refund">No refund</option>
+            <option value="Prorated unused days">Prorated unused days</option>
+          </select>
+          <p className="mt-2 text-xs text-[#8A97B2] leading-relaxed">
+            Your gym&rsquo;s policy for the unused part of an already-paid period when a
+            membership is cancelled mid-cycle.{" "}
+            <span className="text-[#E6EDF7] font-medium">Prorated</span> pays it back in
+            cash — that path needs the owner and posts through the refund rails, so
+            Profit First sees the money leave.
           </p>
         </section>
 

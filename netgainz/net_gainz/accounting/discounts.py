@@ -375,6 +375,12 @@ def assert_within_policy(membership, kind, value) -> None:
 
 	if membership.get("offer"):
 		return
+	# OP-3: a plan-change / transfer credit is arithmetic the engine computed from
+	# money the member already paid — not a negotiated discount. Capping it or
+	# demanding the owner's PIN for it would be theatre. Set only by
+	# operations/lifecycle.py around its own saves, never from user input.
+	if frappe.flags.get("netgainz_system_credit"):
+		return
 	if permissions.has_role(permissions.GYM_OWNER):
 		return
 

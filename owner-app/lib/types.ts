@@ -65,7 +65,9 @@ export type SubscriptionStatus =
   | 'Partial'
   // WP-8: settled as uncollectable rather than collected. ERPNext calls the
   // invoice "Paid" once the receivable is written off; the owner needs the truth.
-  | 'Written Off';
+  | 'Written Off'
+  // OP-3: terminal — billing stopped, nothing renews, the status never re-derives.
+  | 'Cancelled';
 
 export type Subscription = {
   name: string;         // SUB-2026-0001
@@ -396,7 +398,10 @@ export type GymSettings = {
   absence_alert_days?: number;
   absence_alerts_enabled?: 0 | 1;
   followup_reminders_enabled?: 0 | 1;
+  cancellation_refund_policy?: CancellationRefundPolicy;
 };
+
+export type CancellationRefundPolicy = 'No refund' | 'Prorated unused days';
 
 export type PFBucket =
   | 'Operating Expenses'
@@ -769,4 +774,45 @@ export type ConvertResult = {
   member: string;
   member_name?: string;
   already_converted: boolean;
+};
+
+// ── OP-3: membership lifecycle ──────────────────────────────────────────────
+
+export type FreezeRow = {
+  name: string;
+  from_date: string;
+  to_date: string;
+  days_shifted: number;
+  reason?: string | null;
+};
+
+export type FreezeResult = {
+  freeze: string;
+  days: number;
+  next_bill_moved_from?: string | null;
+  next_bill_moved_to?: string | null;
+};
+
+export type ChangePlanResult = {
+  membership: string;
+  old_plan: string;
+  new_plan: string;
+  credit: number;
+  unused_days: number;
+  invoice?: string | null;
+};
+
+export type CancelResult = {
+  membership: string;
+  cancelled_on: string;
+  refund_policy: string;
+  refund_amount: number;
+};
+
+export type TransferResult = {
+  old_membership: string;
+  new_membership: string;
+  to_member: string;
+  credit: number;
+  unused_days: number;
 };
