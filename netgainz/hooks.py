@@ -163,6 +163,9 @@ doc_events = {
 	"Member Check-in": {
 		"before_insert": "netgainz.net_gainz.accounting.branch.stamp_default_branch",
 	},
+	"Enquiry": {
+		"before_insert": "netgainz.net_gainz.accounting.branch.stamp_default_branch",
+	},
 	"Sales Invoice": {
 		# WP-10.3: the native Subscription hardcodes a single 100% payment_schedule
 		# row and cannot carry a payment_terms_template, so installments have to be
@@ -193,6 +196,9 @@ scheduler_events = {
 		# OP-1: raise an in-app churn-risk alert for active members not seen at the
 		# gym within the absence window (idempotent; notify-only).
 		"netgainz.net_gainz.operations.checkin.notify_absences",
+		# OP-2: raise an in-app reminder for enquiry follow-ups due today or
+		# overdue (idempotent; notify-only).
+		"netgainz.net_gainz.operations.enquiries.notify_followups",
 	],
 }
 

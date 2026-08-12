@@ -38,6 +38,9 @@ export default function SettingsPage() {
   const [absence_alert_days, setAbsenceDays] = useState("14");
   const [absence_alerts_enabled, setAbsenceEnabled] = useState(true);
 
+  // OP-2: the daily in-app reminder for enquiry follow-ups.
+  const [followup_reminders_enabled, setFollowupEnabled] = useState(true);
+
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,6 +73,7 @@ export default function SettingsPage() {
           setClassHorizon(String(s.class_schedule_horizon_days ?? 14));
           setAbsenceDays(String(s.absence_alert_days ?? 14));
           setAbsenceEnabled(s.absence_alerts_enabled !== 0);
+          setFollowupEnabled(s.followup_reminders_enabled !== 0);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unexpected error");
@@ -114,6 +118,7 @@ export default function SettingsPage() {
           class_schedule_horizon_days: Number(class_schedule_horizon_days) || 14,
           absence_alert_days: Number(absence_alert_days) || 14,
           absence_alerts_enabled: absence_alerts_enabled ? 1 : 0,
+          followup_reminders_enabled: followup_reminders_enabled ? 1 : 0,
         }),
       });
 
@@ -463,6 +468,32 @@ export default function SettingsPage() {
           <p className="mt-2 text-xs text-[#8A97B2]">
             Raises an in-app notification each day listing members past the window. No
             email or SMS is sent.
+          </p>
+        </section>
+
+        <hr className="border-[#1E2D45]" />
+
+        {/* Enquiries — OP-2 */}
+        <section>
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-[#22D38C] mb-3">
+            Enquiries
+          </h2>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="followup_reminders_enabled"
+              checked={followup_reminders_enabled}
+              onChange={(e) => setFollowupEnabled(e.target.checked)}
+              className="w-4 h-4 rounded accent-[#22D38C] cursor-pointer"
+            />
+            <label htmlFor="followup_reminders_enabled" className="text-sm text-[#E6EDF7]">
+              Daily in-app follow-up reminder
+            </label>
+          </div>
+          <p className="mt-2 text-xs text-[#8A97B2]">
+            Raises an in-app notification each day listing enquiry follow-ups that are due
+            or overdue. No email or SMS is sent.
           </p>
         </section>
 

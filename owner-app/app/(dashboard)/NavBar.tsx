@@ -123,6 +123,7 @@ export default function NavBar({
   const pathname = usePathname();
 
   const OPERATIONS_ITEMS: NavItem[] = [
+    { href: "/enquiries", label: "Enquiries" },
     { href: "/check-in", label: "Check-in" },
     { href: "/classes", label: classTermPlural },
     { href: "/schedules", label: `${classTermSingular} Schedules` },

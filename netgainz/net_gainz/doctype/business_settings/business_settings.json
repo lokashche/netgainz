@@ -45,7 +45,9 @@
   "checkin_section",
   "absence_alert_days",
   "column_break_chk",
-  "absence_alerts_enabled"
+  "absence_alerts_enabled",
+  "enquiries_section",
+  "followup_reminders_enabled"
  ],
  "fields": [
   {
@@ -238,6 +240,18 @@
    "fieldname": "absence_alerts_enabled",
    "fieldtype": "Check",
    "label": "Daily In-App Absence Alert"
+  },
+  {
+   "fieldname": "enquiries_section",
+   "fieldtype": "Section Break",
+   "label": "Enquiries"
+  },
+  {
+   "default": "1",
+   "description": "When on, a daily background job raises an in-app notification listing enquiry follow-ups that are due or overdue. No email or SMS is sent.",
+   "fieldname": "followup_reminders_enabled",
+   "fieldtype": "Check",
+   "label": "Daily In-App Follow-up Reminder"
   },
   {
    "fieldname": "terminology_section",

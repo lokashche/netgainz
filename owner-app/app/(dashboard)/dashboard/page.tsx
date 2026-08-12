@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import type {
   ChurnRisk,
-  DiscountsThisMonth, Member, Subscription, SubscriptionStatus, GymExpense, RenewalsDue } from "@/lib/types";
+  DiscountsThisMonth, FollowupsDue, Member, Subscription, SubscriptionStatus, GymExpense, RenewalsDue } from "@/lib/types";
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 
@@ -145,6 +145,7 @@ export default async function DashboardPage() {
     recentExpensesRes,
     renewalsRes,
     churnRes,
+    followupsRes,
   ] = await Promise.all([
     frappeRequest<{ data: Pick<Member, "name">[] }>(membersPath, {
       sessionCookie: session.frappeCookies,
@@ -188,6 +189,10 @@ export default async function DashboardPage() {
       `api/method/netgainz.net_gainz.operations.checkin.get_churn_risk`,
       { sessionCookie: session.frappeCookies }
     ),
+    frappeRequest<{ message: FollowupsDue }>(
+      `api/method/netgainz.net_gainz.operations.enquiries.get_followups_due`,
+      { sessionCookie: session.frappeCookies }
+    ),
   ]);
 
   // ── Extract arrays ────────────────────────────────────────────────────────
@@ -211,6 +216,11 @@ export default async function DashboardPage() {
   const churnAbsent = churn?.absent ?? [];
   const churnThreshold = churn?.threshold_days ?? 14;
   const showChurn = churnAbsent.length > 0;
+
+  // OP-2: enquiry follow-ups whose date has arrived — today's selling work.
+  const followups = followupsRes.data?.message;
+  const followupsDue = [...(followups?.overdue ?? []), ...(followups?.due_today ?? [])];
+  const showFollowups = followupsDue.length > 0;
 
   // ── Derived values ────────────────────────────────────────────────────────
 
@@ -461,6 +471,44 @@ export default async function DashboardPage() {
                 </a>
                 <span className={r.days_until < 0 ? "text-[#F87171] shrink-0" : "text-[#5EEAD4] shrink-0"}>
                   {r.days_until < 0 ? `${Math.abs(r.days_until)}d overdue` : `in ${r.days_until}d`}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* ── Enquiry follow-ups (OP-2) ── */}
+      {showFollowups && (
+        <div className="bg-[rgba(94,234,212,0.05)] border border-[rgba(94,234,212,0.3)] rounded-xl p-5 mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[#5EEAD4] font-semibold text-sm uppercase tracking-wider">
+              ☎ Enquiry Follow-ups
+            </p>
+            <Link href="/enquiries" className="text-[#5EEAD4] text-xs hover:underline">
+              View all →
+            </Link>
+          </div>
+          <div className="flex items-baseline gap-2 mb-3">
+            <span className="text-[#E6EDF7] text-2xl font-bold">{followupsDue.length}</span>
+            <span className="text-[#8A97B2] text-sm">
+              due — a call today is a member tomorrow
+            </span>
+          </div>
+          <ul className="space-y-1.5">
+            {followupsDue.slice(0, 5).map((f) => (
+              <li key={f.enquiry} className="flex items-center justify-between text-xs">
+                <Link
+                  href={`/enquiries/${f.enquiry}`}
+                  className="text-[#E6EDF7] truncate mr-2 hover:text-[#5EEAD4]"
+                >
+                  {f.full_name}
+                  {f.phone ? ` · ${f.phone}` : ""}
+                </Link>
+                <span
+                  className={f.days_overdue > 0 ? "text-[#F87171] shrink-0" : "text-[#5EEAD4] shrink-0"}
+                >
+                  {f.days_overdue > 0 ? `${f.days_overdue}d overdue` : "due today"}
                 </span>
               </li>
             ))}

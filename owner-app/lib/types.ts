@@ -395,6 +395,7 @@ export type GymSettings = {
   class_schedule_horizon_days?: number;
   absence_alert_days?: number;
   absence_alerts_enabled?: 0 | 1;
+  followup_reminders_enabled?: 0 | 1;
 };
 
 export type PFBucket =
@@ -699,4 +700,73 @@ export type ChurnRisk = {
   threshold_days: number;
   absent: ChurnRiskRow[];
   absent_count: number;
+};
+
+// ── OP-2: enquiry → trial → member pipeline ─────────────────────────────────
+
+export type EnquiryStatus =
+  | 'New'
+  | 'Contacted'
+  | 'Trial Scheduled'
+  | 'Joined'
+  | 'Lost';
+
+export type EnquirySource = 'Walk-in' | 'Instagram' | 'Referral' | 'Other';
+
+export type Enquiry = {
+  name: string;
+  full_name: string;
+  phone?: string | null;
+  email?: string | null;
+  source: EnquirySource;
+  referred_by?: string | null;
+  interested_program?: string | null;
+  status: EnquiryStatus;
+  next_follow_up?: string | null;
+  lost_reason?: string | null;
+  notes?: string | null;
+  member?: string | null;
+  joined_on?: string | null;
+  branch?: string;
+};
+
+export type FollowupRow = {
+  enquiry: string;
+  full_name: string;
+  phone?: string | null;
+  source: EnquirySource;
+  interested_program?: string | null;
+  status: EnquiryStatus;
+  next_follow_up: string;
+  days_overdue: number;
+  branch?: string;
+};
+
+export type FollowupsDue = {
+  due_today: FollowupRow[];
+  overdue: FollowupRow[];
+  due_today_count: number;
+  overdue_count: number;
+};
+
+export type ConversionSourceRow = {
+  source: string;
+  total: number;
+  joined: number;
+  lost: number;
+  open: number;
+  /** joined / closed; null while a source has no closed enquiries yet. */
+  conversion_pct: number | null;
+};
+
+export type ConversionBySource = {
+  sources: ConversionSourceRow[];
+  total: number;
+};
+
+export type ConvertResult = {
+  enquiry: string;
+  member: string;
+  member_name?: string;
+  already_converted: boolean;
 };

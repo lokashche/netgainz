@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, SyntheticEvent } from "react";
+import { useState, useEffect, SyntheticEvent, Suspense } from "react";
 import { extractFrappeError } from "@/lib/frappe";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import LinkFieldPicker, { type LinkFieldOption } from "@/app/components/LinkFieldPicker";
 import OfferPicker from "@/app/components/OfferPicker";
 import DiscountBox, {
@@ -57,11 +58,16 @@ const inputClass =
 
 const labelClass = "block text-xs uppercase tracking-wider mb-1 text-[#8A97B2]";
 
-export default function NewSubscriptionPage() {
+function NewSubscriptionForm() {
   const router = useRouter();
+  // OP-2: "Convert to Member" lands here with ?member=…&member_label=… so the
+  // desk goes straight from enquiry to enrolment without re-searching.
+  const searchParams = useSearchParams();
 
-  const [member, setMember] = useState("");
-  const [memberLabel, setMemberLabel] = useState("");
+  const [member, setMember] = useState(searchParams.get("member") ?? "");
+  const [memberLabel, setMemberLabel] = useState(
+    searchParams.get("member_label") ?? searchParams.get("member") ?? ""
+  );
   const [membership_plan, setMembershipPlan] = useState("");
   const [planLabel, setPlanLabel] = useState("");
   const [month, setMonth] = useState("");
@@ -89,6 +95,7 @@ export default function NewSubscriptionPage() {
       if (body.message) setCaps(body.message);
     })();
   }, []);
+
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -138,9 +145,9 @@ export default function NewSubscriptionPage() {
   return (
     <div className="max-w-2xl">
       <div className="flex items-center gap-4 mb-6">
-        <a href="/subscriptions" className="text-sm text-[#8A97B2] hover:text-[#22D38C] transition-colors">
+        <Link href="/subscriptions" className="text-sm text-[#8A97B2] hover:text-[#22D38C] transition-colors">
           ← Back to Subscriptions
-        </a>
+        </Link>
         <h1 className="text-2xl font-bold text-[#E6EDF7]">Add Subscription</h1>
       </div>
 
@@ -318,14 +325,22 @@ export default function NewSubscriptionPage() {
           >
             {submitting ? "Saving…" : "Save Subscription"}
           </button>
-          <a
+          <Link
             href="/subscriptions"
             className="px-6 py-2.5 text-sm text-[#8A97B2] hover:text-[#E6EDF7] transition-colors"
           >
             Cancel
-          </a>
+          </Link>
         </div>
       </form>
     </div>
+  );
+}
+
+export default function NewSubscriptionPage() {
+  return (
+    <Suspense fallback={null}>
+      <NewSubscriptionForm />
+    </Suspense>
   );
 }
