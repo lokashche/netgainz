@@ -399,6 +399,9 @@ export type GymSettings = {
   absence_alerts_enabled?: 0 | 1;
   followup_reminders_enabled?: 0 | 1;
   cancellation_refund_policy?: CancellationRefundPolicy;
+  pack_expiry_alert_days?: number;
+  pack_alerts_enabled?: 0 | 1;
+  day_pass_price?: number;
 };
 
 export type CancellationRefundPolicy = 'No refund' | 'Prorated unused days';
@@ -815,4 +818,91 @@ export type TransferResult = {
   to_member: string;
   credit: number;
   unused_days: number;
+};
+
+// ── OP-4: session packs & day passes ────────────────────────────────────────
+
+export type SessionPack = {
+  name: string;
+  pack_name: string;
+  sessions: number;
+  validity_days: number;
+  price: number;
+  is_active: 0 | 1;
+  description?: string | null;
+};
+
+export type PackStatus = 'Active' | 'Exhausted' | 'Expired';
+
+export type PackBalanceRow = {
+  pack_purchase: string;
+  member: string;
+  member_name?: string;
+  session_pack: string;
+  used: number;
+  total: number;
+  remaining: number;
+  purchased_on: string;
+  expires_on: string;
+  days_left: number;
+  status: PackStatus;
+};
+
+export type PackBalances = {
+  active: PackBalanceRow[];
+  closed: PackBalanceRow[];
+  active_count: number;
+};
+
+export type PackAlertRow = PackBalanceRow & {
+  expiring: boolean;
+  low_balance: boolean;
+};
+
+export type PackAlerts = {
+  within_days: number;
+  alerts: PackAlertRow[];
+  alert_count: number;
+};
+
+export type PackSaleResult = {
+  pack_purchase: string;
+  member: string;
+  member_name?: string;
+  sessions: number;
+  expires_on: string;
+  amount: number;
+  sales_invoice: string;
+  payment_entry: string;
+};
+
+export type UseSessionResult = {
+  pack_purchase: string;
+  used: number;
+  total: number;
+  remaining: number;
+  status: PackStatus;
+};
+
+export type DayPassRow = {
+  name: string;
+  guest_name: string;
+  phone?: string | null;
+  amount: number;
+  payment_mode?: string;
+  creation: string;
+};
+
+export type TodaysDayPasses = {
+  passes: DayPassRow[];
+  count: number;
+  total: number;
+};
+
+export type DayPassSaleResult = {
+  day_pass: string;
+  guest_name: string;
+  amount: number;
+  sales_invoice: string;
+  payment_entry: string;
 };

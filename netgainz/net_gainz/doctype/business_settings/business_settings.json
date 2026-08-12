@@ -49,7 +49,12 @@
   "enquiries_section",
   "followup_reminders_enabled",
   "cancellations_section",
-  "cancellation_refund_policy"
+  "cancellation_refund_policy",
+  "packs_section",
+  "pack_expiry_alert_days",
+  "day_pass_price",
+  "column_break_packs",
+  "pack_alerts_enabled"
  ],
  "fields": [
   {
@@ -267,6 +272,35 @@
    "fieldtype": "Select",
    "label": "Refund on Cancellation",
    "options": "No refund\nProrated unused days"
+  },
+  {
+   "fieldname": "packs_section",
+   "fieldtype": "Section Break",
+   "label": "Session Packs & Day Passes"
+  },
+  {
+   "default": "7",
+   "description": "An active pack is flagged when it expires within this many days (or has one session left).",
+   "fieldname": "pack_expiry_alert_days",
+   "fieldtype": "Int",
+   "label": "Pack Expiry Alert Days"
+  },
+  {
+   "description": "Prefills the day-pass quick sale. Leave 0 and the desk types the amount each time.",
+   "fieldname": "day_pass_price",
+   "fieldtype": "Currency",
+   "label": "Day Pass Price"
+  },
+  {
+   "fieldname": "column_break_packs",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "description": "When on, a daily background job raises an in-app notification listing packs expiring or nearly used up. No email or SMS is sent.",
+   "fieldname": "pack_alerts_enabled",
+   "fieldtype": "Check",
+   "label": "Daily In-App Pack Alert"
   },
   {
    "fieldname": "terminology_section",

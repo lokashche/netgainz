@@ -46,6 +46,11 @@ export default function SettingsPage() {
   const [cancellation_refund_policy, setRefundPolicy] =
     useState<CancellationRefundPolicy>("No refund");
 
+  // OP-4: pack alerts + the day-pass quick-sale prefill.
+  const [pack_expiry_alert_days, setPackAlertDays] = useState("7");
+  const [pack_alerts_enabled, setPackAlertsEnabled] = useState(true);
+  const [day_pass_price, setDayPassPrice] = useState("");
+
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,6 +85,9 @@ export default function SettingsPage() {
           setAbsenceEnabled(s.absence_alerts_enabled !== 0);
           setFollowupEnabled(s.followup_reminders_enabled !== 0);
           setRefundPolicy(s.cancellation_refund_policy || "No refund");
+          setPackAlertDays(String(s.pack_expiry_alert_days ?? 7));
+          setPackAlertsEnabled(s.pack_alerts_enabled !== 0);
+          setDayPassPrice(s.day_pass_price ? String(s.day_pass_price) : "");
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unexpected error");
@@ -126,6 +134,9 @@ export default function SettingsPage() {
           absence_alerts_enabled: absence_alerts_enabled ? 1 : 0,
           followup_reminders_enabled: followup_reminders_enabled ? 1 : 0,
           cancellation_refund_policy,
+          pack_expiry_alert_days: Number(pack_expiry_alert_days) || 7,
+          pack_alerts_enabled: pack_alerts_enabled ? 1 : 0,
+          day_pass_price: Number(day_pass_price) || 0,
         }),
       });
 
@@ -528,6 +539,57 @@ export default function SettingsPage() {
             cash — that path needs the owner and posts through the refund rails, so
             Profit First sees the money leave.
           </p>
+        </section>
+
+        <hr className="border-[#1E2D45]" />
+
+        {/* Session Packs & Day Passes — OP-4 */}
+        <section>
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-[#22D38C] mb-3">
+            Session Packs &amp; Day Passes
+          </h2>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Pack Expiry Alert Days</label>
+              <input
+                type="number"
+                min="1"
+                value={pack_expiry_alert_days}
+                onChange={(e) => setPackAlertDays(e.target.value)}
+                placeholder="7"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Day Pass Price</label>
+              <input
+                type="number"
+                min="0"
+                value={day_pass_price}
+                onChange={(e) => setDayPassPrice(e.target.value)}
+                placeholder="0 = desk types the amount"
+                className={inputClass}
+              />
+            </div>
+          </div>
+          <p className="mt-2 text-xs text-[#8A97B2]">
+            A pack is flagged when it expires within the window or has one session left.
+            A day-pass price prefills the quick-sale screen.
+          </p>
+
+          <div className="mt-4 flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="pack_alerts_enabled"
+              checked={pack_alerts_enabled}
+              onChange={(e) => setPackAlertsEnabled(e.target.checked)}
+              className="w-4 h-4 rounded accent-[#22D38C] cursor-pointer"
+            />
+            <label htmlFor="pack_alerts_enabled" className="text-sm text-[#E6EDF7]">
+              Daily in-app pack alert
+            </label>
+          </div>
         </section>
 
         <div className="flex gap-3 pt-2">

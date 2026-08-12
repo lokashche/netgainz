@@ -125,6 +125,8 @@ export default function NavBar({
   const OPERATIONS_ITEMS: NavItem[] = [
     { href: "/enquiries", label: "Enquiries" },
     { href: "/check-in", label: "Check-in" },
+    { href: "/packs", label: "Packs" },
+    { href: "/day-pass", label: "Day Pass" },
     { href: "/classes", label: classTermPlural },
     { href: "/schedules", label: `${classTermSingular} Schedules` },
     { href: "/attendance", label: "Attendance" },

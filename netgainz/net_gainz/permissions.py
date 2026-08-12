@@ -76,6 +76,10 @@ NETGAINZ_MATRIX: dict[str, dict[str, dict]] = {
 		"Member Check-in": FULL,
 		"Enquiry": FULL,
 		"Membership Freeze": FULL,
+		"Session Pack": FULL,
+		"Pack Purchase": FULL,
+		"Pack Session Use": READ,
+		"Day Pass": FULL,
 		"Business Branch": FULL,
 		"Business Settings": {"read": 1, "write": 1, "print": 1, "email": 1, "share": 1},
 		"Profit First Settings": {"read": 1, "write": 1, "print": 1, "email": 1, "share": 1},
@@ -91,7 +95,12 @@ NETGAINZ_MATRIX: dict[str, dict[str, dict]] = {
 		"Member Check-in": FULL,
 		"Enquiry": FULL,
 		"Membership Freeze": FULL,
+		# The desk sells packs and day passes; the products are the owner's.
+		"Pack Purchase": EDIT,
+		"Pack Session Use": READ,
+		"Day Pass": EDIT,
 		# Reference data they read but never change.
+		"Session Pack": READ,
 		"Membership Plan": READ,
 		# Campaigns and coupons are the owner's to define; the desk gives them out.
 		"Offer": READ,

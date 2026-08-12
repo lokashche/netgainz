@@ -21,3 +21,4 @@ netgainz.patches.v0_8.apply_permission_matrix
 netgainz.patches.v0_8.apply_permission_matrix #2 OP-1: grant Member Check-in to Gym Owner + Gym Staff
 netgainz.patches.v0_8.apply_permission_matrix #3 OP-2: grant Enquiry to Gym Owner + Gym Staff
 netgainz.patches.v0_8.apply_permission_matrix #4 OP-3: grant Membership Freeze to Gym Owner + Gym Staff
+netgainz.patches.v0_8.apply_permission_matrix #5 OP-4: grant Session Pack / Pack Purchase / Pack Session Use / Day Pass

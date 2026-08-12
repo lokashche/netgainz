@@ -177,6 +177,18 @@ doc_events = {
 	"Membership Freeze": {
 		"before_insert": "netgainz.net_gainz.accounting.branch.stamp_default_branch",
 	},
+	"Session Pack": {
+		"on_update": "netgainz.net_gainz.operations.packs.on_pack_update",
+	},
+	"Pack Purchase": {
+		"before_insert": "netgainz.net_gainz.accounting.branch.stamp_default_branch",
+	},
+	"Pack Session Use": {
+		"before_insert": "netgainz.net_gainz.accounting.branch.stamp_default_branch",
+	},
+	"Day Pass": {
+		"before_insert": "netgainz.net_gainz.accounting.branch.stamp_default_branch",
+	},
 	"Sales Invoice": {
 		# WP-10.3: the native Subscription hardcodes a single 100% payment_schedule
 		# row and cannot carry a payment_terms_template, so installments have to be
@@ -210,6 +222,9 @@ scheduler_events = {
 		# OP-2: raise an in-app reminder for enquiry follow-ups due today or
 		# overdue (idempotent; notify-only).
 		"netgainz.net_gainz.operations.enquiries.notify_followups",
+		# OP-4: raise an in-app alert for session packs expiring or nearly used
+		# up (idempotent; notify-only).
+		"netgainz.net_gainz.operations.packs.notify_pack_alerts",
 	],
 }
 
