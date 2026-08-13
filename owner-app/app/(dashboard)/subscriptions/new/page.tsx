@@ -1,10 +1,16 @@
 "use client";
 
-import { useState, SyntheticEvent } from "react";
+import { useState, useEffect, SyntheticEvent } from "react";
 import { extractFrappeError } from "@/lib/frappe";
 import { useRouter } from "next/navigation";
 import LinkFieldPicker, { type LinkFieldOption } from "@/app/components/LinkFieldPicker";
-import type { Member, MembershipPlan } from "@/lib/types";
+import OfferPicker from "@/app/components/OfferPicker";
+import DiscountBox, {
+  EMPTY_DISCOUNT,
+  discountPayload,
+  type DiscountDraft,
+} from "@/app/components/DiscountBox";
+import type { Capabilities, Member, MembershipPlan } from "@/lib/types";
 
 async function fetchMembers(q: string): Promise<LinkFieldOption[]> {
   const url = q ? `/api/members?q=${encodeURIComponent(q)}` : "/api/members";
@@ -18,20 +24,26 @@ async function fetchMembers(q: string): Promise<LinkFieldOption[]> {
   }));
 }
 
+/** Plan prices seen by the picker, so the discount preview knows the gross. */
+const PLAN_AMOUNTS: Record<string, number> = {};
+
 async function fetchPlans(q: string): Promise<LinkFieldOption[]> {
   const params = new URLSearchParams({ active_only: "1" });
   if (q) params.set("q", q);
   const res = await fetch(`/api/plans?${params.toString()}`);
   if (!res.ok) return [];
   const body = (await res.json()) as { data?: MembershipPlan[] };
-  return (body.data ?? []).map((p) => ({
+  return (body.data ?? []).map((p) => {
+    if (typeof p.amount === "number") PLAN_AMOUNTS[p.name] = p.amount;
+    return {
     id: p.name,
     label: p.plan_name,
     sub:
       p.amount !== undefined && p.duration_in_days
         ? `₹${p.amount} · ${p.duration_in_days} days`
         : undefined,
-  }));
+    };
+  });
 }
 
 const MONTHS = [
@@ -53,7 +65,30 @@ export default function NewSubscriptionPage() {
   const [membership_plan, setMembershipPlan] = useState("");
   const [planLabel, setPlanLabel] = useState("");
   const [month, setMonth] = useState("");
+  // Per-member pricing: a plan holds ONE price, and a gym charges many. Blank
+  // takes the plan's amount; typing a figure is this member's own rate.
+  const [price, setPrice] = useState("");
   const [comments, setComments] = useState("");
+  // Stage 8 DS-1: a discount is granted here, with its cost shown before saving.
+  const [discount, setDiscount] = useState<DiscountDraft>(EMPTY_DISCOUNT);
+  // DS-2: an offer fills the discount in server-side when the membership is saved.
+  const [offer, setOffer] = useState("");
+  // DS-4: the plan's free trial applies unless this member is given a different one,
+  // or none at all (they have already had theirs).
+  const [trialDays, setTrialDays] = useState("");
+  const [skipTrial, setSkipTrial] = useState(false);
+  // DS-5: what this user may give away on their own, so the discount box can ask for
+  // the owner's PIN at the right moment instead of after a refused save.
+  const [caps, setCaps] = useState<Capabilities | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const res = await fetch("/api/capabilities");
+      if (!res.ok) return;
+      const body = (await res.json()) as { message?: Capabilities };
+      if (body.message) setCaps(body.message);
+    })();
+  }, []);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,11 +98,18 @@ export default function NewSubscriptionPage() {
     setSubmitting(true);
     setError(null);
 
-    const payload: Record<string, string | number> = {
+    const payload: Record<string, string | number | null> = {
       member,
       membership_plan,
       month,
+      ...discountPayload(discount),
+      offer: offer || null,
+      skip_trial: skipTrial ? 1 : 0,
     };
+    if (trialDays !== "" && Number.isFinite(Number(trialDays))) {
+      payload.trial_days = Number(trialDays);
+    }
+    if (price !== "" && Number.isFinite(Number(price))) payload.tariff = Number(price);
     if (comments) payload.comments = comments;
 
     try {
@@ -149,7 +191,7 @@ export default function NewSubscriptionPage() {
           />
         </div>
 
-        {/* Month + Payment Mode */}
+        {/* Month + Price */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className={labelClass}>
@@ -167,15 +209,89 @@ export default function NewSubscriptionPage() {
               ))}
             </select>
           </div>
+          <div>
+            <label className={labelClass}>Price</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder="Leave blank to use the plan price"
+              className={inputClass}
+            />
+          </div>
         </div>
 
-        {/* WP-11: fee, dates and status are all derived from the ERPNext Sales
-            Invoice generated on enrolment. Money is recorded afterwards on the
-            membership page ("Record a Payment"), which posts a Payment Entry. */}
+        {/* WP-11: dates and status are all derived from the ERPNext Sales Invoice
+            generated on enrolment. Money is recorded afterwards on the membership
+            page ("Record a Payment"), which posts a Payment Entry. */}
         <div className="rounded-lg border border-[#1E2D45] bg-[#0F1B2D] p-4 text-sm text-[#8FA3BF]">
-          The fee comes from the selected plan. On save, the first invoice is
-          raised automatically — record the payment from the membership page.
+          Leave Price blank and this member pays the plan&rsquo;s rate; enter a figure and
+          they pay that instead — the invoice follows whichever applies. On save the
+          first invoice is raised automatically; record the payment from the
+          membership page. A member with no price on either the membership or the
+          plan is not billed at all, and appears on the &ldquo;cannot be billed&rdquo; list.
         </div>
+
+        {/* Free trial */}
+        <div className="rounded-lg border border-[#1E2D45] bg-[#0F1B2D] p-4 space-y-3">
+          <div className="flex items-baseline justify-between gap-3">
+            <h3 className="text-sm font-semibold text-[#E6EDF7]">Free trial</h3>
+            <span className="text-xs text-[#8A97B2]">Uses the plan&rsquo;s setting by default</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Trial days (override)</label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={trialDays}
+                onChange={(e) => setTrialDays(e.target.value)}
+                placeholder="Plan's trial"
+                disabled={skipTrial}
+                className={inputClass}
+              />
+            </div>
+            <label className="flex items-center gap-2 text-sm text-[#E6EDF7] sm:pt-6">
+              <input
+                type="checkbox"
+                checked={skipTrial}
+                onChange={(e) => setSkipTrial(e.target.checked)}
+                className="accent-[#22D38C]"
+              />
+              No free trial for this member
+            </label>
+          </div>
+          <p className="text-xs text-[#8A97B2]">
+            Nothing is invoiced while a trial runs. The first invoice is raised the day it
+            ends, at the full rate — you don&rsquo;t have to do anything.
+          </p>
+        </div>
+
+        <OfferPicker
+          value={offer}
+          onChange={setOffer}
+          membershipPlan={membership_plan}
+          member={member}
+          inputClassName={inputClass}
+          labelClassName={labelClass}
+        />
+
+        <DiscountBox
+          value={discount}
+          onChange={setDiscount}
+          price={
+            price !== "" && Number.isFinite(Number(price))
+              ? Number(price)
+              : PLAN_AMOUNTS[membership_plan]
+          }
+          member={member || undefined}
+          capabilities={caps}
+          inputClassName={inputClass}
+          labelClassName={labelClass}
+        />
 
         {/* Comments */}
         <div>

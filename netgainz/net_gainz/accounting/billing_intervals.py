@@ -115,3 +115,21 @@ def latest_cycle_start(joining: date, interval: str, count: int, on: date) -> da
 	while periods > 0 and add_months(joining, periods * months) > on:
 		periods -= 1
 	return add_months(joining, periods * months)
+
+
+def next_cycle_start(joining: date, interval: str, count: int, on: date) -> date:
+	"""The start of the period AFTER the one containing ``on``.
+
+	Needed at go-live. :func:`latest_cycle_start` returns the CURRENT period's
+	start, which for a member who joined on the 15th is in the past on the 9th of
+	a month — so starting their subscription there would raise an invoice for a
+	period the gym has very likely already collected in cash, outside the system.
+	Anchoring on the NEXT boundary keeps the joining-day alignment while billing
+	only from here on.
+	"""
+	current = latest_cycle_start(joining, interval, count, on)
+	if interval in _DAYS_PER_PERIOD:
+		return current + timedelta(days=_DAYS_PER_PERIOD[interval] * count)
+	if interval not in _MONTHS_PER_PERIOD:
+		raise ValueError(f"Unknown billing interval {interval!r}.")
+	return add_months(current, _MONTHS_PER_PERIOD[interval] * count)

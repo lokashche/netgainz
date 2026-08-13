@@ -189,4 +189,7 @@ def setup_commission_accounts(company: str | None = None) -> dict:
 @frappe.whitelist()
 def setup_coach_commission_accounts(company: str | None = None) -> dict:
 	"""Whitelisted entry point for the owner to provision commission accounts."""
+	from netgainz.net_gainz import permissions
+
+	permissions.require_role(permissions.GYM_OWNER)
 	return setup_commission_accounts(company)

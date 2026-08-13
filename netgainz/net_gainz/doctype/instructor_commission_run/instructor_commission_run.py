@@ -131,6 +131,9 @@ class InstructorCommissionRun(Document):
 @frappe.whitelist()
 def create_commission_run(period_start=None, period_end=None) -> str:
 	"""Create a draft commission run (computes the lines; no money moves)."""
+	from netgainz.net_gainz import permissions
+
+	permissions.require_role(permissions.GYM_OWNER)
 	doc = frappe.new_doc("Instructor Commission Run")
 	if period_start:
 		doc.period_start = period_start
@@ -143,6 +146,9 @@ def create_commission_run(period_start=None, period_end=None) -> str:
 @frappe.whitelist()
 def approve_commission_run(name: str) -> str:
 	"""Approve a draft run — posts the Journal Entry if posting is enabled."""
+	from netgainz.net_gainz import permissions
+
+	permissions.require_role(permissions.GYM_OWNER)
 	doc = frappe.get_doc("Instructor Commission Run", name)
 	doc.submit()
 	return doc.name
@@ -151,6 +157,9 @@ def approve_commission_run(name: str) -> str:
 @frappe.whitelist()
 def cancel_commission_run(name: str) -> str:
 	"""Cancel a posted run — reverses its Journal Entry if it posted one."""
+	from netgainz.net_gainz import permissions
+
+	permissions.require_role(permissions.GYM_OWNER)
 	doc = frappe.get_doc("Instructor Commission Run", name)
 	doc.cancel()
 	return doc.name

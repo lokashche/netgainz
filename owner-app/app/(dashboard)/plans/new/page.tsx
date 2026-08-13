@@ -19,6 +19,7 @@ export default function NewPlanPage() {
   const [payment_due_rule, setPaymentDueRule] = useState("On joining");
   const [installment_count, setInstallmentCount] = useState("1");
   const [installment_gap_days, setInstallmentGapDays] = useState("30");
+  const [trial_days, setTrialDays] = useState("0");
 
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
@@ -41,6 +42,7 @@ export default function NewPlanPage() {
     payload.payment_due_rule = payment_due_rule;
     payload.installment_count = Number(installment_count);
     payload.installment_gap_days = Number(installment_gap_days);
+    payload.trial_days = Number(trial_days) || 0;
     if (duration_in_days) payload.duration_in_days = Number(duration_in_days);
     if (amount) payload.amount = Number(amount);
     if (description) payload.description = description;
@@ -165,6 +167,28 @@ export default function NewPlanPage() {
               />
             </div>
           </div>
+        </div>
+
+        {/* Free trial — DS-4. Nothing is invoiced until it ends. */}
+        <div className="rounded-lg border border-[#1E2D45] p-4 space-y-3">
+          <h3 className="text-sm font-semibold text-[#E5EDF7]">Free Trial</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Trial Days</label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={trial_days}
+                onChange={(e) => setTrialDays(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+          </div>
+          <p className="text-xs text-[#8A97B2]">
+            0 = no trial. A new member on this plan trains free for this many days; their
+            first invoice is raised the day the trial ends, at the full rate, automatically.
+          </p>
         </div>
 
         {/* Duration + Amount */}

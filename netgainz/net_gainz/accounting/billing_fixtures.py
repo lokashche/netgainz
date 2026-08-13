@@ -59,6 +59,13 @@ def clear_billing_data() -> None:
 		"Membership",
 	):
 		frappe.db.delete(doctype)
+	# WP-8: a write-off is a submitted Journal Entry, which likewise survives the
+	# per-test rollback. Only OUR voucher type is cleared, so PF sweep / commission
+	# journals in other suites are left alone.
+	writeoffs = frappe.get_all("Journal Entry", filters={"voucher_type": "Write Off Entry"}, pluck="name")
+	if writeoffs:
+		frappe.db.delete("Journal Entry Account", {"parent": ["in", writeoffs]})
+		frappe.db.delete("Journal Entry", {"name": ["in", writeoffs]})
 
 
 def ensure_cash_account(company=None) -> str | None:
@@ -95,9 +102,13 @@ def make_plan(
 	other test's price."""
 	if frappe.db.exists("Membership Plan", name):
 		plan = frappe.get_doc("Membership Plan", name)
-		if flt(plan.amount) != flt(amount):
-			plan.amount = amount
-			plan.save(ignore_permissions=True)  # re-syncs the Item Price
+		plan.amount = amount
+		# Always re-save, even when the amount already matches: the save is what
+		# re-runs provisioning, and ERPNext's own before_tests DELETES every Item
+		# Price. A plan left over from an earlier run would otherwise resolve at
+		# rate 0 through "Based On Price List" and quietly bill nothing, so every
+		# assertion downstream would measure an empty invoice.
+		plan.save(ignore_permissions=True)
 		return plan
 	doc = {
 		"doctype": "Membership Plan",

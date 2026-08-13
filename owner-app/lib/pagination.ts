@@ -1,4 +1,5 @@
 import { frappeRequest } from "./frappe";
+import { assertFrappeSession } from "./session";
 
 export const PAGE_SIZES = [20, 50, 100, 200] as const;
 export const DEFAULT_PAGE_SIZE = 50;
@@ -114,6 +115,10 @@ export async function fetchListPage<T>({
     ),
     frappeRequest<{ message: number }>(countPath(doctype, filters), { sessionCookie }),
   ]);
+
+  // A dead backend login must not render as "no records" — every list page in the
+  // app funnels through here, so this one check covers them all.
+  await assertFrappeSession(listRes.status);
 
   let rows = listRes.data?.data ?? [];
   const rawTotal = countRes.data?.message;

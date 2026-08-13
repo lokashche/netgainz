@@ -115,4 +115,7 @@ def setup_pf_accounts(company: str | None = None) -> dict:
 @frappe.whitelist()
 def setup_profit_first_accounts(company: str | None = None) -> dict:
 	"""Whitelisted entry point for the owner to provision PF accounts."""
+	from netgainz.net_gainz import permissions
+
+	permissions.require_role(permissions.GYM_OWNER)
 	return setup_pf_accounts(company)

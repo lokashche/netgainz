@@ -2,7 +2,7 @@ import { frappeRequest } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import type { RenewalsDue, RenewalRow } from "@/lib/types";
+import type { RenewalsDue, RenewalRow, TrialsEnding, TrialRow } from "@/lib/types";
 
 function fmtDate(v: string | null | undefined): string {
   if (!v) return "—";
@@ -25,6 +25,16 @@ export default async function RenewalsPage() {
   );
   const data = res.data?.message;
 
+  // DS-4: a trial ending is the most useful follow-up a gym has — the member is in the
+  // building today and starts paying tomorrow. It belongs on the same "who needs a word
+  // today" page as renewals; Stage 9's pipeline turns it into a proper task.
+  const trialRes = await frappeRequest<{ message: TrialsEnding }>(
+    `api/method/netgainz.net_gainz.accounting.trials.trials_ending`,
+    { sessionCookie: session.frappeCookies }
+  );
+  const trials = trialRes.data?.message;
+  const trialsEnding: TrialRow[] = trials?.ending_soon ?? [];
+
   const overdue: RenewalRow[] = data?.overdue ?? [];
   const dueSoon: RenewalRow[] = data?.due_soon ?? [];
   const withinDays = data?.within_days ?? 0;
@@ -38,6 +48,64 @@ export default async function RenewalsPage() {
           emails are sent.
         </p>
       </div>
+
+      {trialsEnding.length > 0 && (
+        <div className="mb-6 bg-[#111A2E] border border-[#5EEAD4] rounded-xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-[#1E2D45] bg-[rgba(94,234,212,0.12)]">
+            <h2 className="text-sm font-semibold text-[#5EEAD4]">
+              Free trials ending ({trialsEnding.length})
+            </h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-[#8A97B2] text-xs uppercase tracking-wider border-b border-[#1E2D45]">
+                  <th className="text-left font-medium px-4 py-3">Member</th>
+                  <th className="text-left font-medium px-4 py-3">Plan</th>
+                  <th className="text-left font-medium px-4 py-3">Trial Ends</th>
+                  <th className="text-left font-medium px-4 py-3">First Invoice</th>
+                  <th className="text-right font-medium px-4 py-3"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {trialsEnding.map((t) => (
+                  <tr
+                    key={t.name}
+                    className="border-b border-[#1A2540] last:border-0 hover:bg-[#1A2540] transition-colors"
+                  >
+                    <td className="px-4 py-3">
+                      <Link
+                        href={`/members/${t.member}`}
+                        className="text-[#22D38C] hover:underline font-medium"
+                      >
+                        {t.member_name || t.member}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 text-[#8A97B2]">{t.membership_plan || "—"}</td>
+                    <td className="px-4 py-3 text-[#E6EDF7]">{fmtDate(t.trial_ends_on)}</td>
+                    <td className="px-4 py-3 text-[#8A97B2]">
+                      {fmtDate(
+                        new Date(new Date(t.trial_ends_on).getTime() + 86400000)
+                          .toISOString()
+                          .slice(0, 10)
+                      )}{" "}
+                      · automatic
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Link
+                        href={`/subscriptions/${t.name}`}
+                        className="text-[#5EEAD4] hover:underline text-xs whitespace-nowrap"
+                      >
+                        Open membership →
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {overdue.length === 0 && dueSoon.length === 0 ? (
         <div className="bg-[#111A2E] border border-[#1E2D45] rounded-xl p-8 text-center text-[#8A97B2]">

@@ -16,6 +16,8 @@ overdue list because of an older, superseded subscription.
 import frappe
 from frappe.utils import add_days, getdate, today
 
+from netgainz.net_gainz.accounting import trials
+
 DEFAULT_REMINDER_DAYS = 7
 
 
@@ -39,7 +41,10 @@ def get_renewals(within_days=None) -> dict:
 
 	subs = frappe.get_all(
 		"Membership",
-		filters=[["next_renewal", "is", "set"]],
+		# DS-4: a member on a free trial has a next_renewal (the day billing starts) but
+		# is not "due for renewal" — nothing has been sold to them yet. They get their own
+		# "trials ending" list; showing them here would read as a lapsing membership.
+		filters=[["next_renewal", "is", "set"], ["status", "!=", trials.TRIAL_STATUS]],
 		fields=["name", "member", "member_name", "membership_plan", "next_renewal", "status"],
 		order_by="next_renewal asc",
 		limit_page_length=0,

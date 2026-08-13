@@ -22,6 +22,16 @@ class Membership(Document):
 	by editing ``fee_collected``.
 	"""
 
+	def validate(self):
+		from netgainz.net_gainz.accounting import discounts, offers
+
+		# DS-2: a chosen offer writes its terms in as an ordinary discount grant, so
+		# everything below (and the invoice) sees ONE discount however it was given.
+		offers.apply_offer_to_membership(self)
+		# R17: the discount guardrails run server-side, so they hold however the
+		# membership was saved — owner app, Desk, import or script.
+		discounts.validate_membership_discount(self)
+
 	def before_save(self):
 		from netgainz.net_gainz.accounting import billing
 
@@ -64,6 +74,11 @@ class Membership(Document):
 			)
 
 	def on_update(self):
+		from netgainz.net_gainz.accounting import discounts
+
+		# DS-5: record what happened to this membership's discount, if anything did.
+		# After the save, so a refused grant leaves no trace claiming it was given.
+		discounts.log_discount_change(self)
 		# NB: `on_update` is Frappe's post-save hook. This used to be spelled
 		# `after_save`, which Frappe never calls — so member freezing silently did
 		# nothing from the day it was written until WP-10.6's tests caught it.
@@ -109,7 +124,9 @@ class Membership(Document):
 			"Membership",
 			filters={
 				"member": self.member,
-				"status": ["in", ["Paid", "Pending", "Partial"]],
+				# DS-4: a trial membership is a live one — a member training on a free
+				# trial must not be frozen because an older membership lapsed.
+				"status": ["in", ["Trial", "Paid", "Pending", "Partial"]],
 				"name": ["!=", self.name],
 			},
 		)

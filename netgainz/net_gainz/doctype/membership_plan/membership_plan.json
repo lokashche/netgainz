@@ -19,6 +19,7 @@
   "column_break_ycbo",
   "is_active",
   "payment_policy_section",
+  "trial_days",
   "payment_due_rule",
   "installment_count",
   "column_break_pay",
@@ -127,6 +128,13 @@
    "label": "Payment Policy"
   },
   {
+   "default": "0",
+   "description": "Days a new member on this plan trains free before their first invoice. 0 = no trial. Billing starts by itself the day the trial ends.",
+   "fieldname": "trial_days",
+   "fieldtype": "Int",
+   "label": "Free Trial (days)"
+  },
+  {
    "default": "On joining",
    "description": "When the fee becomes due.",
    "fieldname": "payment_due_rule",
@@ -167,7 +175,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-05-25 00:00:00.000000",
+ "modified": "2026-08-11 15:00:00.000000",
  "modified_by": "Administrator",
  "module": "Net Gainz",
  "name": "Membership Plan",
@@ -185,6 +193,24 @@
    "role": "System Manager",
    "share": 1,
    "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Gym Owner",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Gym Staff"
   }
  ],
  "quick_entry": 1,

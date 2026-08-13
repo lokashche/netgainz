@@ -1,0 +1,207 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "allow_rename": 1,
+ "autoname": "field:offer_name",
+ "creation": "2026-08-11 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "offer_name",
+  "description",
+  "column_break_head",
+  "disabled",
+  "discount_section",
+  "discount_type",
+  "discount_value",
+  "discount_duration",
+  "column_break_disc",
+  "valid_from",
+  "valid_upto",
+  "max_total_uses",
+  "coupon_section",
+  "coupon_code",
+  "column_break_coupon",
+  "max_uses_per_member",
+  "scope_section",
+  "branch",
+  "plans"
+ ],
+ "fields": [
+  {
+   "fieldname": "offer_name",
+   "fieldtype": "Data",
+   "label": "Offer Name",
+   "reqd": 1,
+   "unique": 1,
+   "in_list_view": 1,
+   "in_global_search": 1,
+   "description": "What the gym calls it — \"New Year 20%\", \"Founding Member Rate\". Members see this on their membership."
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description",
+   "description": "The offer in plain words, for whoever grants it at the desk."
+  },
+  {
+   "fieldname": "column_break_head",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "disabled",
+   "fieldtype": "Check",
+   "label": "Ended",
+   "default": "0",
+   "in_list_view": 1,
+   "description": "Ends the offer now. Memberships already on it keep the rate they were given — ending an offer never re-prices anyone."
+  },
+  {
+   "fieldname": "discount_section",
+   "fieldtype": "Section Break",
+   "label": "The Offer"
+  },
+  {
+   "fieldname": "discount_type",
+   "fieldtype": "Select",
+   "label": "Discount",
+   "options": "Percentage\nAmount",
+   "default": "Percentage",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "discount_value",
+   "fieldtype": "Float",
+   "label": "Discount Value",
+   "precision": "2",
+   "reqd": 1,
+   "in_list_view": 1,
+   "description": "The % (e.g. 20) or the amount (e.g. 1000) off this member's price."
+  },
+  {
+   "fieldname": "discount_duration",
+   "fieldtype": "Select",
+   "label": "Applies To",
+   "options": "First invoice only\nEvery invoice\nUntil the offer ends",
+   "default": "First invoice only",
+   "description": "'First invoice only' is a joining offer; 'Every invoice' is a grandfathered rate the member keeps; 'Until the offer ends' expires on the offer's end date."
+  },
+  {
+   "fieldname": "column_break_disc",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "valid_from",
+   "fieldtype": "Date",
+   "label": "Runs From",
+   "reqd": 1,
+   "default": "Today",
+   "description": "The offer can only be given to a member between these dates."
+  },
+  {
+   "fieldname": "valid_upto",
+   "fieldtype": "Date",
+   "label": "Runs Until",
+   "description": "Leave blank for an offer with no end date."
+  },
+  {
+   "fieldname": "max_total_uses",
+   "fieldtype": "Int",
+   "label": "Limit",
+   "default": "0",
+   "description": "How many members may be given this offer in total. 0 = no limit (e.g. 'first 50 members')."
+  },
+  {
+   "description": "Give the offer a code and it stops appearing in the enrolment list — a member has to know the code to get it. Leave blank for an offer the desk simply gives out.",
+   "fieldname": "coupon_section",
+   "fieldtype": "Section Break",
+   "label": "Coupon Code"
+  },
+  {
+   "description": "What the member types or quotes, e.g. FIT50. Case does not matter — it is stored in capitals.",
+   "fieldname": "coupon_code",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Code"
+  },
+  {
+   "fieldname": "column_break_coupon",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "description": "How many times ONE member may use this offer. 0 = no per-member limit. The overall Limit above still applies.",
+   "fieldname": "max_uses_per_member",
+   "fieldtype": "Int",
+   "label": "Limit Per Member"
+  },
+  {
+   "fieldname": "scope_section",
+   "fieldtype": "Section Break",
+   "label": "Who It Applies To"
+  },
+  {
+   "fieldname": "branch",
+   "fieldtype": "Link",
+   "label": "Branch",
+   "options": "Business Branch",
+   "description": "Leave blank to run the offer at every branch."
+  },
+  {
+   "fieldname": "plans",
+   "fieldtype": "Table",
+   "label": "Plans",
+   "options": "Offer Plan",
+   "description": "Leave empty to run the offer on every plan."
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-08-11 14:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Net Gainz",
+ "name": "Offer",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Gym Owner",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Gym Staff"
+  }
+ ],
+ "quick_entry": 1,
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "search_fields": "offer_name",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

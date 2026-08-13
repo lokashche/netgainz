@@ -144,6 +144,9 @@ class PFSweep(Document):
 @frappe.whitelist()
 def create_sweep(window: str | None = None, sweep_date: str | None = None) -> str:
 	"""Create a draft sweep proposal (no money moves) and return its name."""
+	from netgainz.net_gainz import permissions
+
+	permissions.require_role(permissions.GYM_OWNER)
 	doc = frappe.new_doc("PF Sweep")
 	if window:
 		doc.assessment_window = window
@@ -156,6 +159,9 @@ def create_sweep(window: str | None = None, sweep_date: str | None = None) -> st
 @frappe.whitelist()
 def approve_sweep(name: str) -> str:
 	"""Approve a draft sweep — posts the balanced Journal Entry. Money moves here."""
+	from netgainz.net_gainz import permissions
+
+	permissions.require_role(permissions.GYM_OWNER)
 	doc = frappe.get_doc("PF Sweep", name)
 	doc.submit()
 	return doc.journal_entry
@@ -164,6 +170,9 @@ def approve_sweep(name: str) -> str:
 @frappe.whitelist()
 def cancel_sweep(name: str) -> str:
 	"""Cancel a posted sweep — reverses its Journal Entry."""
+	from netgainz.net_gainz import permissions
+
+	permissions.require_role(permissions.GYM_OWNER)
 	doc = frappe.get_doc("PF Sweep", name)
 	doc.cancel()
 	return doc.name

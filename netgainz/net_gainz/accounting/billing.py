@@ -33,9 +33,12 @@ from frappe.utils import add_days, flt, getdate, today
 from netgainz.net_gainz.accounting import (
 	billing_intervals,
 	branch,
+	currency,
+	discounts,
 	payment_modes,
 	period_lock,
 	provisioning,
+	trials,
 )
 from netgainz.net_gainz.profit_first import accounts as pf_accounts
 from netgainz.net_gainz.profit_first import calc
@@ -80,9 +83,7 @@ def cycle_start(member, subscription_plan) -> object:
 	) or (None, None)
 	if not interval:
 		return today_
-	return billing_intervals.latest_cycle_start(
-		getdate(joining), interval, int(count or 1), today_
-	)
+	return billing_intervals.latest_cycle_start(getdate(joining), interval, int(count or 1), today_)
 
 
 def ensure_subscription(membership, company=None) -> str | None:
@@ -96,15 +97,27 @@ def ensure_subscription(membership, company=None) -> str | None:
 	if not company or not membership.get("member") or not membership.get("membership_plan"):
 		return None
 
-	customer = frappe.db.get_value("Member", membership.member, "customer") or provisioning.provision_customer(
-		membership.member, company
-	)
+	customer = frappe.db.get_value(
+		"Member", membership.member, "customer"
+	) or provisioning.provision_customer(membership.member, company)
 	if not customer:
 		return None
+	# WP-8: one transaction currency per tenant. A Customer with a foreign default
+	# currency would make ERPNext raise this membership's invoices in that currency
+	# — which the owner app renders unlabelled next to rupee totals, and which the
+	# paise quantisation is not defined for.
+	currency.assert_paise_safe(company)
+	currency.assert_membership_billing_currency(customer, company)
 	sub_plan = frappe.db.get_value(
 		"Membership Plan", membership.membership_plan, "subscription_plan"
 	) or provisioning.provision_subscription_plan(membership.membership_plan, company)
 	if not sub_plan:
+		return None
+	# No resolvable price -> no Subscription, so neither the owner nor the daily
+	# Process Subscription scheduler can raise a Rs.0 invoice for this member. The
+	# membership still enrols; it surfaces in `unbillable_memberships()` until a
+	# price is set, and billing starts on the next generate.
+	if not is_billable(membership):
 		return None
 
 	start = cycle_start(membership.member, sub_plan)
@@ -118,6 +131,15 @@ def ensure_subscription(membership, company=None) -> str | None:
 	sub.generate_invoice_at = GENERATE_INVOICE_AT
 	sub.submit_invoice = 1
 	sub.days_until_due = frappe.db.get_single_value("Business Settings", "days_until_due") or 0
+	# DS-4: a free trial. ERPNext raises no invoice while `trial_period_*` is running and
+	# starts the first billing period at trial_end + 1 by itself, so the trial also
+	# re-anchors the cycle — which is what a member expects: their first paid period
+	# begins the day the free one stops. `start_date` must not be before the trial
+	# starts (ERPNext validates that), hence both dates move together.
+	window = trials.trial_window(membership, start)
+	if window:
+		sub.trial_period_start, sub.trial_period_end = window
+		sub.start_date = window[0]
 	sub.append("plans", {"plan": sub_plan, "qty": 1})
 	sub.insert(ignore_permissions=True)
 
@@ -125,13 +147,35 @@ def ensure_subscription(membership, company=None) -> str | None:
 	return sub.name
 
 
+# WP-8: a credit note is a Sales Invoice too, and `make_return_doc` COPIES the
+# `subscription` link onto it (the field is not no_copy — traced 2026-08-08). That
+# copy is deliberate and load-bearing for the cash read, but it means every
+# subscription-keyed lookup of "the membership's invoice" must exclude returns, or
+# a refund silently becomes the current period's invoice: `current_sales_invoice`
+# re-points at the credit note and `open_obligations` reports a NEGATIVE amount
+# owing. Anything reading invoices BY SUBSCRIPTION filters on this.
+NOT_A_CREDIT_NOTE = {"is_return": 0}
+
+
 def _latest_invoice(subscription_name) -> str | None:
 	return frappe.db.get_value(
 		"Sales Invoice",
-		{"subscription": subscription_name, "docstatus": ["!=", 2]},
+		{"subscription": subscription_name, "docstatus": ["!=", 2], **NOT_A_CREDIT_NOTE},
 		"name",
 		order_by="creation desc",
 	)
+
+
+def current_invoice(membership) -> str | None:
+	"""The Sales Invoice a membership's money currently moves against.
+
+	The subscription's latest real invoice, falling back to the stored pointer.
+	Shared by the payment, refund and write-off paths so all three always act on
+	the same document.
+	"""
+	membership = _as_doc("Membership", membership)
+	si_name = _latest_invoice(membership.subscription) if membership.get("subscription") else None
+	return si_name or membership.get("current_sales_invoice")
 
 
 def force_generate_invoice(membership, posting_date=None) -> str | None:
@@ -179,6 +223,14 @@ def on_membership_insert(doc, method=None):
 		return
 	try:
 		if ensure_subscription(doc):
+			# DS-4: a trial member is NOT billed on day one. `force_generate_invoice`
+			# posts at the subscription's current_invoice_start, which during a trial is
+			# already the post-trial date — so it would raise the first invoice
+			# immediately, dated in the future. The daily Process Subscription job bills
+			# them the day the trial ends, like any other period.
+			if trials.is_on_trial(doc):
+				trials.sync_trial_fields(doc)
+				return
 			force_generate_invoice(doc)
 			sync_derived_fields(doc)
 	except Exception:
@@ -207,10 +259,25 @@ def on_sales_invoice_before_validate(doc, method=None):
 	Pay-as-you-go is skipped: there, each installment is already its own invoice,
 	so a single due date per invoice is correct.
 	"""
-	if frappe.flags.in_install or not doc.get("subscription"):
+	if frappe.flags.in_install or not doc.get("subscription") or doc.get("is_return"):
+		return
+	# A go-live part-month invoice is priced pro-rata by go_live.py and carries a
+	# single due date on purpose. This hook exists to price a FULL period and to
+	# attach installment terms; both would be wrong here.
+	if doc.flags.get("netgainz_part_month"):
 		return
 	membership = _membership_for_invoice(doc)
-	if not membership or billing_mode(membership) == PAY_AS_YOU_GO:
+	if not membership:
+		return
+
+	_apply_membership_price(doc, membership)
+	_restore_service_period(doc)
+	# Stage 8 DS-1: the member's negotiated discount, if it covers THIS invoice.
+	# Deliberately after the price: a percentage comes off what this member actually
+	# pays, and ERPNext then computes GST on the discounted value (R20).
+	discounts.apply_to_invoice(doc, membership)
+
+	if billing_mode(membership) == PAY_AS_YOU_GO:
 		return
 	template = membership.get("payment_terms_template")
 	if not template or not frappe.db.exists("Payment Terms Template", template):
@@ -218,6 +285,73 @@ def on_sales_invoice_before_validate(doc, method=None):
 	doc.payment_terms_template = template
 	doc.ignore_default_payment_terms_template = 1
 	doc.payment_schedule = []
+
+
+def _apply_membership_price(doc, membership) -> None:
+	"""Price the generated invoice at what THIS member actually pays.
+
+	The native Subscription prices its line from the Subscription Plan — one price
+	for every member on the plan — which is wrong for a gym: the pilot's 64 monthly
+	members pay 18 different amounts. Overriding the rate here is the smallest
+	correct seam, and the only one that works:
+
+	* **A per-customer Item Price does NOT work.** ``get_plan_rate`` -> ``utilities
+	  .product.get_price`` filters Item Price on ``item_code`` + ``price_list`` only
+	  and returns ``price[0]``. Traced 2026-08-09: with both a generic row (1000)
+	  and a row scoped to the customer (4321), the customer still priced at 1000 —
+	  and because the pick is positional, a second row makes the generic price
+	  arbitrary for *everyone*. Actively unsafe.
+	* **A Subscription Plan per price** would work but bypasses Pricing Rules
+	  (``Fixed Rate`` returns before them), which Stage 8 discounts need.
+
+	Setting the rate before validate leaves ERPNext to do everything downstream from
+	the corrected figure — GST on top, the payment schedule, and any Stage 8 Pricing
+	Rule, which still runs during validate. Traced end to end: rate 3333 -> net_total
+	3333, grand_total 3932.94, schedule 3933.
+
+	The margin / discount fields are zeroed so ``set_missing_values`` cannot re-derive
+	a rate from the price list behind us.
+	"""
+	price = membership_price(membership)
+	# 0 means "no price anywhere", not "free": ensure_subscription refuses to
+	# provision those, so reaching here with 0 means an older subscription. Leave
+	# the plan price alone rather than silently invoicing nothing.
+	if price <= 0:
+		return
+	items = doc.get("items") or []
+	if len(items) != 1:
+		# A membership subscription always carries exactly one plan line. Anything
+		# else is not ours to price.
+		return
+	item = items[0]
+	item.rate = price
+	item.price_list_rate = price
+	item.margin_rate_or_amount = 0
+	item.margin_type = ""
+	item.discount_percentage = 0
+	item.discount_amount = 0
+
+
+def _restore_service_period(doc) -> None:
+	"""Under Accrual, recognise the revenue over the period actually billed.
+
+	The Subscription stamps ``service_start_date`` / ``service_end_date`` = the billing
+	period on each deferred item — and then ``set_missing_values`` immediately overwrites
+	the end with ``add_months(start, Item.no_of_months)``. WP-6 deliberately never sets
+	``no_of_months`` (the Subscription supplies the exact period), so the end collapses
+	back onto the start: a 30-day membership recognised entirely on day one, which is
+	simply not deferral.
+
+	Found by the Stage 8 DS-7 pass while proving R16 (deferred defers the NET); the
+	amount was always right, the window was not. Restored here — the seam that already
+	owns "what this invoice should say" — from the invoice's own period.
+	"""
+	if not doc.get("from_date") or not doc.get("to_date"):
+		return
+	for item in doc.get("items") or []:
+		if item.get("enable_deferred_revenue"):
+			item.service_start_date = doc.from_date
+			item.service_end_date = doc.to_date
 
 
 def on_sales_invoice_validate(doc, method=None):
@@ -233,7 +367,7 @@ def on_sales_invoice_validate(doc, method=None):
 	would silently undo this. With no portion it preserves the explicit amount.
 	The split always totals the grand total, which ERPNext independently enforces.
 	"""
-	if frappe.flags.in_install or not doc.get("subscription"):
+	if frappe.flags.in_install or not doc.get("subscription") or doc.get("is_return"):
 		return
 	rows = doc.get("payment_schedule") or []
 	if len(rows) < 2:
@@ -259,12 +393,22 @@ def on_sales_invoice_submit(doc, method=None):
 	"""``on_submit`` doc_event for Sales Invoice: when the native daily Process
 	Subscription scheduler bills a new membership period, re-point the membership's
 	``current_sales_invoice`` at the freshly generated invoice, so renewal payments
-	collect against the right SI and status reflects the current period."""
-	if frappe.flags.in_install or not doc.get("subscription"):
+	collect against the right SI and status reflects the current period.
+
+	Credit notes are skipped (WP-8): a refund carries the same ``subscription`` link
+	but is not a period to collect against.
+	"""
+	if frappe.flags.in_install or not doc.get("subscription") or doc.get("is_return"):
 		return
 	membership = frappe.db.get_value("Membership", {"subscription": doc.subscription}, "name")
-	if membership:
-		frappe.db.set_value("Membership", membership, "current_sales_invoice", doc.name, update_modified=False)
+	if not membership:
+		return
+	frappe.db.set_value("Membership", membership, "current_sales_invoice", doc.name, update_modified=False)
+	# WP-8: a member who paid several periods up front should not read as Overdue
+	# the moment the next one is billed. Best-effort; never blocks the invoice.
+	from netgainz.net_gainz.accounting import advances
+
+	advances.on_membership_invoice_submitted(membership)
 
 
 # --------------------------------------------------------------------------- #
@@ -306,16 +450,32 @@ def _allocate_oldest_first(pe, si_name, amount) -> None:
 
 
 def record_payment(
-	membership, amount, payment_mode, posting_date, sales_invoice=None, reference_no=None, company=None
+	membership,
+	amount,
+	payment_mode,
+	posting_date,
+	sales_invoice=None,
+	reference_no=None,
+	company=None,
+	allow_advance=False,
 ) -> str:
 	"""Record a member payment as a submitted Payment Entry against the membership's
-	Sales Invoice. ``posting_date`` is REQUIRED (R3 — cash counts when collected)."""
+	Sales Invoice. ``posting_date`` is REQUIRED (R3 — cash counts when collected).
+
+	WP-8: a payment for MORE than this period's invoice is no longer rejected when
+	``allow_advance`` is set. The invoice takes what it is owed and the excess stays
+	on the Payment Entry as ``unallocated_amount`` — money on the member's account,
+	not revenue, until a later period's invoice claims it (see accounting.advances
+	for the recognition rule). Left off by default so a fat-fingered amount is still
+	caught rather than quietly parked.
+	"""
 	from erpnext.accounts.doctype.payment_entry.payment_entry import get_payment_entry
 
 	membership = _as_doc("Membership", membership)
 	company = _company(company)
 	if not company:
 		frappe.throw("No default Company is set. Create or set a Company in ERPNext first.")
+	currency.assert_paise_safe(company)
 	if not posting_date:
 		frappe.throw("A posting date is required to record a payment.")
 	posting_date = getdate(posting_date)
@@ -332,7 +492,12 @@ def record_payment(
 	if not si_name and membership.get("subscription"):
 		si_name = frappe.db.get_value(
 			"Sales Invoice",
-			{"subscription": membership.subscription, "docstatus": 1, "outstanding_amount": [">", 0]},
+			{
+				"subscription": membership.subscription,
+				"docstatus": 1,
+				"outstanding_amount": [">", 0],
+				**NOT_A_CREDIT_NOTE,
+			},
 			"name",
 			order_by="posting_date desc",
 		)
@@ -340,11 +505,13 @@ def record_payment(
 	if not si_name or not frappe.db.exists("Sales Invoice", si_name):
 		frappe.throw("No open Sales Invoice to record this payment against — generate the invoice first.")
 
-	outstanding = flt(frappe.db.get_value("Sales Invoice", si_name, "outstanding_amount"))
-	if amount > outstanding:
+	invoice = frappe.db.get_value("Sales Invoice", si_name, ["outstanding_amount", "currency"], as_dict=True)
+	currency.assert_company_currency(invoice.currency, company, what="invoice")
+	outstanding = flt(invoice.outstanding_amount)
+	if amount > outstanding and not allow_advance:
 		frappe.throw(
 			f"Payment {amount} exceeds the invoice outstanding {outstanding}. "
-			"Overpayments / advances are not supported yet."
+			"Record the extra as money on account if the member is paying ahead."
 		)
 
 	pe = get_payment_entry("Sales Invoice", si_name)
@@ -359,11 +526,16 @@ def record_payment(
 	pe.cost_center = branch.branch_cost_center(membership.get("branch"), company)
 	if reference_no:
 		pe.reference_no = reference_no
-	_allocate_oldest_first(pe, si_name, amount)
+	# Allocate at most what is owed; ERPNext turns the rest into unallocated_amount.
+	_allocate_oldest_first(pe, si_name, min(amount, outstanding))
 	pe.insert(ignore_permissions=True)
 	pe.submit()
 
 	membership.db_set("current_sales_invoice", si_name, update_modified=False)
+	# Re-derive status / balance / due date from the invoice this payment just settled.
+	# Refunds and write-offs already did this; collecting money did not, so a paid
+	# member kept reading "Pending" on every list until something else saved the record.
+	sync_derived_fields(membership)
 	return pe.name
 
 
@@ -371,6 +543,51 @@ def record_payment(
 # derived membership state (R4: one source of truth = invoice outstanding)
 # --------------------------------------------------------------------------- #
 PAY_AS_YOU_GO = "Pay-as-you-go"
+
+
+def installment_parts(membership) -> int:
+	"""How many invoices a Pay-as-you-go period is split into (1 for Commitment)."""
+	if billing_mode(membership) != PAY_AS_YOU_GO:
+		return 1
+	plan = membership.get("membership_plan")
+	parts = int(membership.get("installment_count") or 0) or int(
+		(plan and frappe.db.get_value("Membership Plan", plan, "installment_count")) or 1
+	)
+	return max(1, parts)
+
+
+def membership_price(membership) -> float:
+	"""**What THIS member pays**, per invoice, for their plan.
+
+	A gym does not charge everyone on "Monthly" the same fee — the pilot has 64
+	monthly members paying 18 different prices. A Membership Plan holds exactly one
+	price, so the plan's amount is the *default*, not the truth.
+
+	``Membership.tariff`` is that truth. The field already carried the right
+	semantics — ``fetch_from: membership_plan.amount`` with ``fetch_if_empty``, so a
+	blank price fills itself from the plan and an entered one stands — it simply
+	stopped being read when WP-11 removed the legacy ``fee_collected``-vs-``tariff``
+	status maths. It is the INPUT price again; nothing derives it, and no status or
+	balance is computed from it (those still come from the invoice, R4).
+
+	Pay-as-you-go bills one installment per invoice, so the period price is divided
+	by the number of parts — mirroring ``provisioning.installment_rate``.
+
+	Returns 0 when neither the membership nor its plan carries a price; callers must
+	treat that as **not billable** rather than free (see :func:`is_billable`).
+	"""
+	membership = _as_doc("Membership", membership)
+	price = flt(membership.get("tariff"))
+	if price <= 0 and membership.get("membership_plan"):
+		price = flt(frappe.db.get_value("Membership Plan", membership.membership_plan, "amount"))
+	if price <= 0:
+		return 0.0
+	return flt(price) / installment_parts(membership)
+
+
+def is_billable(membership) -> bool:
+	"""False when no price can be resolved — billing would raise a Rs.0 invoice."""
+	return membership_price(membership) > 0
 
 
 def billing_mode(membership) -> str:
@@ -384,18 +601,18 @@ def billing_mode(membership) -> str:
 def open_obligations(membership) -> list[dict]:
 	"""**The seam.** What this member owes and when — oldest first.
 
-	Both billing modes reduce to the same list of ``(due_date, amount, outstanding)``
-	rows; they differ only in where those rows physically live:
+	  Both billing modes reduce to the same list of ``(due_date, amount, outstanding)``
+	  rows; they differ only in where those rows physically live:
 
-	* **Commitment** — one invoice for the period carrying a ``payment_schedule``
-      row per installment.
-	* **Pay-as-you-go** — one invoice per installment, each its own obligation.
+	  * **Commitment** — one invoice for the period carrying a ``payment_schedule``
+	row per installment.
+	  * **Pay-as-you-go** — one invoice per installment, each its own obligation.
 
-	Everything downstream (status, balance, next-due, payment allocation, the
-	collections list) reads THIS and never touches an invoice directly, so the
-	two modes cost one function instead of branching through the codebase.
+	  Everything downstream (status, balance, next-due, payment allocation, the
+	  collections list) reads THIS and never touches an invoice directly, so the
+	  two modes cost one function instead of branching through the codebase.
 
-	Each row: ``{due_date, amount, outstanding, sales_invoice, payment_term, idx}``.
+	  Each row: ``{due_date, amount, outstanding, sales_invoice, payment_term, idx}``.
 	"""
 	membership = _as_doc("Membership", membership)
 	if billing_mode(membership) == PAY_AS_YOU_GO:
@@ -403,12 +620,41 @@ def open_obligations(membership) -> list[dict]:
 	return _obligations_from_schedule(membership)
 
 
+def _settle_against_invoice(rows, si_name) -> list[dict]:
+	"""Reconcile schedule rows down to the invoice's own ``outstanding_amount``.
+
+	**WP-8.** ``Payment Schedule.outstanding`` is only ever written by Payment
+	Entries (``payment_entry.update_payment_schedule``) — nothing else touches it.
+	So a credit note or a write-off, both of which genuinely settle a receivable,
+	left the installment rows showing the full amount still owing: a written-off
+	member kept reading Overdue with their whole balance (traced 2026-08-08 — the
+	invoice went to 0 outstanding while its schedule row still said 2,360).
+
+	The invoice's scalar ``outstanding_amount`` IS authoritative — ERPNext re-derives
+	it from the payment ledger, so it already reflects payments, credit notes,
+	write-off Journal Entries and anything else that hits the receivable. Absorbing
+	the difference oldest-first keeps the two in step without this function having
+	to know which mechanism did the settling.
+	"""
+	invoice_outstanding = flt(frappe.db.get_value("Sales Invoice", si_name, "outstanding_amount"))
+	# A negative invoice outstanding means the gym owes the member (over-credited);
+	# nothing is owed on any installment.
+	target = max(0.0, invoice_outstanding)
+	surplus = sum(flt(r["outstanding"]) for r in rows) - target
+	if surplus <= 0.005:
+		return rows
+	for row in rows:
+		if surplus <= 0:
+			break
+		take = min(flt(row["outstanding"]), surplus)
+		row["outstanding"] = flt(row["outstanding"]) - take
+		surplus -= take
+	return rows
+
+
 def _obligations_from_schedule(membership) -> list[dict]:
 	"""Commitment mode: the current invoice's payment_schedule rows."""
-	si_name = None
-	if membership.get("subscription"):
-		si_name = _latest_invoice(membership.subscription)
-	si_name = si_name or membership.get("current_sales_invoice")
+	si_name = current_invoice(membership)
 	if not si_name or not frappe.db.exists("Sales Invoice", si_name):
 		return []
 
@@ -419,19 +665,23 @@ def _obligations_from_schedule(membership) -> list[dict]:
 		order_by="due_date asc, idx asc",
 	)
 	if rows:
-		return [
-			{
-				"due_date": getdate(r.due_date) if r.due_date else None,
-				"amount": flt(r.payment_amount),
-				"outstanding": flt(r.outstanding),
-				"sales_invoice": si_name,
-				"payment_term": r.payment_term,
-				"idx": r.idx,
-			}
-			for r in rows
-		]
+		return _settle_against_invoice(
+			[
+				{
+					"due_date": getdate(r.due_date) if r.due_date else None,
+					"amount": flt(r.payment_amount),
+					"outstanding": flt(r.outstanding),
+					"sales_invoice": si_name,
+					"payment_term": r.payment_term,
+					"idx": r.idx,
+				}
+				for r in rows
+			],
+			si_name,
+		)
 
-	# No schedule (a plain single-due-date invoice) -> the invoice IS the obligation.
+	# No schedule (a plain single-due-date invoice) -> the invoice IS the obligation,
+	# and its outstanding already nets credit notes and write-offs.
 	si = frappe.db.get_value(
 		"Sales Invoice", si_name, ["due_date", "grand_total", "outstanding_amount"], as_dict=True
 	)
@@ -439,7 +689,7 @@ def _obligations_from_schedule(membership) -> list[dict]:
 		{
 			"due_date": getdate(si.due_date) if si.due_date else None,
 			"amount": flt(si.grand_total),
-			"outstanding": flt(si.outstanding_amount),
+			"outstanding": max(0.0, flt(si.outstanding_amount)),
 			"sales_invoice": si_name,
 			"payment_term": None,
 			"idx": 1,
@@ -455,7 +705,9 @@ def _obligations_from_invoices(membership) -> list[dict]:
 		return []
 	rows = frappe.get_all(
 		"Sales Invoice",
-		filters={"subscription": membership.subscription, "docstatus": 1},
+		# WP-8: exclude credit notes — they carry the same subscription link but are
+		# a refund of an obligation, not one of their own.
+		filters={"subscription": membership.subscription, "docstatus": 1, **NOT_A_CREDIT_NOTE},
 		fields=["name", "due_date", "grand_total", "outstanding_amount"],
 		order_by="due_date asc, posting_date asc",
 	)
@@ -463,7 +715,9 @@ def _obligations_from_invoices(membership) -> list[dict]:
 		{
 			"due_date": getdate(r.due_date) if r.due_date else None,
 			"amount": flt(r.grand_total),
-			"outstanding": flt(r.outstanding_amount),
+			# Over-credited invoices go negative; the member owes nothing, not less
+			# than nothing.
+			"outstanding": max(0.0, flt(r.outstanding_amount)),
 			"sales_invoice": r.name,
 			"payment_term": None,
 			"idx": index + 1,
@@ -495,6 +749,12 @@ def sync_from_billing(membership) -> None:
 	"""
 	obligations = open_obligations(membership)
 	if not obligations:
+		# DS-4: nothing has been invoiced yet. If that is because the member is on a
+		# free trial, say so — "Pending" would read as money owed, and none is.
+		if trials.is_on_trial(membership):
+			membership.status = trials.TRIAL_STATUS
+			membership.balance_due = 0
+			membership.next_renewal = trials.first_billing_date(membership)
 		return
 
 	membership.current_sales_invoice = obligations[-1]["sales_invoice"]
@@ -506,7 +766,21 @@ def sync_from_billing(membership) -> None:
 	if upcoming and upcoming["due_date"]:
 		membership.due_date = upcoming["due_date"]
 
-	if outstanding <= 0:
+	# WP-8: how this period's balance got settled, for the owner to see. Both are
+	# derived per CURRENT invoice, never accumulated on the membership, so the next
+	# period starts clean without any state to reset.
+	from netgainz.net_gainz.accounting import refunds, writeoff
+
+	si_name = membership.current_sales_invoice
+	written_off = writeoff.written_off_against(si_name)
+	membership.written_off_amount = written_off
+	membership.refunded_amount = refunds.credited_against(si_name)
+
+	if outstanding <= 0 and written_off > 0:
+		# ERPNext marks a written-off invoice "Paid". For the owner that is a lie:
+		# nobody paid. Say what actually happened.
+		membership.status = "Written Off"
+	elif outstanding <= 0:
 		membership.status = "Paid"
 	elif upcoming and upcoming["due_date"] and getdate(today()) > upcoming["due_date"]:
 		membership.status = "Overdue"
@@ -547,6 +821,8 @@ def sync_derived_fields(membership) -> None:
 		"due_date",
 		"next_renewal",
 		"overdue_days",
+		"written_off_amount",
+		"refunded_amount",
 	):
 		value = membership.get(field)
 		if value is not None:
@@ -565,18 +841,35 @@ def _members_to_customers(members):
 
 
 def collected_paise(start, end, customers=None) -> int:
-	"""Membership REVENUE collected in [start, end], from Payment Entries, in
-	integer paise.
+	"""Membership revenue **net of refunds** collected in [start, end], in integer
+	paise, read from Payment Entries.
 
-	Allocation-anchored: sums each Payment Entry Reference.allocated_amount for
-	submitted Receive PEs whose Sales Invoice was subscription-generated (a
-	membership invoice). This excludes advances/unallocated cash, non-membership
-	income, capital injections, transfers and refunds by construction.
+	Allocation-anchored: sums each Payment Entry Reference's ``allocated_amount``
+	for submitted Payment Entries against a subscription-generated Sales Invoice.
+	Unallocated cash (advances / money on account) is excluded by construction —
+	so are non-membership income, capital injections and transfers — and an advance
+	enters this total on the day it was RECEIVED, once it is applied to a membership
+	invoice (see accounting.advances for the recognition rule).
+
+	**WP-8 cash-impact rule: a refunded rupee leaves this total.** A refund is a
+	``Pay`` Payment Entry allocated to the credit note (or to the over-credited
+	original), and ERPNext writes that allocation NEGATIVE — traced 2026-08-08:
+	``payment_type='Pay'``, ``allocated_amount=-590`` against a credit note whose
+	``grand_total`` is ``-590``. Summing allocations signed is therefore exactly the
+	net cash that moved, with no special-casing: the old ``payment_type='Receive'``
+	and ``grand_total > 0`` filters are what used to make refunds invisible, and
+	they are gone.
 
 	Each allocation is scaled by ``net_total / grand_total`` so only the **ex-GST**
-	portion counts — GST collected is a pass-through liability, not revenue, and PF
-	must allocate real revenue. For a non-GST tenant grand_total == net_total, so the
-	scale is 1 and it is a no-op. Single-currency (the SI document currency)."""
+	portion counts — GST collected is a pass-through liability, not revenue. Both
+	totals are negative on a credit note, so the ratio stays positive and the sign
+	comes from the allocation alone. For a non-GST tenant the ratio is 1.
+
+	Multi-currency safe (WP-8): allocations are converted to **company currency**
+	via the reference row's own ``exchange_rate`` (Payment Entry Reference has no
+	stored base amount), so a foreign-currency document can never be summed into
+	the base-currency total at face value.
+	"""
 	if customers is not None and not customers:
 		return 0
 	params = {"start": getdate(start), "end": getdate(end)}
@@ -586,16 +879,18 @@ def collected_paise(start, end, customers=None) -> int:
 		params["customers"] = tuple(customers)
 	rows = frappe.db.sql(
 		f"""
-		SELECT per.allocated_amount * si.net_total / si.grand_total AS amt
+		SELECT per.allocated_amount
+		       * COALESCE(NULLIF(per.exchange_rate, 0), 1)
+		       * si.net_total / si.grand_total AS amt
 		FROM `tabPayment Entry Reference` per
 		INNER JOIN `tabPayment Entry` pe ON pe.name = per.parent
 		INNER JOIN `tabSales Invoice` si ON si.name = per.reference_name
 		WHERE pe.docstatus = 1
-		  AND pe.payment_type = 'Receive'
+		  AND pe.payment_type IN ('Receive', 'Pay')
 		  AND pe.posting_date BETWEEN %(start)s AND %(end)s
 		  AND per.reference_doctype = 'Sales Invoice'
 		  AND si.subscription IS NOT NULL AND si.subscription != ''
-		  AND si.grand_total > 0
+		  AND si.grand_total != 0
 		  {party_clause}
 		""",
 		params,
@@ -620,19 +915,54 @@ def membership_collected_paise(start, end, members=None) -> int:
 # whitelisted owner / BFF entry points
 # --------------------------------------------------------------------------- #
 @frappe.whitelist()
-def record_membership_payment(membership, amount, payment_mode=None, posting_date=None, reference_no=None) -> dict:
-	"""Owner/BFF: record a payment; returns the Payment Entry + remaining outstanding."""
-	pe = record_payment(membership, amount, payment_mode, posting_date or today(), reference_no=reference_no)
+def record_membership_payment(
+	membership, amount, payment_mode=None, posting_date=None, reference_no=None, allow_advance=0
+) -> dict:
+	"""Owner/BFF: record a payment; returns the Payment Entry + remaining outstanding.
+
+	``allow_advance`` lets the member pay more than this period's invoice; the
+	excess is parked on their account (WP-8) instead of being rejected.
+	"""
+	from netgainz.net_gainz import permissions
+	from netgainz.net_gainz.accounting import advances
+
+	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	pe = record_payment(
+		membership,
+		amount,
+		payment_mode,
+		posting_date or today(),
+		reference_no=reference_no,
+		allow_advance=bool(int(allow_advance or 0)),
+	)
 	si = frappe.db.get_value("Membership", membership, "current_sales_invoice")
 	outstanding = flt(frappe.db.get_value("Sales Invoice", si, "outstanding_amount")) if si else 0
-	return {"payment_entry": pe, "outstanding": outstanding}
+	return {
+		"payment_entry": pe,
+		"outstanding": outstanding,
+		"advance_balance": advances.advance_balance(membership),
+	}
 
 
 @frappe.whitelist()
 def generate_membership_invoice(membership, posting_date=None) -> dict:
 	"""Owner/BFF: bill the current period now. Provisions the Subscription first."""
+	from netgainz.net_gainz import permissions
+
+	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
 	company = _company()
 	ensure_subscription(membership, company)
+	# DS-4: refuse to bill a member whose free trial is still running. ERPNext decides
+	# "am I trialling?" from TODAY's date (Subscription.period_has_passed uses nowdate,
+	# not the posting date), so an invoice generated now would come out 100% discounted
+	# — a submitted Rs.0 invoice that then blocks the real one for that period.
+	membership_doc = _as_doc("Membership", membership)
+	if trials.is_on_trial(membership_doc):
+		ends = trials.trial_end(membership_doc)
+		frappe.throw(
+			f"This member is on a free trial until {frappe.format_value(ends, {'fieldtype': 'Date'})}. "
+			"Billing starts by itself the next day."
+		)
 	invoice = force_generate_invoice(membership, posting_date)
 	return {"sales_invoice": invoice}
 
@@ -643,7 +973,10 @@ def get_membership_obligations(membership) -> dict:
 
 	Serialised straight from :func:`open_obligations`, so the owner app shows the
 	same rows the backend bills and allocates against, in either billing mode."""
+	from netgainz.net_gainz.accounting import advances, refunds, writeoff
+
 	rows = open_obligations(membership)
+	si_name = rows[-1]["sales_invoice"] if rows else None
 	return {
 		"obligations": [
 			{
@@ -658,7 +991,53 @@ def get_membership_obligations(membership) -> dict:
 		],
 		"total": flt(sum(flt(o["amount"]) for o in rows)),
 		"outstanding": flt(sum(flt(o["outstanding"]) for o in rows)),
+		# WP-8: how the rest of the period's balance was settled, if not by cash.
+		"refunded": refunds.credited_against(si_name) if si_name else 0.0,
+		"written_off": writeoff.written_off_against(si_name) if si_name else 0.0,
+		"advance_balance": advances.advance_balance(membership),
 	}
+
+
+@frappe.whitelist()
+def unbillable_memberships() -> dict:
+	"""Owner/BFF: who cannot be billed yet, and why.
+
+	A membership with no resolvable price is deliberately left without a
+	Subscription — better an obvious gap than a submitted Rs.0 invoice, which is
+	silent revenue leakage and a mess to unwind. This is the list the owner works
+	through before switching billing on: set the member's own price (or the plan's),
+	then generate.
+	"""
+	rows = []
+	for ms in frappe.get_all(
+		"Membership",
+		fields=["name", "member", "member_name", "membership_plan", "tariff", "subscription"],
+		limit_page_length=0,
+	):
+		if is_billable(ms.name):
+			continue
+		plan_amount = (
+			flt(frappe.db.get_value("Membership Plan", ms.membership_plan, "amount"))
+			if ms.membership_plan
+			else 0
+		)
+		rows.append(
+			{
+				"membership": ms.name,
+				"member": ms.member,
+				"member_name": ms.member_name or ms.member,
+				"membership_plan": ms.membership_plan,
+				"price": flt(ms.tariff),
+				"plan_amount": plan_amount,
+				"has_subscription": bool(ms.subscription),
+				"reason": (
+					"No price on the membership and no amount on the plan"
+					if not plan_amount
+					else "No price on the membership"
+				),
+			}
+		)
+	return {"count": len(rows), "rows": rows}
 
 
 @frappe.whitelist()
@@ -670,6 +1049,9 @@ def report_cycle_anchor_drift() -> dict:
 	FIRST, review the list, brief the front desk, and only then apply a
 	convert-once patch (ADR-0007). Reports only — changes nothing.
 	"""
+	from netgainz.net_gainz import permissions
+
+	permissions.require_role(permissions.GYM_OWNER)
 	rows = []
 	for ms in frappe.get_all(
 		"Membership",
@@ -677,14 +1059,10 @@ def report_cycle_anchor_drift() -> dict:
 		fields=["name", "member", "member_name", "subscription", "next_renewal"],
 		limit_page_length=0,
 	):
-		sub = frappe.db.get_value(
-			"Subscription", ms.subscription, ["start_date", "plans"], as_dict=True
-		)
+		sub = frappe.db.get_value("Subscription", ms.subscription, ["start_date", "plans"], as_dict=True)
 		if not sub or not sub.start_date:
 			continue
-		plan = frappe.db.get_value(
-			"Subscription Plan Detail", {"parent": ms.subscription}, "plan"
-		)
+		plan = frappe.db.get_value("Subscription Plan Detail", {"parent": ms.subscription}, "plan")
 		expected = cycle_start(ms.member, plan)
 		actual = getdate(sub.start_date)
 		if expected and getdate(expected) != actual:
@@ -707,4 +1085,7 @@ def report_cycle_anchor_drift() -> dict:
 @frappe.whitelist()
 def provision_membership_subscription(membership) -> dict:
 	"""Owner: stand up the Subscription for an existing membership (pilot cut-over)."""
+	from netgainz.net_gainz import permissions
+
+	permissions.require_role(permissions.GYM_OWNER)
 	return {"subscription": ensure_subscription(membership)}

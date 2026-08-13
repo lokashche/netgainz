@@ -30,6 +30,8 @@ export type MembershipPlan = {
   payment_due_rule?: PaymentDueRule;
   installment_count?: number;
   installment_gap_days?: number;
+  /** DS-4: days a new member trains free before their first invoice. 0 = no trial. */
+  trial_days?: number;
   description?: string;
   is_active: 0 | 1;
 };
@@ -44,7 +46,26 @@ export type Obligation = {
   idx: number;
 };
 
-export type SubscriptionStatus = 'Pending' | 'Paid' | 'Overdue' | 'Partial';
+export type Obligations = {
+  obligations: Obligation[];
+  total: number;
+  outstanding: number;
+  refunded: number;
+  written_off: number;
+  advance_balance: number;
+};
+
+export type SubscriptionStatus =
+  // DS-4: enrolled on a free trial — nothing is invoiced until it ends, so this is
+  // not "Pending payment"; no money is owed yet.
+  | 'Trial'
+  | 'Pending'
+  | 'Paid'
+  | 'Overdue'
+  | 'Partial'
+  // WP-8: settled as uncollectable rather than collected. ERPNext calls the
+  // invoice "Paid" once the receivable is written off; the owner needs the truth.
+  | 'Written Off';
 
 export type Subscription = {
   name: string;         // SUB-2026-0001
@@ -52,7 +73,12 @@ export type Subscription = {
   member_name?: string;
   membership_plan?: string;
   month?: string;
+  /** What THIS member pays. Blank fills from the plan; a figure overrides it. */
   tariff?: number;
+  /** DS-4: set while a free trial runs. Billing starts the day after. */
+  trial_ends_on?: string | null;
+  trial_days?: number;
+  skip_trial?: number;
   fee_collected?: number;
   payment_mode?: string;
   balance_due?: number;
@@ -63,6 +89,288 @@ export type Subscription = {
   overdue_days?: number;
   status: SubscriptionStatus;
   comments?: string;
+  // WP-8 settlement, derived per current invoice (read-only).
+  refunded_amount?: number;
+  written_off_amount?: number;
+  // Stage 8 DS-1: this member's negotiated discount. It changes the invoice, never
+  // the plan's price, and always carries an explicit end (R18).
+  /** The offer this membership was given, if any. It fills the discount fields below. */
+  offer?: string | null;
+  discount_type?: DiscountType;
+  discount_value?: number;
+  discount_duration?: DiscountDuration;
+  discount_until?: string | null;
+  discount_reason?: string;
+  discount_granted_by?: string | null;
+  // Set once billing is provisioned. Absent means the membership has no
+  // resolvable price, so nothing is being billed yet.
+  subscription?: string | null;
+  current_sales_invoice?: string | null;
+};
+
+/** DS-6: one row of a discounts breakdown (by offer, reason, staff member or plan). */
+export type DiscountGroup = {
+  label: string;
+  gross: number;
+  given: number;
+  net: number;
+  invoices: number;
+};
+
+/** DS-6: what the gym gave away in a window, and what it cost. */
+export type DiscountsGiven = {
+  start: string;
+  end: string;
+  branch?: string | null;
+  gross: number;
+  given: number;
+  net: number;
+  given_percent: number;
+  invoices: number;
+  members: number;
+  by_offer: DiscountGroup[];
+  by_reason: DiscountGroup[];
+  by_staff: DiscountGroup[];
+  by_plan: DiscountGroup[];
+  by_branch: DiscountGroup[];
+  biggest: {
+    sales_invoice: string;
+    posting_date: string;
+    membership: string;
+    member_name?: string;
+    membership_plan?: string;
+    offer?: string | null;
+    discount_reason?: string;
+    discount_granted_by?: string;
+    gross: number;
+    given: number;
+    net: number;
+  }[];
+  profit_impact: DiscountPreview["profit_impact"];
+};
+
+/** DS-6: the dashboard's one-liner. */
+export type DiscountsThisMonth = {
+  start: string;
+  end: string;
+  given: number;
+  gross: number;
+  given_percent: number;
+  members: number;
+  profit_impact: DiscountPreview["profit_impact"];
+};
+
+/** DS-5: one line of a membership's discount history. */
+export type DiscountLogRow = {
+  name: string;
+  creation: string;
+  action: "Given" | "Changed" | "Removed";
+  granted_by?: string;
+  approved?: 0 | 1;
+  discount_type?: string;
+  discount_value?: number;
+  discount_duration?: string;
+  discount_until?: string | null;
+  offer?: string | null;
+  previous_type?: string;
+  previous_value?: number;
+  reason?: string;
+};
+
+/** DS-4: a member on a free trial, and when it ends. */
+export type TrialRow = {
+  name: string;
+  member: string;
+  member_name?: string;
+  membership_plan?: string;
+  tariff?: number;
+  trial_ends_on: string;
+  status?: string;
+};
+
+export type TrialsEnding = {
+  within_days: number;
+  on_trial: number;
+  ending_soon: TrialRow[];
+  later: TrialRow[];
+};
+
+/** Stage 8 DS-2: a campaign the gym runs. Giving it to a member fills in their discount. */
+export type Offer = {
+  name: string;
+  offer_name: string;
+  description?: string;
+  discount_type: "Percentage" | "Amount";
+  discount_value: number;
+  discount_duration: OfferDuration;
+  valid_from: string;
+  valid_upto?: string | null;
+  max_total_uses?: number;
+  branch?: string | null;
+  disabled?: number;
+  /** DS-3: set, and the offer is only reachable by quoting this code. */
+  coupon_code?: string;
+  max_uses_per_member?: number;
+  plans?: { membership_plan: string }[];
+};
+
+/** What a typed coupon code turns out to be worth. */
+export type RedeemedCoupon = {
+  offer: string;
+  offer_name: string;
+  description?: string;
+  coupon_code: string;
+  discount_type: "Percentage" | "Amount";
+  discount_value: number;
+  discount_duration: OfferDuration;
+  valid_upto?: string | null;
+  uses_left: number | null;
+};
+
+export type OfferDuration = "First invoice only" | "Every invoice" | "Until the offer ends";
+
+/** An offer the desk may give out right now, with how much of it is left. */
+export type AvailableOffer = Pick<
+  Offer,
+  | "name"
+  | "offer_name"
+  | "description"
+  | "discount_type"
+  | "discount_value"
+  | "discount_duration"
+  | "valid_from"
+  | "valid_upto"
+  | "max_total_uses"
+  | "branch"
+> & {
+  /** null when the offer has no limit. */
+  uses_left: number | null;
+  times_used: number;
+};
+
+/** Blank means no discount at all. */
+export type DiscountType = "" | "Percentage" | "Amount";
+
+export type DiscountDuration = "First invoice only" | "Every invoice" | "Until a date";
+
+/** What a proposed discount costs — computed by the backend, never in the browser. */
+export type DiscountPreview = {
+  gross: number;
+  discount: number;
+  net: number;
+  profit_impact: {
+    amount: number;
+    applicable: boolean;
+    tier_code?: string | null;
+    taps?: Record<string, number>;
+    buckets: Record<string, number>;
+  };
+};
+
+/** WP-8: what a membership's money can still do, and what already happened. */
+export type RefundContext = {
+  sales_invoice: string | null;
+  invoice_total?: number;
+  refundable: number;
+  credited: number;
+  collected: number;
+  reasons: string[];
+};
+
+export type RefundResult = {
+  credit_note: string;
+  payment_entry: string | null;
+  cash_refunded: number;
+  credit_applied: number;
+  warnings: string[];
+};
+
+export type WriteOffContext = {
+  sales_invoice: string | null;
+  outstanding: number;
+  written_off: number;
+  reasons: string[];
+};
+
+export type MemberAdvance = {
+  payment_entry: string;
+  posting_date: string;
+  paid_amount: number;
+  unapplied: number;
+  payment_mode?: string | null;
+};
+
+export type AdvanceContext = {
+  balance: number;
+  advances: MemberAdvance[];
+};
+
+/** Go-live: one membership's billing-readiness row. */
+export type ReadinessRow = {
+  membership: string;
+  member: string;
+  member_name: string;
+  membership_plan?: string;
+  price: number;
+  ready: boolean;
+  already_billing: boolean;
+  blocked_reason: string | null;
+  joining_date: string | null;
+  current_period_start?: string;
+  next_period_start?: string;
+  calendar_month_start?: string;
+  part_month_days?: number;
+  part_month_amount?: number;
+  warnings: string[];
+};
+
+export type BillingReadiness = {
+  total: number;
+  ready_count: number;
+  blocked_count: number;
+  already_billing_count: number;
+  warning_count: number;
+  ready: ReadinessRow[];
+  blocked: ReadinessRow[];
+  start_modes: string[];
+};
+
+export type StartBillingResult = {
+  dry_run: boolean;
+  start_mode: string;
+  bill_part_month: boolean;
+  part_month_total: number;
+  started_count: number;
+  skipped_count: number;
+  failed_count: number;
+  started: {
+    membership: string;
+    member_name: string;
+    price: number;
+    first_invoice_on: string;
+    part_month_amount?: number;
+    part_month_days?: number;
+    subscription?: string;
+    warnings: string[];
+  }[];
+  skipped: { membership: string; reason: string }[];
+  failed: { membership: string; error: string }[];
+};
+
+/** WP-8: which product role the signed-in user holds, so the UI hides what they
+ * cannot do rather than letting the server reject the click. */
+export type Capabilities = {
+  roles: string[];
+  can_refund: boolean;
+  can_write_off: boolean;
+  can_record_payment: boolean;
+  can_manage_finance: boolean;
+  // DS-5: the discount policy this user works under, so the desk can ask for the
+  // owner's PIN at the right moment instead of after a refused save.
+  can_discount_freely: boolean;
+  max_discount_percent: number;
+  complimentary_requires_owner: boolean;
+  can_see_discount_history: boolean;
 };
 
 export type AccountingMethod = 'Cash' | 'Accrual';
@@ -76,6 +384,9 @@ export type GymSettings = {
   commission_post_to_ledger?: 0 | 1;
   commission_expense_account?: string;
   commission_payable_account?: string;
+  /** DS-5: the discount policy. */
+  max_discount_percent?: number;
+  complimentary_requires_owner?: 0 | 1;
   renewal_reminder_days?: number;
   renewal_reminders_enabled?: 0 | 1;
   class_term_singular?: string;
