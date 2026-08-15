@@ -4,6 +4,7 @@ import { useState, useEffect, SyntheticEvent, use } from "react";
 import OfferPicker from "@/app/components/OfferPicker";
 import Link from "next/link";
 import LifecyclePanel from "@/app/components/LifecyclePanel";
+import PaymentTermsPanel from "@/app/components/PaymentTermsPanel";
 import DiscountBox, {
   EMPTY_DISCOUNT,
   discountPayload,
@@ -696,6 +697,13 @@ export default function SubscriptionDetailPage({ params }: { params: Params }) {
         </div>
 
         <hr className="border-[#1E2D45]" />
+
+        {/* WP-10: this member's own payment terms, changeable after they joined */}
+        <PaymentTermsPanel
+          membershipId={id}
+          inputClass={inputClass}
+          labelClass={labelClass}
+        />
 
         {/* Installment schedule — the same obligations the backend bills against */}
         {obligations.length > 1 && (

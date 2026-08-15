@@ -6,6 +6,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import LinkFieldPicker, { type LinkFieldOption } from "@/app/components/LinkFieldPicker";
 import OfferPicker from "@/app/components/OfferPicker";
+import PaymentTermsFields, {
+  EMPTY_TERMS,
+  type TermsDraft,
+} from "@/app/components/PaymentTermsFields";
 import DiscountBox, {
   EMPTY_DISCOUNT,
   discountPayload,
@@ -28,6 +32,15 @@ async function fetchMembers(q: string): Promise<LinkFieldOption[]> {
 /** Plan prices seen by the picker, so the discount preview knows the gross. */
 const PLAN_AMOUNTS: Record<string, number> = {};
 
+/** Each plan's own payment terms, so the form can show what the member gets by default. */
+const PLAN_TERMS: Record<string, { parts: number; gap: number; rule: string }> = {};
+
+function planTermsSummary(plan: string): string {
+  const t = PLAN_TERMS[plan];
+  if (!t || t.parts < 2) return "Pays in full";
+  return `Pays in ${t.parts} parts${t.gap ? ` every ${t.gap} days` : ""}`;
+}
+
 async function fetchPlans(q: string): Promise<LinkFieldOption[]> {
   const params = new URLSearchParams({ active_only: "1" });
   if (q) params.set("q", q);
@@ -36,6 +49,11 @@ async function fetchPlans(q: string): Promise<LinkFieldOption[]> {
   const body = (await res.json()) as { data?: MembershipPlan[] };
   return (body.data ?? []).map((p) => {
     if (typeof p.amount === "number") PLAN_AMOUNTS[p.name] = p.amount;
+    PLAN_TERMS[p.name] = {
+      parts: Number(p.installment_count ?? 0),
+      gap: Number(p.installment_gap_days ?? 0),
+      rule: p.payment_due_rule ?? "",
+    };
     return {
     id: p.name,
     label: p.plan_name,
@@ -75,6 +93,8 @@ function NewSubscriptionForm() {
   // takes the plan's amount; typing a figure is this member's own rate.
   const [price, setPrice] = useState("");
   const [comments, setComments] = useState("");
+  // WP-10: this member's own payment terms. Empty means "follow the plan".
+  const [terms, setTerms] = useState<TermsDraft>(EMPTY_TERMS);
   // Stage 8 DS-1: a discount is granted here, with its cost shown before saving.
   const [discount, setDiscount] = useState<DiscountDraft>(EMPTY_DISCOUNT);
   // DS-2: an offer fills the discount in server-side when the membership is saved.
@@ -117,6 +137,14 @@ function NewSubscriptionForm() {
       payload.trial_days = Number(trialDays);
     }
     if (price !== "" && Number.isFinite(Number(price))) payload.tariff = Number(price);
+    // Only send terms the owner actually changed; anything left alone stays on the plan.
+    if (terms.payment_due_rule) payload.payment_due_rule = terms.payment_due_rule;
+    if (terms.installment_count !== "") {
+      payload.installment_count = Number(terms.installment_count);
+    }
+    if (terms.installment_gap_days !== "") {
+      payload.installment_gap_days = Number(terms.installment_gap_days);
+    }
     if (comments) payload.comments = comments;
 
     try {
@@ -197,6 +225,15 @@ function NewSubscriptionForm() {
             inputClassName={inputClass}
           />
         </div>
+
+        {/* WP-10: how this member pays — in full, or in parts */}
+        <PaymentTermsFields
+          value={terms}
+          onChange={setTerms}
+          planSummary={membership_plan ? planTermsSummary(membership_plan) : "Pays in full"}
+          inputClass={inputClass}
+          labelClass={labelClass}
+        />
 
         {/* Month + Price */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

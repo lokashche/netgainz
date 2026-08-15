@@ -48,12 +48,14 @@ MEMBERS_CSV = (
 
 def _clear():
 	"""Remove everything the loader commits, plus the rows it created."""
-	for name in frappe.get_all("Data Load Step", pluck="name"):
-		doc = frappe.db.get_value("Data Load Step", name, "data_import")
-		if doc:
-			frappe.db.delete("Data Import Log", {"data_import": doc})
-			frappe.db.delete("Data Import", {"name": doc})
-		frappe.db.delete("Data Load Step", {"name": name})
+	# Delete by target doctype, not by what a step still points at. Clearing only the
+	# LINKED import left orphans behind from earlier runs, and those orphans then
+	# inflated the "exactly one Data Import" count in the re-upload test.
+	for target in ("Program", "Membership Plan", "Member"):
+		for di in frappe.get_all("Data Import", filters={"reference_doctype": target}, pluck="name"):
+			frappe.db.delete("Data Import Log", {"data_import": di})
+			frappe.db.delete("Data Import", {"name": di})
+	frappe.db.delete("Data Load Step")
 	# Member has no on_trash, so deleting one leaves its auto-provisioned Customer
 	# behind. Under "Customer Name" naming -- which the test fixtures use -- that
 	# orphan then collides with the next run and fails the whole member row.
@@ -62,7 +64,7 @@ def _clear():
 		frappe.delete_doc("Member", name, force=True, ignore_permissions=True)
 		if customer and frappe.db.exists("Customer", customer):
 			frappe.delete_doc("Customer", customer, force=True, ignore_permissions=True)
-	for name in frappe.get_all("Customer", filters={"name": ["like", "Loader %"]}, pluck="name"):
+	for name in frappe.get_all("Customer", filters={"customer_name": ["like", "Loader %"]}, pluck="name"):
 		frappe.delete_doc("Customer", name, force=True, ignore_permissions=True)
 	for dt, like in (("Membership Plan", "TL %"), ("Program", "TL %")):
 		for name in frappe.get_all(dt, filters={"name": ["like", like]}, pluck="name"):
@@ -124,6 +126,16 @@ class TestDataLoad(FrappeTestCase):
 		self.assertIn("TL Strength", messages)
 		self.assertIn("TL Mobility", messages)
 
+	def test_missing_link_advice_follows_the_on_screen_step_order(self):
+		"""The screen numbers Programs 1 and Plans 2, so the advice must say
+		programmes first. Dict order had it saying plans first, which read as the
+		tool contradicting its own numbering."""
+		report = data_load.validate("members", MEMBERS_CSV)
+		errors = [p["message"] for p in report["problems"] if p["kind"] == "error"]
+		programs_at = next(i for i, m in enumerate(errors) if "program" in m)
+		plans_at = next(i for i, m in enumerate(errors) if "membership plan" in m)
+		self.assertLess(programs_at, plans_at)
+
 	def test_members_accepted_once_the_masters_are_there(self):
 		self._load_masters()
 		report = data_load.validate("members", MEMBERS_CSV)
@@ -166,6 +178,20 @@ class TestDataLoad(FrappeTestCase):
 		)
 		self.assertEqual(frappe.db.count("Data Import", {"reference_doctype": "Program"}), 1)
 
+	def test_reupload_of_a_fully_loaded_file_does_nothing(self):
+		"""A complete file re-uploaded must report "nothing to do", not start an
+		import. If the step's Data Import record were ever lost, a new one would
+		re-attempt every row, every row would be refused as a duplicate, and the
+		owner would see a red Failed for a file that was actually complete."""
+		data_load.run("programs", PROGRAMS_CSV, "tl_programs.csv")
+		frappe.db.set_value("Data Load Step", "programs", "data_import", None)
+		frappe.db.commit()
+
+		result = data_load.run("programs", PROGRAMS_CSV, "tl_programs.csv")
+		self.assertFalse(result["started"])
+		self.assertTrue(result.get("nothing_to_do"))
+		self.assertEqual(frappe.db.count("Program", {"name": ["like", "TL %"]}), 2)
+
 	def test_already_loaded_rows_are_information_not_an_error(self):
 		data_load.run("programs", PROGRAMS_CSV, "tl_programs.csv")
 		report = data_load.validate("programs", PROGRAMS_CSV)
@@ -182,29 +208,46 @@ class TestDataLoad(FrappeTestCase):
 		)
 		self.assertEqual(frappe.db.get_value("Member", "TL0002", "gym_program"), "TL Mobility")
 
-	def test_repeated_names_refused_when_customers_are_named_after_people(self):
-		"""Runbook step 4.3, enforced instead of remembered.
+	TWINS = (
+		"member_code,full_name,membership_plan,gym_program\n"
+		"TL0003,Loader Twin,TL Monthly,TL Strength\n"
+		"TL0004,Loader Twin,TL Monthly,TL Strength\n"
+	)
 
-		A Member auto-provisions a Customer. Under "Customer Name" naming the
-		customer's ID IS the person's name, so a repeated name collides -- and the
-		collision fails the whole member row, losing the member. The real 267-row
-		register carries five repeated names, so this had to become a guard.
+	def test_repeated_names_are_information_never_an_instruction_to_open_desk(self):
+		"""The owner never opens Frappe Desk, so a message telling them to is a bug.
+
+		Two members sharing a name used to be fatal: the customer's ID IS the name,
+		and during an import the clash kills the whole member row. The app now
+		corrects the numbering itself, so this is worth mentioning and nothing more.
 		"""
 		self._load_masters()
-		# The global default is what ERPNext consults, and it is NOT the single.
 		before = frappe.defaults.get_global_default("cust_master_name")
 		frappe.db.set_default("cust_master_name", "Customer Name")
 		try:
-			twins = (
-				"member_code,full_name,membership_plan,gym_program\n"
-				"TL0003,Loader Twin,TL Monthly,TL Strength\n"
-				"TL0004,Loader Twin,TL Monthly,TL Strength\n"
+			report = data_load.validate("members", self.TWINS)
+			self.assertTrue(report["ok"], "a repeated name must no longer block the load")
+			text = " ".join(p["message"] for p in report["problems"])
+			self.assertIn("Loader Twin", text)
+			for forbidden in ("Selling Settings", "Naming Series", "SAVE"):
+				self.assertNotIn(forbidden, text)
+		finally:
+			frappe.db.set_default("cust_master_name", before or "")
+
+	def test_loading_members_corrects_the_customer_numbering_itself(self):
+		"""The setting that used to be a runbook line the owner had to remember."""
+		self._load_masters()
+		before = frappe.defaults.get_global_default("cust_master_name")
+		frappe.db.set_default("cust_master_name", "Customer Name")
+		try:
+			result = data_load.run("members", self.TWINS, "tl_twins.csv")
+			self.assertTrue(result["started"], result)
+			self.assertEqual(
+				frappe.defaults.get_global_default("cust_master_name"), "Naming Series"
 			)
-			report = data_load.validate("members", twins)
-			self.assertFalse(report["ok"])
-			messages = " ".join(p["message"] for p in report["problems"] if p["kind"] == "error")
-			self.assertIn("Loader Twin", messages)
-			self.assertIn("Naming Series", messages)
+			# Both twins survived, which is the whole point.
+			self.assertTrue(frappe.db.exists("Member", "TL0003"))
+			self.assertTrue(frappe.db.exists("Member", "TL0004"))
 		finally:
 			frappe.db.set_default("cust_master_name", before or "")
 
@@ -213,12 +256,7 @@ class TestDataLoad(FrappeTestCase):
 		before = frappe.defaults.get_global_default("cust_master_name")
 		frappe.db.set_default("cust_master_name", "Naming Series")
 		try:
-			twins = (
-				"member_code,full_name,membership_plan,gym_program\n"
-				"TL0003,Loader Twin,TL Monthly,TL Strength\n"
-				"TL0004,Loader Twin,TL Monthly,TL Strength\n"
-			)
-			self.assertTrue(data_load.validate("members", twins)["ok"])
+			self.assertTrue(data_load.validate("members", self.TWINS)["ok"])
 		finally:
 			frappe.db.set_default("cust_master_name", before or "")
 

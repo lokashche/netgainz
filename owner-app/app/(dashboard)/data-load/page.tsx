@@ -75,11 +75,13 @@ function StepCard({
   const [loading, setLoading] = useState(false);
   const [check, setCheck] = useState<DataLoadValidation | null>(null);
   const [error, setError] = useState("");
+  const [note, setNote] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   const pick = async (f: File | null) => {
     setCheck(null);
     setError("");
+    setNote("");
     setFile(f);
     setContent(f ? await f.text() : "");
   };
@@ -101,6 +103,7 @@ function StepCard({
   const doCheck = async () => {
     setChecking(true);
     setError("");
+    setNote("");
     try {
       setCheck((await post("validate")) as DataLoadValidation);
     } catch (e) {
@@ -113,9 +116,14 @@ function StepCard({
   const doLoad = async () => {
     setLoading(true);
     setError("");
+    setNote("");
     try {
       const result = (await post("run")) as DataLoadRunResult;
-      if (!result.started) {
+      if (result.nothing_to_do) {
+        // Not a failure — the file is simply complete already.
+        setNote(result.message ?? "Everything in this file is already loaded.");
+        setCheck(null);
+      } else if (!result.started) {
         setCheck(result.validation);
         setError(result.error ?? "The file was not loaded.");
       } else {
@@ -218,6 +226,7 @@ function StepCard({
         </div>
       )}
 
+      {note && <p className="mt-3 text-[#22D38C] text-sm">{note}</p>}
       {error && <p className="mt-3 text-[#F87171] text-sm">{error}</p>}
       {step.required_columns?.length ? (
         <p className="mt-3 text-[#8A97B2] text-xs">

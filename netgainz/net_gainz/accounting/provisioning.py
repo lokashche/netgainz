@@ -306,6 +306,44 @@ def on_plan_update(doc, method=None):
 	provision_plan(doc)
 
 
+CUSTOMER_NAMING = "Naming Series"
+
+
+def ensure_customer_naming() -> bool:
+	"""Make ERPNext number Customers, instead of naming them after the person.
+
+	A Member auto-provisions a Customer. Left on ERPNext's "Customer Name" setting,
+	that Customer's ID *is* the person's name -- so two members called the same thing
+	collide. Outside an import ERPNext quietly renames the second to "Vinay - 1", but
+	`Customer.get_customer_name` skips that rename when ``frappe.flags.in_import`` is
+	set, so **during a load a repeated name fails the whole member row and the member
+	is lost silently**. One real register carries five repeated names.
+
+	No gym owner should have to know this, and asking them to set it per tenant is a
+	step that gets missed exactly once and costs real members. So the app sets it,
+	the same way it provisions every other ERPNext master.
+
+	Saved through the Selling Settings document on purpose: ``Customer.autoname``
+	reads ``frappe.defaults.get_global_default("cust_master_name")``, and only
+	``SellingSettings.on_update`` copies the field there. Writing the single directly
+	leaves the screen saying one thing and ERPNext doing another -- verified live
+	2026-08-15, the screen read "Naming Series" while customers were still being named
+	"Paul Johnson".
+
+	Idempotent. Returns True if ERPNext will now number customers.
+	"""
+	if frappe.defaults.get_global_default("cust_master_name") != CUSTOMER_NAMING:
+		settings = frappe.get_single("Selling Settings")
+		settings.cust_master_name = CUSTOMER_NAMING
+		settings.save(ignore_permissions=True)
+	return frappe.defaults.get_global_default("cust_master_name") == CUSTOMER_NAMING
+
+
+def after_install():
+	"""Config a new tenant needs before anyone touches it."""
+	ensure_customer_naming()
+
+
 # --------------------------------------------------------------------------- #
 # owner-triggered bulk provisioning
 # --------------------------------------------------------------------------- #

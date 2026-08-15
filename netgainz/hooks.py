@@ -91,6 +91,10 @@ after_install = [
 	# Stage 7 WP-8: create the Gym Owner / Gym Staff roles and grant the owner
 	# read access to the ERPNext documents the engine creates for them.
 	"netgainz.net_gainz.permissions.apply_permission_matrix",
+	# TL-1: number Customers instead of naming them after the member. Left to
+	# ERPNext's default, two members with the same name collide and the second is
+	# LOST during an import. No tenant should have to know that, let alone set it.
+	"netgainz.net_gainz.accounting.provisioning.after_install",
 ]
 
 # Uninstallation
@@ -237,6 +241,10 @@ scheduler_events = {
 		# OP-5: raise an in-app reminder for members whose re-assessment is due
 		# or overdue (idempotent; notify-only).
 		"netgainz.net_gainz.operations.assessments.notify_assessments_due",
+		# Money owed. Five daily reminders existed before this one and not one of
+		# them was about being paid -- the gym was told to chase a member who had
+		# stopped coming, but not one who had missed an instalment.
+		"netgainz.net_gainz.accounting.collections.notify_dues",
 	],
 }
 
