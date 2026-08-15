@@ -244,3 +244,103 @@ def sync_plan_template(plan) -> str | None:
 	if template and plan.get("payment_terms_template") != template:
 		plan.payment_terms_template = template
 	return template
+
+
+# --------------------------------------------------------------------------- #
+# owner-facing: describing and changing a member's terms
+# --------------------------------------------------------------------------- #
+def describe(due_rule: str | None, parts: int | None, gap_days: int | None) -> str:
+	"""The policy in the words a gym owner would use.
+
+	The owner never sees a Payment Terms Template, so this is the only place the
+	policy is ever spelled out to them.
+	"""
+	parts = max(1, int(parts or 1))
+	gap = int(gap_days or 0)
+	rule = due_rule or DUE_ON_JOINING
+	if parts == 1:
+		return {
+			DUE_ON_JOINING: "Pays in full when they join",
+			DUE_IN_7_DAYS: "Pays in full within 7 days",
+			DUE_5TH_NEXT_MONTH: "Pays in full by the 5th of next month",
+		}.get(rule, "Pays in full")
+	when = {
+		DUE_ON_JOINING: "starting when they join",
+		DUE_IN_7_DAYS: "starting within 7 days",
+		DUE_5TH_NEXT_MONTH: "starting by the 5th of next month",
+	}.get(rule, "")
+	every = f"every {gap} days" if gap else ""
+	return " ".join(x for x in (f"Pays in {parts} parts", every, when) if x)
+
+
+@frappe.whitelist()
+def get_membership_terms(membership) -> dict:
+	"""Owner/BFF: this member's payment terms, and the plan default behind them."""
+	from netgainz.net_gainz import permissions
+
+	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	ms = frappe.get_doc("Membership", membership)
+	plan = (
+		frappe.db.get_value(
+			"Membership Plan",
+			ms.membership_plan,
+			["payment_due_rule", "installment_count", "installment_gap_days"],
+			as_dict=True,
+		)
+		if ms.membership_plan
+		else None
+	) or frappe._dict()
+
+	own = bool(ms.payment_due_rule or int(ms.installment_count or 0) > 1)
+	rule = ms.payment_due_rule or plan.get("payment_due_rule") or DUE_ON_JOINING
+	parts = int(ms.installment_count or 0) or int(plan.get("installment_count") or 1)
+	gap = int(ms.installment_gap_days or 0) or int(plan.get("installment_gap_days") or 30)
+
+	return {
+		"membership": ms.name,
+		"uses_own_terms": own,
+		"payment_due_rule": rule,
+		"installment_count": parts,
+		"installment_gap_days": gap,
+		"summary": describe(rule, parts, gap),
+		"plan": ms.membership_plan,
+		"plan_summary": describe(
+			plan.get("payment_due_rule"),
+			plan.get("installment_count"),
+			plan.get("installment_gap_days"),
+		),
+		"due_rules": list(DUE_RULES),
+		"max_installments": MAX_INSTALLMENTS,
+	}
+
+
+@frappe.whitelist()
+def set_membership_terms(
+	membership, payment_due_rule=None, installment_count=None, installment_gap_days=None
+) -> dict:
+	"""Owner/BFF: give ONE member their own payment terms, or send them back to
+	the plan's.
+
+	**Applies to the next invoice, not one already raised.** ERPNext marks a Sales
+	Invoice's ``payment_schedule`` and ``payment_terms_template``
+	``allow_on_submit = 0``, so a submitted invoice's instalments cannot be
+	restated -- and rightly so, because money may already be allocated against
+	those rows. Pass no values to clear the override and follow the plan again.
+	"""
+	from netgainz.net_gainz import permissions
+
+	permissions.require_role(permissions.GYM_OWNER)
+	ms = frappe.get_doc("Membership", membership)
+
+	parts = int(installment_count or 0)
+	if parts and parts > MAX_INSTALLMENTS:
+		frappe.throw(f"At most {MAX_INSTALLMENTS} parts are supported (got {parts}).")
+	if payment_due_rule and payment_due_rule not in DUE_RULES:
+		frappe.throw(f"Unknown payment due rule {payment_due_rule!r}.")
+
+	ms.payment_due_rule = payment_due_rule or None
+	ms.installment_count = parts or 0
+	ms.installment_gap_days = int(installment_gap_days or 0) or 0
+	ms.save(ignore_permissions=True)
+	frappe.db.commit()
+	return get_membership_terms(ms.name)

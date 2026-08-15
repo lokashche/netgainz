@@ -405,6 +405,8 @@ export type GymSettings = {
   assessment_interval_days?: number;
   assessment_due_soon_days?: number;
   assessment_reminders_enabled?: 0 | 1;
+  dues_reminder_days?: number;
+  dues_reminders_enabled?: 0 | 1;
 };
 
 export type CancellationRefundPolicy = 'No refund' | 'Prorated unused days';
@@ -1095,4 +1097,46 @@ export type DataLoadRunResult = {
   /** Every row in the file is already loaded, so no import was started. */
   nothing_to_do?: boolean;
   message?: string;
+};
+
+
+/* ── Payment terms (WP-10 / per-member splits) ────────────────────────────── */
+
+export type MembershipTerms = {
+  membership: string;
+  /** True when this member has terms of their own rather than the plan's. */
+  uses_own_terms: boolean;
+  payment_due_rule: PaymentDueRule;
+  installment_count: number;
+  installment_gap_days: number;
+  /** The policy in plain words, e.g. "Pays in 3 parts every 30 days". */
+  summary: string;
+  plan: string | null;
+  plan_summary: string;
+  due_rules: PaymentDueRule[];
+  max_installments: number;
+};
+
+export type DueRow = {
+  membership: string;
+  member: string;
+  member_name: string | null;
+  membership_plan: string | null;
+  branch: string | null;
+  due_date: string;
+  amount: number;
+  outstanding: number;
+  sales_invoice: string | null;
+  part: number | null;
+  days_late: number;
+};
+
+export type Collections = {
+  within_days: number;
+  late: DueRow[];
+  due_today: DueRow[];
+  due_soon: DueRow[];
+  total_late: number;
+  total_due_today: number;
+  total_due_soon: number;
 };

@@ -53,6 +53,9 @@ export default function SettingsPage() {
   const [assessment_interval_days, setAssessmentInterval] = useState("90");
   const [assessment_due_soon_days, setAssessmentDueWindow] = useState("7");
   const [assessment_reminders_enabled, setAssessmentRemindersEnabled] = useState(true);
+  // Money owed: how far ahead a payment counts as coming up, and the daily nudge.
+  const [dues_reminder_days, setDuesReminderDays] = useState("3");
+  const [dues_reminders_enabled, setDuesRemindersEnabled] = useState(true);
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -96,6 +99,8 @@ export default function SettingsPage() {
           setAssessmentInterval(String(s.assessment_interval_days || 90));
           setAssessmentDueWindow(String(s.assessment_due_soon_days || 7));
           setAssessmentRemindersEnabled(s.assessment_reminders_enabled !== 0);
+          setDuesReminderDays(String(s.dues_reminder_days || 3));
+          setDuesRemindersEnabled(s.dues_reminders_enabled !== 0);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unexpected error");
@@ -148,6 +153,8 @@ export default function SettingsPage() {
           assessment_interval_days: Number(assessment_interval_days) || 90,
           assessment_due_soon_days: Number(assessment_due_soon_days) || 7,
           assessment_reminders_enabled: assessment_reminders_enabled ? 1 : 0,
+          dues_reminder_days: Number(dues_reminder_days) || 3,
+          dues_reminders_enabled: dues_reminders_enabled ? 1 : 0,
         }),
       });
 
@@ -651,6 +658,44 @@ export default function SettingsPage() {
             />
             <label htmlFor="assessment_reminders_enabled" className="text-sm text-[#E6EDF7]">
               Daily in-app assessment reminder
+            </label>
+          </div>
+        </section>
+
+        <section className="bg-[#111A2E] border border-[#1E2D45] rounded-xl p-5">
+          <h2 className="text-sm font-semibold text-[#E6EDF7] mb-1">Collecting money</h2>
+          <p className="text-xs text-[#8A97B2] mb-4">
+            When a member pays in parts, each part is its own promise to chase.
+          </p>
+
+          <div className="max-w-xs">
+            <label htmlFor="dues_reminder_days" className={labelClass}>
+              Remind me this many days ahead
+            </label>
+            <input
+              type="number"
+              id="dues_reminder_days"
+              min={0}
+              max={60}
+              value={dues_reminder_days}
+              onChange={(e) => setDuesReminderDays(e.target.value)}
+              className={inputClass}
+            />
+          </div>
+          <p className="mt-2 text-xs text-[#8A97B2]">
+            Anything already late is always included, however this is set.
+          </p>
+
+          <div className="mt-4 flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="dues_reminders_enabled"
+              checked={dues_reminders_enabled}
+              onChange={(e) => setDuesRemindersEnabled(e.target.checked)}
+              className="w-4 h-4 rounded accent-[#22D38C] cursor-pointer"
+            />
+            <label htmlFor="dues_reminders_enabled" className="text-sm text-[#E6EDF7]">
+              Daily in-app reminder of money owed
             </label>
           </div>
         </section>

@@ -19,6 +19,9 @@ export async function GET(req: NextRequest) {
     "duration_in_days",
     "amount",
     "is_active",
+    "payment_due_rule",
+    "installment_count",
+    "installment_gap_days",
   ]);
 
   const filters: Array<[string, string, string | number]> = [];

@@ -241,6 +241,10 @@ scheduler_events = {
 		# OP-5: raise an in-app reminder for members whose re-assessment is due
 		# or overdue (idempotent; notify-only).
 		"netgainz.net_gainz.operations.assessments.notify_assessments_due",
+		# Money owed. Five daily reminders existed before this one and not one of
+		# them was about being paid -- the gym was told to chase a member who had
+		# stopped coming, but not one who had missed an instalment.
+		"netgainz.net_gainz.accounting.collections.notify_dues",
 	],
 }
 

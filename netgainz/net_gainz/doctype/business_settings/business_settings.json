@@ -59,7 +59,11 @@
   "assessment_interval_days",
   "assessment_due_soon_days",
   "column_break_asm",
-  "assessment_reminders_enabled"
+  "assessment_reminders_enabled",
+  "dues_section",
+  "dues_reminder_days",
+  "column_break_dues",
+  "dues_reminders_enabled"
  ],
  "fields": [
   {
@@ -411,6 +415,29 @@
    "fieldname": "assessment_reminders_enabled",
    "fieldtype": "Check",
    "label": "Daily In-App Assessment Reminder"
+  },
+  {
+   "fieldname": "dues_section",
+   "fieldtype": "Section Break",
+   "label": "Collecting Money"
+  },
+  {
+   "fieldname": "dues_reminder_days",
+   "fieldtype": "Int",
+   "label": "Remind Me This Many Days Ahead",
+   "default": "3",
+   "description": "How far ahead a payment counts as coming up. The daily reminder always includes anything already late."
+  },
+  {
+   "fieldname": "column_break_dues",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "dues_reminders_enabled",
+   "fieldtype": "Check",
+   "label": "Remind Me About Money Owed",
+   "default": "1",
+   "description": "A daily in-app note listing payments that are late or due today. Silent when nothing is owed."
   }
  ],
  "issingle": 1,
