@@ -3,6 +3,7 @@ import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import type {
+  AssessmentsDue,
   ChurnRisk,
   DiscountsThisMonth, FollowupsDue, Member, Subscription, SubscriptionStatus, GymExpense, RenewalsDue } from "@/lib/types";
 
@@ -51,7 +52,13 @@ function statusBadge(status: SubscriptionStatus): string {
 
 // ── page ────────────────────────────────────────────────────────────────────
 
-export default async function DashboardPage() {
+type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
   const session = await getSession();
   if (!session.frappeCookies) redirect("/login");
 
@@ -66,11 +73,16 @@ export default async function DashboardPage() {
   const discountsGiven = discountsRes.data?.message;
   const isCashBasis = settings.accounting_method === "Cash";
 
-  // Current-month helpers
+  // Period helpers — default to the current calendar month; ?month=<offset> shifts it
+  // back (0 = this month, -1 = last month, …), so a backfilled month like July can be
+  // viewed. Matches the offset convention used by the Discounts page.
+  const sp = await searchParams;
+  const monthOffset = Number(typeof sp.month === "string" ? sp.month : 0) || 0;
   const now = new Date();
-  const currentMonthName = now.toLocaleString("en-US", { month: "long" }); // e.g. "May"
-  const year = now.getFullYear();
-  const monthIdx = now.getMonth(); // 0-indexed
+  const target = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
+  const currentMonthName = target.toLocaleString("en-US", { month: "long" }); // e.g. "July"
+  const year = target.getFullYear();
+  const monthIdx = target.getMonth(); // 0-indexed
   const mm = String(monthIdx + 1).padStart(2, "0");
   const monthStart = `${year}-${mm}-01`;
   const lastDay = new Date(year, monthIdx + 1, 0).getDate();
@@ -110,14 +122,14 @@ export default async function DashboardPage() {
     JSON.stringify(["name", "member_name", "balance_due", "month", "membership_plan"])
   )}&filters=${encodeURIComponent(
     JSON.stringify([["status", "=", "Overdue"]])
-  )}&order_by=${encodeURIComponent("due_date asc")}&limit=10`;
+  )}&order_by=${encodeURIComponent("due_date asc")}&limit=500`;
 
   // 5. Partial subscriptions
   const partialSubsPath = `api/resource/Membership?fields=${encodeURIComponent(
     JSON.stringify(["name", "member_name", "balance_due", "month", "membership_plan"])
   )}&filters=${encodeURIComponent(
     JSON.stringify([["status", "=", "Partial"]])
-  )}&order_by=${encodeURIComponent("due_date asc")}&limit=10`;
+  )}&order_by=${encodeURIComponent("due_date asc")}&limit=500`;
 
   // 6. Recent subscriptions (last 5)
   const recentSubsPath = `api/resource/Membership?fields=${encodeURIComponent(
@@ -149,6 +161,7 @@ export default async function DashboardPage() {
     renewalsRes,
     churnRes,
     followupsRes,
+    assessmentsRes,
   ] = await Promise.all([
     frappeRequest<{ data: Pick<Member, "name">[] }>(membersPath, {
       sessionCookie: session.frappeCookies,
@@ -196,6 +209,10 @@ export default async function DashboardPage() {
       `api/method/netgainz.net_gainz.operations.enquiries.get_followups_due`,
       { sessionCookie: session.frappeCookies }
     ),
+    frappeRequest<{ message: AssessmentsDue }>(
+      `api/method/netgainz.net_gainz.operations.assessments.get_assessments_due`,
+      { sessionCookie: session.frappeCookies }
+    ),
   ]);
 
   // ── Extract arrays ────────────────────────────────────────────────────────
@@ -219,6 +236,12 @@ export default async function DashboardPage() {
   const churnAbsent = churn?.absent ?? [];
   const churnThreshold = churn?.threshold_days ?? 14;
   const showChurn = churnAbsent.length > 0;
+
+  // OP-5: re-assessments the gym has let slip. Deliberately overdue-only — at a
+  // 90-day cadence a "due soon" card would be permanently lit and become wallpaper.
+  const assessments = assessmentsRes.data?.message;
+  const assessmentsOverdue = assessments?.overdue ?? [];
+  const showAssessments = assessmentsOverdue.length > 0;
 
   // OP-2: enquiry follow-ups whose date has arrived — today's selling work.
   const followups = followupsRes.data?.message;
@@ -282,12 +305,34 @@ export default async function DashboardPage() {
             {isCashBasis ? "Cash basis" : "Accrual basis"} · {currentMonthName} {year}
           </p>
         </div>
-        <a
-          href="/settings"
-          className="text-xs text-[#8A97B2] hover:text-[#22D38C] transition-colors"
-        >
-          Change basis →
-        </a>
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Month selector — shift the whole dashboard to a past month */}
+          <div className="flex gap-1 bg-[#111A2E] p-1 rounded-lg">
+            {[
+              { label: "This month", value: 0 },
+              { label: "Last month", value: -1 },
+              { label: "2 months ago", value: -2 },
+            ].map((tab) => (
+              <Link
+                key={tab.value}
+                href={tab.value ? `/dashboard?month=${tab.value}` : "/dashboard"}
+                className={
+                  monthOffset === tab.value
+                    ? "px-3 py-1.5 text-sm font-semibold rounded-md bg-[#22D38C] text-[#0B1220]"
+                    : "px-3 py-1.5 text-sm font-medium rounded-md text-[#8A97B2] hover:text-[#E6EDF7]"
+                }
+              >
+                {tab.label}
+              </Link>
+            ))}
+          </div>
+          <a
+            href="/settings"
+            className="text-xs text-[#8A97B2] hover:text-[#22D38C] transition-colors"
+          >
+            Change basis →
+          </a>
+        </div>
       </div>
 
       {/* ── KPI Row ── */}
@@ -549,6 +594,41 @@ export default async function DashboardPage() {
                 <span className="text-[#FBBF24] shrink-0">
                   {r.never_visited ? "never checked in" : `${r.days_absent}d away`}
                 </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* ── Assessments Overdue (OP-5) ── */}
+      {showAssessments && (
+        <div className="bg-[rgba(94,234,212,0.05)] border border-[rgba(94,234,212,0.3)] rounded-xl p-5 mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[#5EEAD4] font-semibold text-sm uppercase tracking-wider">
+              ◑ Assessments Overdue
+            </p>
+            <a href="/assessments" className="text-[#5EEAD4] text-xs hover:underline">
+              View all →
+            </a>
+          </div>
+          <div className="flex items-baseline gap-2 mb-3">
+            <span className="text-[#E6EDF7] text-2xl font-bold">{assessmentsOverdue.length}</span>
+            <span className="text-[#8A97B2] text-sm">
+              member{assessmentsOverdue.length === 1 ? "" : "s"} overdue to be measured again —
+              progress they cannot see is progress they will not renew for
+            </span>
+          </div>
+          <ul className="space-y-1.5">
+            {assessmentsOverdue.slice(0, 5).map((r) => (
+              <li key={r.member} className="flex items-center justify-between text-xs">
+                <a
+                  href={`/members/${r.member}`}
+                  className="text-[#E6EDF7] truncate mr-2 hover:text-[#5EEAD4]"
+                >
+                  {r.member_name ?? r.member}
+                  {r.sport_goal ? ` · ${r.sport_goal}` : ""}
+                </a>
+                <span className="text-[#5EEAD4] shrink-0">{Math.abs(r.days_until)}d late</span>
               </li>
             ))}
           </ul>

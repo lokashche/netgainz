@@ -402,6 +402,9 @@ export type GymSettings = {
   pack_expiry_alert_days?: number;
   pack_alerts_enabled?: 0 | 1;
   day_pass_price?: number;
+  assessment_interval_days?: number;
+  assessment_due_soon_days?: number;
+  assessment_reminders_enabled?: 0 | 1;
 };
 
 export type CancellationRefundPolicy = 'No refund' | 'Prorated unused days';
@@ -905,4 +908,133 @@ export type DayPassSaleResult = {
   amount: number;
   sales_invoice: string;
   payment_entry: string;
+};
+
+// ── OP-5: fitness assessments & progress ────────────────────────────────────
+
+export type MetricGroup = 'Body Composition' | 'Performance' | 'Other';
+export type MetricDirection = 'Higher is better' | 'Lower is better';
+export type MetricAppliesTo = 'Everyone' | 'Sport' | 'General';
+
+export type AssessmentMetric = {
+  name: string;              // same as metric_name
+  unit: string;
+  direction: MetricDirection;
+  metric_group: MetricGroup;
+  applies_to: MetricAppliesTo;
+  description?: string | null;
+  is_active: 0 | 1;
+};
+
+/** One reading the coach is about to file. */
+export type MeasurementInput = {
+  metric: string;
+  value: number | string;
+  note?: string;
+};
+
+export type ProgressReading = {
+  date: string;
+  value: number;
+  assessment: string;
+  note?: string | null;
+};
+
+/** One metric's whole story for one member. Deltas are signed so positive is
+ *  always an improvement, whichever way the metric runs. */
+export type ProgressSeries = {
+  metric: string;
+  unit: string;
+  direction: MetricDirection;
+  group: MetricGroup;
+  is_builtin: 0 | 1;
+  readings: ProgressReading[];
+  count: number;
+  current: number | null;
+  current_date: string | null;
+  change_since_last: number | null;
+  change_since_first: number | null;
+  target: number | null;
+  target_date: string | null;
+  target_name: string | null;
+  baseline: number | null;
+  percent_to_target: number | null;
+};
+
+export type ProgressVisit = {
+  assessment: string;
+  date: string;
+  coach?: string | null;
+  bmi?: number | null;
+  age_years?: number | null;
+  notes?: string | null;
+};
+
+export type MemberProgress = {
+  member: string;
+  member_name?: string | null;
+  sport_goal?: string | null;
+  category?: string | null;
+  coach?: string | null;
+  assessment_count: number;
+  first_assessment: string | null;
+  last_assessment: string | null;
+  next_due_date: string | null;
+  series: ProgressSeries[];
+  visits: ProgressVisit[];
+};
+
+export type RecordAssessmentResult = {
+  assessment: string;
+  member: string;
+  member_name?: string | null;
+  assessment_date: string;
+  bmi?: number | null;
+  age_years?: number | null;
+  next_due_date: string | null;
+  branch?: string | null;
+  progress: MemberProgress;
+};
+
+export type AssessmentDueRow = {
+  member: string;
+  member_name?: string | null;
+  phone?: string | null;
+  coach?: string | null;
+  category?: string | null;
+  sport_goal?: string | null;
+  branch?: string | null;
+  last_assessment: string;
+  assessment: string;
+  next_due_date: string;
+  days_until: number;
+};
+
+export type AssessmentNeverRow = {
+  member: string;
+  member_name?: string | null;
+  phone?: string | null;
+  coach?: string | null;
+  category?: string | null;
+  sport_goal?: string | null;
+  branch?: string | null;
+};
+
+export type AssessmentsDue = {
+  within_days: number;
+  due_soon: AssessmentDueRow[];
+  overdue: AssessmentDueRow[];
+  never_assessed: AssessmentNeverRow[];
+  due_soon_count: number;
+  overdue_count: number;
+  never_assessed_count: number;
+};
+
+export type SetTargetResult = {
+  target: string;
+  member: string;
+  metric: string;
+  target_value: number;
+  baseline_value?: number | null;
+  branch?: string | null;
 };

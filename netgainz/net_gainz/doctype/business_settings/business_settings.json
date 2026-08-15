@@ -54,7 +54,12 @@
   "pack_expiry_alert_days",
   "day_pass_price",
   "column_break_packs",
-  "pack_alerts_enabled"
+  "pack_alerts_enabled",
+  "assessments_section",
+  "assessment_interval_days",
+  "assessment_due_soon_days",
+  "column_break_asm",
+  "assessment_reminders_enabled"
  ],
  "fields": [
   {
@@ -376,6 +381,36 @@
    "fieldtype": "Link",
    "label": "Default Service Tax Code (HSN/SAC)",
    "options": "GST HSN Code"
+  },
+  {
+   "fieldname": "assessments_section",
+   "fieldtype": "Section Break",
+   "label": "Fitness Assessments"
+  },
+  {
+   "default": "90",
+   "description": "How long between assessments. A new assessment's Next Due date is set this many days ahead; the coach can override it on the day.",
+   "fieldname": "assessment_interval_days",
+   "fieldtype": "Int",
+   "label": "Re-assessment Interval (days)"
+  },
+  {
+   "default": "7",
+   "description": "A member appears on the Assessments Due list when their next assessment falls within this many days. Also the look-ahead window for the daily in-app reminder.",
+   "fieldname": "assessment_due_soon_days",
+   "fieldtype": "Int",
+   "label": "Assessment Due Window (days)"
+  },
+  {
+   "fieldname": "column_break_asm",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "description": "When on, a daily background job raises an in-app notification listing members due or overdue for re-assessment. No email or SMS is sent.",
+   "fieldname": "assessment_reminders_enabled",
+   "fieldtype": "Check",
+   "label": "Daily In-App Assessment Reminder"
   }
  ],
  "issingle": 1,

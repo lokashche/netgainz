@@ -131,6 +131,7 @@ export default function NavBar({
     { href: "/schedules", label: `${classTermSingular} Schedules` },
     { href: "/attendance", label: "Attendance" },
     { href: "/churn-risk", label: "Churn Risk" },
+    { href: "/assessments", label: "Assessments" },
     { href: "/commissions", label: "Commissions" },
     { href: "/renewals", label: "Renewals" },
   ];

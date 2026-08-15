@@ -80,6 +80,9 @@ NETGAINZ_MATRIX: dict[str, dict[str, dict]] = {
 		"Pack Purchase": FULL,
 		"Pack Session Use": READ,
 		"Day Pass": FULL,
+		"Assessment Metric": FULL,
+		"Fitness Assessment": FULL,
+		"Member Metric Target": FULL,
 		"Business Branch": FULL,
 		"Business Settings": {"read": 1, "write": 1, "print": 1, "email": 1, "share": 1},
 		"Profit First Settings": {"read": 1, "write": 1, "print": 1, "email": 1, "share": 1},
@@ -99,8 +102,13 @@ NETGAINZ_MATRIX: dict[str, dict[str, dict]] = {
 		"Pack Purchase": EDIT,
 		"Pack Session Use": READ,
 		"Day Pass": EDIT,
+		# OP-5: the coach measures the member and agrees a target with them; the
+		# metric library itself is the owner's to define.
+		"Fitness Assessment": EDIT,
+		"Member Metric Target": EDIT,
 		# Reference data they read but never change.
 		"Session Pack": READ,
+		"Assessment Metric": READ,
 		"Membership Plan": READ,
 		# Campaigns and coupons are the owner's to define; the desk gives them out.
 		"Offer": READ,

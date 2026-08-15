@@ -1,0 +1,152 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:metric_name",
+ "creation": "2026-08-14 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "metric_name",
+  "is_active",
+  "column_break_am",
+  "unit",
+  "direction",
+  "classification_section",
+  "metric_group",
+  "applies_to",
+  "column_break_amc",
+  "is_builtin",
+  "description"
+ ],
+ "fields": [
+  {
+   "description": "What the coach measures, e.g. Body Fat %, 20m Sprint, Vertical Jump.",
+   "fieldname": "metric_name",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "in_list_view": 1,
+   "label": "Metric",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "default": "1",
+   "description": "Only active metrics are offered on a new assessment. Switching one off keeps every reading already recorded.",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_filter": 1,
+   "label": "Active"
+  },
+  {
+   "fieldname": "column_break_am",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "The unit every reading of this metric is recorded in, e.g. kg, cm, %, sec, reps. Changing it once readings exist would silently rewrite history, so it is locked at that point.",
+   "fieldname": "unit",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Unit",
+   "reqd": 1
+  },
+  {
+   "default": "Higher is better",
+   "description": "Which way is improvement? A sprint time falls as the athlete improves; a vertical jump rises. This is what lets the progress view show an honest up or down arrow.",
+   "fieldname": "direction",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Improvement Direction",
+   "options": "Higher is better\nLower is better",
+   "reqd": 1
+  },
+  {
+   "fieldname": "classification_section",
+   "fieldtype": "Section Break",
+   "label": "Classification"
+  },
+  {
+   "default": "Performance",
+   "description": "Groups the metric on the assessment form and in the progress view.",
+   "fieldname": "metric_group",
+   "fieldtype": "Select",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "label": "Group",
+   "options": "Body Composition\nPerformance\nOther"
+  },
+  {
+   "default": "Everyone",
+   "description": "Which members this metric is offered for, matched against the member's Category. Sport members get the performance battery; General members get the body-composition check.",
+   "fieldname": "applies_to",
+   "fieldtype": "Select",
+   "in_filter": 1,
+   "label": "Applies To",
+   "options": "Everyone\nSport\nGeneral"
+  },
+  {
+   "fieldname": "column_break_amc",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "description": "Maintained by the app. Height, Weight and BMI are typed into their own fields on an assessment and mirrored into the readings automatically, so the progress view has one uniform series for everything.",
+   "fieldname": "is_builtin",
+   "fieldtype": "Check",
+   "label": "Built-in",
+   "read_only": 1
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "How to Measure",
+   "description": "Optional protocol note for the coach, e.g. \"best of three attempts, standing reach subtracted\"."
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-08-14 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Net Gainz",
+ "name": "Assessment Metric",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Gym Owner",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Gym Staff"
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "search_fields": "unit,metric_group",
+ "sort_field": "metric_name",
+ "sort_order": "ASC",
+ "states": []
+}

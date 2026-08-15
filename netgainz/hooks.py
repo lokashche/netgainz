@@ -85,6 +85,9 @@ required_apps = ["erpnext", "india_compliance"]
 # before_install = "netgainz.install.before_install"
 after_install = [
 	"netgainz.net_gainz.profit_first.seed.after_install",
+	# OP-5: install the starter assessment-metric library so a new gym has
+	# something to measure on day one (idempotent; the gym edits it freely).
+	"netgainz.net_gainz.operations.assessments.after_install",
 	# Stage 7 WP-8: create the Gym Owner / Gym Staff roles and grant the owner
 	# read access to the ERPNext documents the engine creates for them.
 	"netgainz.net_gainz.permissions.apply_permission_matrix",
@@ -189,6 +192,12 @@ doc_events = {
 	"Day Pass": {
 		"before_insert": "netgainz.net_gainz.accounting.branch.stamp_default_branch",
 	},
+	"Fitness Assessment": {
+		"before_insert": "netgainz.net_gainz.accounting.branch.stamp_default_branch",
+	},
+	"Member Metric Target": {
+		"before_insert": "netgainz.net_gainz.accounting.branch.stamp_default_branch",
+	},
 	"Sales Invoice": {
 		# WP-10.3: the native Subscription hardcodes a single 100% payment_schedule
 		# row and cannot carry a payment_terms_template, so installments have to be
@@ -225,6 +234,9 @@ scheduler_events = {
 		# OP-4: raise an in-app alert for session packs expiring or nearly used
 		# up (idempotent; notify-only).
 		"netgainz.net_gainz.operations.packs.notify_pack_alerts",
+		# OP-5: raise an in-app reminder for members whose re-assessment is due
+		# or overdue (idempotent; notify-only).
+		"netgainz.net_gainz.operations.assessments.notify_assessments_due",
 	],
 }
 

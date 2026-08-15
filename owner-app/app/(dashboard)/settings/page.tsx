@@ -50,6 +50,9 @@ export default function SettingsPage() {
   const [pack_expiry_alert_days, setPackAlertDays] = useState("7");
   const [pack_alerts_enabled, setPackAlertsEnabled] = useState(true);
   const [day_pass_price, setDayPassPrice] = useState("");
+  const [assessment_interval_days, setAssessmentInterval] = useState("90");
+  const [assessment_due_soon_days, setAssessmentDueWindow] = useState("7");
+  const [assessment_reminders_enabled, setAssessmentRemindersEnabled] = useState(true);
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -88,6 +91,11 @@ export default function SettingsPage() {
           setPackAlertDays(String(s.pack_expiry_alert_days ?? 7));
           setPackAlertsEnabled(s.pack_alerts_enabled !== 0);
           setDayPassPrice(s.day_pass_price ? String(s.day_pass_price) : "");
+          // NOT ?? — an unset Business Settings Int serialises as 0, not null,
+          // so ?? would leave the field showing "0 days".
+          setAssessmentInterval(String(s.assessment_interval_days || 90));
+          setAssessmentDueWindow(String(s.assessment_due_soon_days || 7));
+          setAssessmentRemindersEnabled(s.assessment_reminders_enabled !== 0);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unexpected error");
@@ -137,6 +145,9 @@ export default function SettingsPage() {
           pack_expiry_alert_days: Number(pack_expiry_alert_days) || 7,
           pack_alerts_enabled: pack_alerts_enabled ? 1 : 0,
           day_pass_price: Number(day_pass_price) || 0,
+          assessment_interval_days: Number(assessment_interval_days) || 90,
+          assessment_due_soon_days: Number(assessment_due_soon_days) || 7,
+          assessment_reminders_enabled: assessment_reminders_enabled ? 1 : 0,
         }),
       });
 
@@ -588,6 +599,58 @@ export default function SettingsPage() {
             />
             <label htmlFor="pack_alerts_enabled" className="text-sm text-[#E6EDF7]">
               Daily in-app pack alert
+            </label>
+          </div>
+        </section>
+
+        <hr className="border-[#1E2D45]" />
+
+        {/* Fitness Assessments — OP-5 */}
+        <section>
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-[#22D38C] mb-3">
+            Fitness Assessments
+          </h2>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Re-assessment Interval (days)</label>
+              <input
+                type="number"
+                min="1"
+                value={assessment_interval_days}
+                onChange={(e) => setAssessmentInterval(e.target.value)}
+                placeholder="90"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Assessment Due Window (days)</label>
+              <input
+                type="number"
+                min="1"
+                value={assessment_due_soon_days}
+                onChange={(e) => setAssessmentDueWindow(e.target.value)}
+                placeholder="7"
+                className={inputClass}
+              />
+            </div>
+          </div>
+          <p className="mt-2 text-xs text-[#8A97B2]">
+            A new assessment&apos;s next-due date is set one interval ahead — the coach can
+            override it on the day. A member appears on the Assessments list once that date
+            falls inside the window.
+          </p>
+
+          <div className="mt-4 flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="assessment_reminders_enabled"
+              checked={assessment_reminders_enabled}
+              onChange={(e) => setAssessmentRemindersEnabled(e.target.checked)}
+              className="w-4 h-4 rounded accent-[#22D38C] cursor-pointer"
+            />
+            <label htmlFor="assessment_reminders_enabled" className="text-sm text-[#E6EDF7]">
+              Daily in-app assessment reminder
             </label>
           </div>
         </section>

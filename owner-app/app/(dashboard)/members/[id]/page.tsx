@@ -3,7 +3,8 @@
 import { useState, useEffect, SyntheticEvent, use } from "react";
 import { useRouter } from "next/navigation";
 import type { Member, MemberStatus } from "@/lib/types";
-import { extractFrappeError, toIntlPhone } from "@/lib/frappe";
+import { decodeId, extractFrappeError, toIntlPhone } from "@/lib/frappe";
+import ProgressPanel from "@/app/components/ProgressPanel";
 
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"];
 const CATEGORIES = ["Sport", "General"];
@@ -142,7 +143,7 @@ export default function MemberDetailPage({ params }: { params: Params }) {
   }
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-4xl">
       <div className="flex items-center gap-4 mb-6">
         <a href="/members" className="text-sm text-[#8A97B2] hover:text-[#22D38C] transition-colors">
           ← Back to Members
@@ -349,6 +350,9 @@ export default function MemberDetailPage({ params }: { params: Params }) {
           </button>
         </div>
       </form>
+
+      {/* OP-5: measurements, targets and what they add up to. */}
+      <ProgressPanel memberId={decodeId(id)} />
     </div>
   );
 }
