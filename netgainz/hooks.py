@@ -91,6 +91,10 @@ after_install = [
 	# Stage 7 WP-8: create the Gym Owner / Gym Staff roles and grant the owner
 	# read access to the ERPNext documents the engine creates for them.
 	"netgainz.net_gainz.permissions.apply_permission_matrix",
+	# TL-1: number Customers instead of naming them after the member. Left to
+	# ERPNext's default, two members with the same name collide and the second is
+	# LOST during an import. No tenant should have to know that, let alone set it.
+	"netgainz.net_gainz.accounting.provisioning.after_install",
 ]
 
 # Uninstallation

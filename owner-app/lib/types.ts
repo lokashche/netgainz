@@ -1092,4 +1092,7 @@ export type DataLoadRunResult = {
   validation: DataLoadValidation;
   status?: DataLoadStep;
   error?: string;
+  /** Every row in the file is already loaded, so no import was started. */
+  nothing_to_do?: boolean;
+  message?: string;
 };

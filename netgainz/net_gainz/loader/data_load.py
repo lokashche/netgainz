@@ -47,6 +47,7 @@ from frappe import _
 from frappe.utils import now
 
 from netgainz.net_gainz import permissions
+from netgainz.net_gainz.accounting import provisioning
 from netgainz.net_gainz.accounting.billing import _as_engine
 
 STEP_DOCTYPE = "Data Load Step"
@@ -165,6 +166,19 @@ def _problem(rows: list[int], message: str, kind: str = "error") -> dict:
 	return {"rows": rows, "message": message, "kind": kind}
 
 
+def _step_order(doctype: str) -> int:
+	"""Where this doctype sits in the load order shown on screen.
+
+	Anything not loaded by a step of its own (Instructor, Business Branch) sorts
+	after the ones that are, so the advice always reads in the order the owner is
+	being asked to work.
+	"""
+	for i, s in enumerate(STEPS):
+		if s.doctype == doctype:
+			return i
+	return len(STEPS)
+
+
 def _already_there(step: Step, row: dict) -> bool:
 	"""Is this row already in the register? Cached per request -- 267 rows would
 	otherwise mean 267 round trips."""
@@ -267,6 +281,10 @@ def validate(step_key: str, content: str) -> dict:
 			)
 
 	# --- links: this is the "load the masters first" guard -----------------------
+	# Reported in the SAME order as the numbered steps on screen. Dict order put
+	# plans before programmes while the screen numbered programmes first, which read
+	# as the tool contradicting itself about what to do next.
+	link_problems: list[tuple[int, dict]] = []
 	for column, target in step.links.items():
 		if column not in header:
 			continue
@@ -279,18 +297,22 @@ def validate(step_key: str, content: str) -> dict:
 		missing = sorted(wanted - existing)
 		if missing:
 			rows_hit = [i for i, r in enumerate(rows, start=2) if r.get(column) in missing]
-			problems.append(
-				_problem(
-					rows_hit,
-					_("{0} {1} named in this file {2} not been created yet: {3}. Load {4} first.").format(
-						len(missing),
-						_(target.lower()) if len(missing) == 1 else _(target.lower() + "s"),
-						_("has") if len(missing) == 1 else _("have"),
-						", ".join(missing[:10]) + ("…" if len(missing) > 10 else ""),
-						_(target.lower() + "s"),
+			link_problems.append(
+				(
+					_step_order(target),
+					_problem(
+						rows_hit,
+						_("{0} {1} named in this file {2} not been created yet: {3}. Load {4} first.").format(
+							len(missing),
+							_(target.lower()) if len(missing) == 1 else _(target.lower() + "s"),
+							_("has") if len(missing) == 1 else _("have"),
+							", ".join(missing[:10]) + ("…" if len(missing) > 10 else ""),
+							_(target.lower() + "s"),
+						),
 					),
 				)
 			)
+	problems.extend(p for _rank, p in sorted(link_problems, key=lambda x: x[0]))
 
 	# --- customer naming: the trap that silently drops members -------------------
 	# A Member auto-provisions a Customer. If ERPNext is naming Customers by NAME,
@@ -307,7 +329,7 @@ def validate(step_key: str, content: str) -> dict:
 		# Verified live 2026-08-15: global default "Customer Name", single
 		# "Naming Series", customers created as "Paul Johnson".
 		naming = frappe.defaults.get_global_default("cust_master_name")
-		if naming == "Customer Name":
+		if naming != provisioning.CUSTOMER_NAMING:
 			# Only rows that will actually be attempted can collide. A member already
 			# in the register is skipped by Data Import, and its customer is its own --
 			# counting those turned "5 repeated names" into "134 rows" on a site that
@@ -320,6 +342,9 @@ def validate(step_key: str, content: str) -> dict:
 			)
 			if repeated or clashing:
 				offenders = sorted(set(repeated) | clashing)
+				# Information, not an error, and no instruction to go anywhere: `run`
+				# corrects the setting itself before importing. The owner is told only
+				# because it explains why these names were worth mentioning.
 				problems.append(
 					_problem(
 						[
@@ -328,11 +353,13 @@ def validate(step_key: str, content: str) -> dict:
 							if r.get("full_name") in offenders and not _already_there(step, r)
 						],
 						_(
-							"Customers are being named after people, so these repeated names "
-							"would be refused and those members lost: {0}. Open Selling "
-							"Settings, set Customer Naming By to Naming Series and SAVE it — "
-							"saving is what applies it, even if it already reads that way."
-						).format(", ".join(offenders[:10]) + ("…" if len(offenders) > 10 else "")),
+							"{0} of these names appear more than once ({1}). That is fine — "
+							"the numbering is corrected automatically when you load."
+						).format(
+							len(offenders),
+							", ".join(offenders[:5]) + ("…" if len(offenders) > 5 else ""),
+						),
+						kind="info",
 					)
 				)
 
@@ -408,6 +435,33 @@ def run(step_key: str, content: str, filename: str = "") -> dict:
 	report = validate(step_key, content)
 	if not report["ok"]:
 		return {"started": False, "validation": report}
+
+	# Everything in the file is already in the register, so there is nothing to do.
+	# Short-circuit rather than start an import: if this step's Data Import record has
+	# been lost, a new one re-attempts every row, every row is refused as a duplicate,
+	# and the owner is shown a red "Failed" for a file that was in fact complete.
+	if report["total_rows"] and report.get("already_loaded") == report["total_rows"]:
+		return {
+			"started": False,
+			"nothing_to_do": True,
+			"validation": report,
+			"message": _("Every one of these {0} is already loaded. Nothing to do.").format(
+				_(step.label.lower())
+			),
+		}
+
+	# Correct the customer numbering before importing anyone. This is the step that
+	# used to be a line in a runbook -- and a line in a runbook gets missed exactly
+	# once, silently, at the cost of real members. Only new customers are affected.
+	if step.doctype == "Member" and not provisioning.ensure_customer_naming():
+		return {
+			"started": False,
+			"validation": report,
+			"error": _(
+				"Could not set ERPNext to number customers, so members sharing a name "
+				"would be lost. Nothing has been loaded."
+			),
+		}
 
 	doc = _get_or_create_step(step)
 	file_url = _attach(step, content, filename)
