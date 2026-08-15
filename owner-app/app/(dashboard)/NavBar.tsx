@@ -134,6 +134,8 @@ export default function NavBar({
     { href: "/assessments", label: "Assessments" },
     { href: "/commissions", label: "Commissions" },
     { href: "/renewals", label: "Renewals" },
+    // TL-1: loading the gym's own register, in the owner app rather than Frappe Desk.
+    { href: "/data-load", label: "Load Records" },
   ];
 
   return (

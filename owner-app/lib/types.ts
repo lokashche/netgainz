@@ -1038,3 +1038,58 @@ export type SetTargetResult = {
   baseline_value?: number | null;
   branch?: string | null;
 };
+
+/* ── Data load (TL-1) ─────────────────────────────────────────────────────── */
+
+export type DataLoadStatus =
+  | 'Not started'
+  | 'Importing'
+  | 'Partial'
+  | 'Complete'
+  | 'Failed';
+
+/** A problem found by reading the file. `error` blocks the load; `info` does not. */
+export type DataLoadProblem = {
+  rows: number[];
+  message: string;
+  kind: 'error' | 'info';
+};
+
+export type DataLoadValidation = {
+  ok: boolean;
+  step: string;
+  label?: string;
+  total_rows: number;
+  already_loaded?: number;
+  problems: DataLoadProblem[];
+};
+
+export type DataLoadFailure = {
+  rows: string;
+  message: string;
+};
+
+export type DataLoadStep = {
+  key: string;
+  label: string;
+  blurb?: string;
+  doctype: string;
+  required_columns?: string[];
+  step: string;
+  status: DataLoadStatus;
+  total_rows?: number;
+  imported_rows?: number;
+  failed_rows?: number;
+  last_run?: string | null;
+  message?: string | null;
+  failures?: DataLoadFailure[];
+  /** How many of this record type exist in the system right now. */
+  loaded: number;
+};
+
+export type DataLoadRunResult = {
+  started: boolean;
+  validation: DataLoadValidation;
+  status?: DataLoadStep;
+  error?: string;
+};

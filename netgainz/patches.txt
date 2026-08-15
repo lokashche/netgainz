@@ -24,3 +24,4 @@ netgainz.patches.v0_8.apply_permission_matrix #4 OP-3: grant Membership Freeze t
 netgainz.patches.v0_8.apply_permission_matrix #5 OP-4: grant Session Pack / Pack Purchase / Pack Session Use / Day Pass
 netgainz.patches.v0_8.seed_assessment_metrics
 netgainz.patches.v0_8.apply_permission_matrix #6 OP-5: grant Assessment Metric / Fitness Assessment / Member Metric Target
+netgainz.patches.v0_8.apply_permission_matrix #7 TL-1: grant Data Load Step to Gym Owner

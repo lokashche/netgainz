@@ -83,6 +83,8 @@ NETGAINZ_MATRIX: dict[str, dict[str, dict]] = {
 		"Assessment Metric": FULL,
 		"Fitness Assessment": FULL,
 		"Member Metric Target": FULL,
+		# Loading the gym's own register is the owner's act, never the front desk's.
+		"Data Load Step": FULL,
 		"Business Branch": FULL,
 		"Business Settings": {"read": 1, "write": 1, "print": 1, "email": 1, "share": 1},
 		"Profit First Settings": {"read": 1, "write": 1, "print": 1, "email": 1, "share": 1},
