@@ -2,6 +2,8 @@
 
 import { useState, useEffect, SyntheticEvent, use } from "react";
 import OfferPicker from "@/app/components/OfferPicker";
+import Link from "next/link";
+import LifecyclePanel from "@/app/components/LifecyclePanel";
 import DiscountBox, {
   EMPTY_DISCOUNT,
   discountPayload,
@@ -47,6 +49,9 @@ function statusBadge(status: SubscriptionStatus): string {
       return `${base} bg-[rgba(248,113,113,0.15)] text-[#F87171]`;
     case "Partial":
       return `${base} bg-[rgba(94,234,212,0.15)] text-[#5EEAD4]`;
+    case "Cancelled":
+      // OP-3: terminal — billing stopped, nothing renews.
+      return `${base} bg-[rgba(138,151,178,0.15)] text-[#8A97B2]`;
     case "Written Off":
       // Not "Paid": nobody paid. The receivable was given up as uncollectable.
       return `${base} bg-[rgba(251,191,36,0.15)] text-[#FBBF24]`;
@@ -250,10 +255,9 @@ export default function SubscriptionDetailPage({ params }: { params: Params }) {
   }
 
   useEffect(() => {
-    loadSub();
-    loadObligations();
-    loadMoneyPanels();
-    loadDiscountHistory();
+    (async () => {
+      await Promise.all([loadSub(), loadObligations(), loadMoneyPanels(), loadDiscountHistory()]);
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
@@ -483,9 +487,9 @@ export default function SubscriptionDetailPage({ params }: { params: Params }) {
   return (
     <div className="max-w-2xl">
       <div className="flex items-center gap-4 mb-6">
-        <a href="/subscriptions" className="text-sm text-[#8A97B2] hover:text-[#22D38C] transition-colors">
+        <Link href="/subscriptions" className="text-sm text-[#8A97B2] hover:text-[#22D38C] transition-colors">
           ← Back to Subscriptions
-        </a>
+        </Link>
         <h1 className="text-2xl font-bold text-[#E6EDF7]">Subscription</h1>
       </div>
 
@@ -993,12 +997,12 @@ export default function SubscriptionDetailPage({ params }: { params: Params }) {
             >
               {submitting ? "Saving…" : "Save Changes"}
             </button>
-            <a
+            <Link
               href="/subscriptions"
               className="px-5 py-2 text-sm text-[#8A97B2] hover:text-[#E6EDF7] transition-colors"
             >
               Cancel
-            </a>
+            </Link>
           </div>
 
           <button
@@ -1011,6 +1015,14 @@ export default function SubscriptionDetailPage({ params }: { params: Params }) {
           </button>
         </div>
       </form>
+
+      {/* OP-3: freeze / change plan / cancel / transfer */}
+      <LifecyclePanel
+        membershipId={id}
+        status={subStatus}
+        currentPlan={membershipPlan}
+        onChanged={reloadAll}
+      />
     </div>
   );
 }

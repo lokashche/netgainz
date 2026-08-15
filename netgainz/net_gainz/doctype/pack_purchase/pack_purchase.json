@@ -1,0 +1,201 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "PKP-.YYYY.-.####",
+ "creation": "2026-08-12 00:00:00.000000",
+ "search_fields": "member_name,session_pack",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "member",
+  "member_name",
+  "session_pack",
+  "column_break_pp",
+  "purchased_on",
+  "expires_on",
+  "status",
+  "sessions_section",
+  "sessions_total",
+  "sessions_used",
+  "money_section",
+  "amount",
+  "payment_mode",
+  "column_break_ppm",
+  "sales_invoice",
+  "payment_entry",
+  "branch",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "member",
+   "fieldtype": "Link",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "label": "Member",
+   "options": "Member",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "member.full_name",
+   "fieldname": "member_name",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "in_list_view": 1,
+   "label": "Member Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "session_pack",
+   "fieldtype": "Link",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "label": "Session Pack",
+   "options": "Session Pack",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_pp",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "purchased_on",
+   "fieldtype": "Date",
+   "label": "Purchased On",
+   "read_only": 1
+  },
+  {
+   "description": "Last usable day.",
+   "fieldname": "expires_on",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Expires On",
+   "read_only": 1
+  },
+  {
+   "default": "Active",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Active\nExhausted\nExpired",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sessions_section",
+   "fieldtype": "Section Break",
+   "label": "Sessions"
+  },
+  {
+   "fieldname": "sessions_total",
+   "fieldtype": "Int",
+   "label": "Sessions Total",
+   "read_only": 1
+  },
+  {
+   "description": "Counted from the use log — cannot drift.",
+   "fieldname": "sessions_used",
+   "fieldtype": "Int",
+   "label": "Sessions Used",
+   "read_only": 1
+  },
+  {
+   "fieldname": "money_section",
+   "fieldtype": "Section Break",
+   "label": "Money"
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "label": "Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "payment_mode",
+   "fieldtype": "Data",
+   "label": "Payment Mode",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_ppm",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "sales_invoice",
+   "fieldtype": "Link",
+   "label": "Sales Invoice",
+   "options": "Sales Invoice",
+   "read_only": 1
+  },
+  {
+   "fieldname": "payment_entry",
+   "fieldtype": "Link",
+   "label": "Payment Entry",
+   "options": "Payment Entry",
+   "read_only": 1
+  },
+  {
+   "fieldname": "branch",
+   "fieldtype": "Link",
+   "in_filter": 1,
+   "label": "Branch",
+   "options": "Business Branch"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-08-12 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Net Gainz",
+ "name": "Pack Purchase",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Gym Owner",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Gym Staff",
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "purchased_on",
+ "sort_order": "DESC",
+ "states": []
+}

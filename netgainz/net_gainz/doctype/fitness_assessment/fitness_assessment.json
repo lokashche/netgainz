@@ -1,0 +1,206 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "ASM-.YYYY.-.####",
+ "creation": "2026-08-14 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "member",
+  "member_name",
+  "column_break_fa",
+  "assessment_date",
+  "coach",
+  "body_section",
+  "height_cm",
+  "weight_kg",
+  "column_break_body",
+  "bmi",
+  "age_years",
+  "measurements_section",
+  "measurements",
+  "followup_section",
+  "notes",
+  "column_break_fu",
+  "next_due_date",
+  "details_section",
+  "branch"
+ ],
+ "fields": [
+  {
+   "fieldname": "member",
+   "fieldtype": "Link",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "label": "Member",
+   "options": "Member",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "member.full_name",
+   "fieldname": "member_name",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "in_list_view": 1,
+   "label": "Member Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_fa",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Today",
+   "description": "The day the member was measured. It may be backdated to file a paper assessment, but never post-dated.",
+   "fieldname": "assessment_date",
+   "fieldtype": "Date",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "label": "Assessment Date",
+   "reqd": 1
+  },
+  {
+   "description": "Who carried out the assessment. Defaults to the member's own coach.",
+   "fieldname": "coach",
+   "fieldtype": "Link",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "label": "Coach",
+   "options": "Instructor"
+  },
+  {
+   "fieldname": "body_section",
+   "fieldtype": "Section Break",
+   "label": "Body"
+  },
+  {
+   "description": "Carried forward from the member's last assessment when left blank — adults are measured once.",
+   "fieldname": "height_cm",
+   "fieldtype": "Float",
+   "label": "Height (cm)",
+   "precision": "1"
+  },
+  {
+   "fieldname": "weight_kg",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Weight (kg)",
+   "precision": "1"
+  },
+  {
+   "fieldname": "column_break_body",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Computed from height and weight. Read it alongside age for a young athlete — a growing child's BMI is not an adult's BMI.",
+   "fieldname": "bmi",
+   "fieldtype": "Float",
+   "label": "BMI",
+   "precision": "1",
+   "read_only": 1
+  },
+  {
+   "description": "Computed from the member's date of birth on the assessment date.",
+   "fieldname": "age_years",
+   "fieldtype": "Int",
+   "label": "Age at Assessment",
+   "read_only": 1
+  },
+  {
+   "fieldname": "measurements_section",
+   "fieldtype": "Section Break",
+   "label": "Measurements"
+  },
+  {
+   "description": "Every other reading taken today. Height, Weight and BMI are filed here automatically from the fields above.",
+   "fieldname": "measurements",
+   "fieldtype": "Table",
+   "label": "Measurements",
+   "options": "Fitness Assessment Measurement"
+  },
+  {
+   "fieldname": "followup_section",
+   "fieldtype": "Section Break",
+   "label": "Notes & Follow-up"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Text",
+   "label": "Coach Notes"
+  },
+  {
+   "fieldname": "column_break_fu",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "When this member should be measured again. Defaulted from the re-assessment interval in Business Settings; the coach may override it.",
+   "fieldname": "next_due_date",
+   "fieldtype": "Date",
+   "in_filter": 1,
+   "label": "Next Assessment Due"
+  },
+  {
+   "fieldname": "details_section",
+   "fieldtype": "Section Break",
+   "label": "Details"
+  },
+  {
+   "fieldname": "branch",
+   "fieldtype": "Link",
+   "in_filter": 1,
+   "label": "Branch",
+   "options": "Business Branch"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-08-14 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Net Gainz",
+ "name": "Fitness Assessment",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Gym Owner",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Gym Staff",
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "search_fields": "member_name,member",
+ "sort_field": "assessment_date",
+ "sort_order": "DESC",
+ "states": []
+}

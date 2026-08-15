@@ -1,0 +1,141 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:pack_name",
+ "creation": "2026-08-12 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "pack_name",
+  "is_active",
+  "column_break_pk",
+  "sessions",
+  "validity_days",
+  "pricing_section",
+  "price",
+  "gst_hsn_code",
+  "column_break_pkp",
+  "item",
+  "description"
+ ],
+ "fields": [
+  {
+   "fieldname": "pack_name",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "in_list_view": 1,
+   "label": "Pack Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_filter": 1,
+   "label": "Active"
+  },
+  {
+   "fieldname": "column_break_pk",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "How many sessions the pack contains.",
+   "fieldname": "sessions",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Sessions",
+   "reqd": 1
+  },
+  {
+   "description": "Usable for this many days from the day of purchase.",
+   "fieldname": "validity_days",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Validity (days)",
+   "reqd": 1
+  },
+  {
+   "fieldname": "pricing_section",
+   "fieldtype": "Section Break",
+   "label": "Pricing"
+  },
+  {
+   "fieldname": "price",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Price",
+   "reqd": 1
+  },
+  {
+   "description": "Tax classification code used on the invoice line. Defaulted from Business Settings; without one the pack cannot bill.",
+   "fieldname": "gst_hsn_code",
+   "fieldtype": "Link",
+   "label": "Service Tax Code (HSN/SAC)",
+   "options": "GST HSN Code"
+  },
+  {
+   "fieldname": "column_break_pkp",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Provisioned automatically — the sellable ERPNext Item behind this pack.",
+   "fieldname": "item",
+   "fieldtype": "Link",
+   "label": "Item",
+   "options": "Item",
+   "read_only": 1
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-08-12 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Net Gainz",
+ "name": "Session Pack",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Gym Owner",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Gym Staff"
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

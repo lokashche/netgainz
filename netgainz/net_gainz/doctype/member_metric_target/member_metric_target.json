@@ -1,0 +1,172 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "MTG-.YYYY.-.####",
+ "creation": "2026-08-14 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "member",
+  "member_name",
+  "column_break_mt",
+  "metric",
+  "target_value",
+  "target_date",
+  "progress_section",
+  "baseline_value",
+  "baseline_date",
+  "column_break_mtb",
+  "is_active",
+  "notes",
+  "details_section",
+  "branch"
+ ],
+ "fields": [
+  {
+   "fieldname": "member",
+   "fieldtype": "Link",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "label": "Member",
+   "options": "Member",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "member.full_name",
+   "fieldname": "member_name",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "in_list_view": 1,
+   "label": "Member Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_mt",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "metric",
+   "fieldtype": "Link",
+   "in_filter": 1,
+   "in_list_view": 1,
+   "label": "Metric",
+   "options": "Assessment Metric",
+   "reqd": 1
+  },
+  {
+   "description": "What the member is working towards, in the metric's own unit.",
+   "fieldname": "target_value",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Target",
+   "precision": "2",
+   "reqd": 1
+  },
+  {
+   "description": "Optional. The date the member is aiming to reach it by — a season opener, a competition, a review.",
+   "fieldname": "target_date",
+   "fieldtype": "Date",
+   "in_filter": 1,
+   "label": "Target By"
+  },
+  {
+   "fieldname": "progress_section",
+   "fieldtype": "Section Break",
+   "label": "Progress"
+  },
+  {
+   "description": "The member's reading when this target was set. Progress is measured from here, so it is stamped once and never re-derived.",
+   "fieldname": "baseline_value",
+   "fieldtype": "Float",
+   "label": "Starting Point",
+   "precision": "2",
+   "read_only": 1
+  },
+  {
+   "fieldname": "baseline_date",
+   "fieldtype": "Date",
+   "label": "Starting Point Dated",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_mtb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "description": "Whether the member is still working towards this. Reaching the target does not switch it off — the coach decides when it is done.",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_filter": 1,
+   "label": "Active"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes"
+  },
+  {
+   "fieldname": "details_section",
+   "fieldtype": "Section Break",
+   "label": "Details"
+  },
+  {
+   "fieldname": "branch",
+   "fieldtype": "Link",
+   "in_filter": 1,
+   "label": "Branch",
+   "options": "Business Branch"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-08-14 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Net Gainz",
+ "name": "Member Metric Target",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Gym Owner",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Gym Staff",
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "search_fields": "member_name,metric",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

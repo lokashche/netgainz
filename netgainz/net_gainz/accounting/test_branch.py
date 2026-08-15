@@ -94,6 +94,22 @@ class TestBranch(FrappeTestCase):
 		ms.insert(ignore_permissions=True)
 		self.assertEqual(ms.branch, "WP3 Studio B")
 
+	def test_check_in_inherits_member_branch(self):
+		# OP-1: the resolver is generic — any member-bearing doc inherits the
+		# member's home branch, so a check-in lands at the member's own branch.
+		cc = self._make_leaf_cost_center("OP1 Desk CC")
+		b = frappe.get_doc(
+			{"doctype": "Business Branch", "branch_name": "OP1 Desk B", "cost_center": cc}
+		)
+		b.insert(ignore_permissions=True)
+		member = frappe.get_doc(
+			{"doctype": "Member", "full_name": "OP1 Desk Member", "branch": b.name}
+		)
+		member.insert(ignore_permissions=True)
+		chk = frappe.get_doc({"doctype": "Member Check-in", "member": member.name})
+		chk.insert(ignore_permissions=True)
+		self.assertEqual(chk.branch, "OP1 Desk B")
+
 	def test_expense_defaults_to_main_branch(self):
 		cat = frappe.db.get_value("Expense Category", {}, "name")
 		if not cat:

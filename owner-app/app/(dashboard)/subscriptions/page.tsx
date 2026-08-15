@@ -1,4 +1,5 @@
 import { getSession } from "@/lib/session";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { frappeRequest } from "@/lib/frappe";
 import { buildHref, fetchListPage, readPageParams } from "@/lib/pagination";
@@ -57,6 +58,9 @@ function statusBadge(status: SubscriptionStatus): string {
     case "Written Off":
       // WP-8: settled as uncollectable, not collected.
       return `${base} bg-[rgba(251,191,36,0.15)] text-[#FBBF24]`;
+    case "Cancelled":
+      // OP-3: terminal — billing stopped.
+      return `${base} bg-[rgba(138,151,178,0.15)] text-[#8A97B2]`;
     default: {
       const _exhaustive: never = status;
       return `${base} bg-[rgba(138,151,178,0.15)] text-[#8A97B2] /* ${_exhaustive} */`;
@@ -135,12 +139,12 @@ export default async function SubscriptionsPage({
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-[#E6EDF7]">Subscriptions</h1>
-        <a
+        <Link
           href="/subscriptions/new"
           className="inline-flex items-center px-4 py-2 bg-[#22D38C] text-[#0B1220] text-sm font-semibold rounded-lg hover:bg-[#5EEAD4] transition-colors"
         >
           Add Subscription
-        </a>
+        </Link>
       </div>
 
       {/* Not being billed — the pre-go-live worklist */}

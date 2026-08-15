@@ -41,7 +41,25 @@
   "classes_section",
   "column_break_cls",
   "class_auto_generate",
-  "class_schedule_horizon_days"
+  "class_schedule_horizon_days",
+  "checkin_section",
+  "absence_alert_days",
+  "column_break_chk",
+  "absence_alerts_enabled",
+  "enquiries_section",
+  "followup_reminders_enabled",
+  "cancellations_section",
+  "cancellation_refund_policy",
+  "packs_section",
+  "pack_expiry_alert_days",
+  "day_pass_price",
+  "column_break_packs",
+  "pack_alerts_enabled",
+  "assessments_section",
+  "assessment_interval_days",
+  "assessment_due_soon_days",
+  "column_break_asm",
+  "assessment_reminders_enabled"
  ],
  "fields": [
   {
@@ -213,6 +231,83 @@
    "label": "Schedule Horizon (days)"
   },
   {
+   "fieldname": "checkin_section",
+   "fieldtype": "Section Break",
+   "label": "Check-in & Attendance"
+  },
+  {
+   "default": "14",
+   "description": "An active member is flagged as a churn risk when they have not checked in (at the desk or into a class) for this many days.",
+   "fieldname": "absence_alert_days",
+   "fieldtype": "Int",
+   "label": "Absence Alert Days"
+  },
+  {
+   "fieldname": "column_break_chk",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "description": "When on, a daily background job raises an in-app notification listing active members not seen within the absence window. No email or SMS is sent.",
+   "fieldname": "absence_alerts_enabled",
+   "fieldtype": "Check",
+   "label": "Daily In-App Absence Alert"
+  },
+  {
+   "fieldname": "enquiries_section",
+   "fieldtype": "Section Break",
+   "label": "Enquiries"
+  },
+  {
+   "default": "1",
+   "description": "When on, a daily background job raises an in-app notification listing enquiry follow-ups that are due or overdue. No email or SMS is sent.",
+   "fieldname": "followup_reminders_enabled",
+   "fieldtype": "Check",
+   "label": "Daily In-App Follow-up Reminder"
+  },
+  {
+   "fieldname": "cancellations_section",
+   "fieldtype": "Section Break",
+   "label": "Cancellations"
+  },
+  {
+   "default": "No refund",
+   "description": "What happens to the unused part of an already-paid period when a membership is cancelled mid-cycle. \"Prorated unused days\" pays it back in cash (owner-only, posts through the refund rails). Every gym sets its own policy.",
+   "fieldname": "cancellation_refund_policy",
+   "fieldtype": "Select",
+   "label": "Refund on Cancellation",
+   "options": "No refund\nProrated unused days"
+  },
+  {
+   "fieldname": "packs_section",
+   "fieldtype": "Section Break",
+   "label": "Session Packs & Day Passes"
+  },
+  {
+   "default": "7",
+   "description": "An active pack is flagged when it expires within this many days (or has one session left).",
+   "fieldname": "pack_expiry_alert_days",
+   "fieldtype": "Int",
+   "label": "Pack Expiry Alert Days"
+  },
+  {
+   "description": "Prefills the day-pass quick sale. Leave 0 and the desk types the amount each time.",
+   "fieldname": "day_pass_price",
+   "fieldtype": "Currency",
+   "label": "Day Pass Price"
+  },
+  {
+   "fieldname": "column_break_packs",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "description": "When on, a daily background job raises an in-app notification listing packs expiring or nearly used up. No email or SMS is sent.",
+   "fieldname": "pack_alerts_enabled",
+   "fieldtype": "Check",
+   "label": "Daily In-App Pack Alert"
+  },
+  {
    "fieldname": "terminology_section",
    "fieldtype": "Section Break",
    "label": "Terminology"
@@ -286,6 +381,36 @@
    "fieldtype": "Link",
    "label": "Default Service Tax Code (HSN/SAC)",
    "options": "GST HSN Code"
+  },
+  {
+   "fieldname": "assessments_section",
+   "fieldtype": "Section Break",
+   "label": "Fitness Assessments"
+  },
+  {
+   "default": "90",
+   "description": "How long between assessments. A new assessment's Next Due date is set this many days ahead; the coach can override it on the day.",
+   "fieldname": "assessment_interval_days",
+   "fieldtype": "Int",
+   "label": "Re-assessment Interval (days)"
+  },
+  {
+   "default": "7",
+   "description": "A member appears on the Assessments Due list when their next assessment falls within this many days. Also the look-ahead window for the daily in-app reminder.",
+   "fieldname": "assessment_due_soon_days",
+   "fieldtype": "Int",
+   "label": "Assessment Due Window (days)"
+  },
+  {
+   "fieldname": "column_break_asm",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "description": "When on, a daily background job raises an in-app notification listing members due or overdue for re-assessment. No email or SMS is sent.",
+   "fieldname": "assessment_reminders_enabled",
+   "fieldtype": "Check",
+   "label": "Daily In-App Assessment Reminder"
   }
  ],
  "issingle": 1,

@@ -1,5 +1,6 @@
 {
  "actions": [],
+ "allow_import": 1,
  "allow_rename": 1,
  "autoname": "SUB-.YYYY.-.####",
  "creation": "2026-04-11 15:54:35.212012",
@@ -28,6 +29,8 @@
   "status_section",
   "overdue_days",
   "status",
+  "cancelled_on",
+  "cancellation_reason",
   "comments_section",
   "comments",
   "discount_section",
@@ -194,7 +197,7 @@
    "in_filter": 1,
    "in_list_view": 1,
    "label": "Status",
-   "options": "Trial\nPending\nPaid\nOverdue\nPartial\nWritten Off"
+   "options": "Trial\nPending\nPaid\nOverdue\nPartial\nWritten Off\nCancelled"
   },
   {
    "fieldname": "comments_section",
@@ -239,7 +242,7 @@
    "read_only": 1
   },
   {
-   "description": "A discount changes this member's invoice, never the plan's price. It always has an end date or a rule — pick one.",
+   "description": "A discount changes this member's invoice, never the plan's price. It always has an end date or a rule \u2014 pick one.",
    "fieldname": "discount_section",
    "fieldtype": "Section Break",
    "label": "Discount"
@@ -290,7 +293,7 @@
   },
   {
    "depends_on": "eval:doc.discount_type",
-   "description": "Why this member pays less. Required — it is what makes the monthly discounts report worth reading.",
+   "description": "Why this member pays less. Required \u2014 it is what makes the monthly discounts report worth reading.",
    "fieldname": "discount_reason",
    "fieldtype": "Small Text",
    "label": "Reason",
@@ -330,7 +333,7 @@
   },
   {
    "default": "0",
-   "description": "Leave 0 to use the plan's trial. Nothing is invoiced while a trial runs — the first invoice is raised the day it ends.",
+   "description": "Leave 0 to use the plan's trial. Nothing is invoiced while a trial runs \u2014 the first invoice is raised the day it ends.",
    "fieldname": "trial_days",
    "fieldtype": "Int",
    "label": "Free Trial (days, override)"
@@ -384,19 +387,34 @@
    "label": "Days Between Installments (override)"
   },
   {
-   "description": "Resolved from the override above, else the plan. Managed by NetGainz — do not edit.",
+   "description": "Resolved from the override above, else the plan. Managed by NetGainz \u2014 do not edit.",
    "fieldname": "payment_terms_template",
    "fieldtype": "Link",
    "label": "Payment Terms Template",
    "no_copy": 1,
    "options": "Payment Terms Template",
    "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.status == 'Cancelled'",
+   "description": "Set by Cancel Membership. Billing stopped on this day; the status no longer re-derives.",
+   "fieldname": "cancelled_on",
+   "fieldtype": "Date",
+   "label": "Cancelled On",
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.status == 'Cancelled'",
+   "fieldname": "cancellation_reason",
+   "fieldtype": "Small Text",
+   "label": "Cancellation Reason",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-11 16:00:00.000000",
+ "modified": "2026-08-12 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Net Gainz",
  "name": "Membership",

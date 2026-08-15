@@ -123,11 +123,19 @@ export default function NavBar({
   const pathname = usePathname();
 
   const OPERATIONS_ITEMS: NavItem[] = [
+    { href: "/enquiries", label: "Enquiries" },
+    { href: "/check-in", label: "Check-in" },
+    { href: "/packs", label: "Packs" },
+    { href: "/day-pass", label: "Day Pass" },
     { href: "/classes", label: classTermPlural },
     { href: "/schedules", label: `${classTermSingular} Schedules` },
     { href: "/attendance", label: "Attendance" },
+    { href: "/churn-risk", label: "Churn Risk" },
+    { href: "/assessments", label: "Assessments" },
     { href: "/commissions", label: "Commissions" },
     { href: "/renewals", label: "Renewals" },
+    // TL-1: loading the gym's own register, in the owner app rather than Frappe Desk.
+    { href: "/data-load", label: "Load Records" },
   ];
 
   return (

@@ -85,6 +85,9 @@ required_apps = ["erpnext", "india_compliance"]
 # before_install = "netgainz.install.before_install"
 after_install = [
 	"netgainz.net_gainz.profit_first.seed.after_install",
+	# OP-5: install the starter assessment-metric library so a new gym has
+	# something to measure on day one (idempotent; the gym edits it freely).
+	"netgainz.net_gainz.operations.assessments.after_install",
 	# Stage 7 WP-8: create the Gym Owner / Gym Staff roles and grant the owner
 	# read access to the ERPNext documents the engine creates for them.
 	"netgainz.net_gainz.permissions.apply_permission_matrix",
@@ -138,6 +141,14 @@ after_install = [
 # 	"ToDo": "custom_app.overrides.CustomToDo"
 # }
 
+# OP-3 (ADR-0008 §4): a spent free trial must not steer billing. Upstream gives
+# trial_period_end + 1 priority over an explicitly requested period date forever,
+# which silently stops renewals for every ex-trial subscription after its first
+# paid cycle (traced 2026-08-12). See accounting/subscription_override.py.
+override_doctype_class = {
+	"Subscription": "netgainz.net_gainz.accounting.subscription_override.NetGainzSubscription",
+}
+
 # Document Events
 # ---------------
 # Hook on document methods and events
@@ -158,6 +169,33 @@ doc_events = {
 		"on_update": "netgainz.net_gainz.accounting.provisioning.on_plan_update",
 	},
 	"Expense": {
+		"before_insert": "netgainz.net_gainz.accounting.branch.stamp_default_branch",
+	},
+	"Member Check-in": {
+		"before_insert": "netgainz.net_gainz.accounting.branch.stamp_default_branch",
+	},
+	"Enquiry": {
+		"before_insert": "netgainz.net_gainz.accounting.branch.stamp_default_branch",
+	},
+	"Membership Freeze": {
+		"before_insert": "netgainz.net_gainz.accounting.branch.stamp_default_branch",
+	},
+	"Session Pack": {
+		"on_update": "netgainz.net_gainz.operations.packs.on_pack_update",
+	},
+	"Pack Purchase": {
+		"before_insert": "netgainz.net_gainz.accounting.branch.stamp_default_branch",
+	},
+	"Pack Session Use": {
+		"before_insert": "netgainz.net_gainz.accounting.branch.stamp_default_branch",
+	},
+	"Day Pass": {
+		"before_insert": "netgainz.net_gainz.accounting.branch.stamp_default_branch",
+	},
+	"Fitness Assessment": {
+		"before_insert": "netgainz.net_gainz.accounting.branch.stamp_default_branch",
+	},
+	"Member Metric Target": {
 		"before_insert": "netgainz.net_gainz.accounting.branch.stamp_default_branch",
 	},
 	"Sales Invoice": {
@@ -187,6 +225,18 @@ scheduler_events = {
 		# Auto-create the upcoming sessions for each active recurring Class Schedule
 		# (idempotent; opt-out via the class_auto_generate setting).
 		"netgainz.net_gainz.doctype.session_schedule.session_schedule.generate_scheduled_classes",
+		# OP-1: raise an in-app churn-risk alert for active members not seen at the
+		# gym within the absence window (idempotent; notify-only).
+		"netgainz.net_gainz.operations.checkin.notify_absences",
+		# OP-2: raise an in-app reminder for enquiry follow-ups due today or
+		# overdue (idempotent; notify-only).
+		"netgainz.net_gainz.operations.enquiries.notify_followups",
+		# OP-4: raise an in-app alert for session packs expiring or nearly used
+		# up (idempotent; notify-only).
+		"netgainz.net_gainz.operations.packs.notify_pack_alerts",
+		# OP-5: raise an in-app reminder for members whose re-assessment is due
+		# or overdue (idempotent; notify-only).
+		"netgainz.net_gainz.operations.assessments.notify_assessments_due",
 	],
 }
 

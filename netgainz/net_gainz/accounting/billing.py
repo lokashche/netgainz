@@ -26,6 +26,8 @@ best-effort (skip — never block the save — when a prerequisite is missing),
 ``calc.to_paise``/``to_rupees``).
 """
 
+from contextlib import contextmanager
+
 import frappe
 from frappe.model.document import Document
 from frappe.utils import add_days, flt, getdate, today
@@ -178,6 +180,22 @@ def current_invoice(membership) -> str | None:
 	return si_name or membership.get("current_sales_invoice")
 
 
+@contextmanager
+def _as_engine():
+	"""Run native Subscription machinery (process / cancel / create_invoice) as
+	the engine. Those upstream methods save with plain ``save()`` and offer no
+	ignore-permissions escape, while gym roles deliberately hold READ ONLY on
+	ERPNext doctypes (WP-8: the whitelisted entry point is the real permission
+	boundary). The scheduler already runs this exact machinery as Administrator
+	daily; a desk-triggered run must not behave differently."""
+	user = frappe.session.user
+	frappe.set_user("Administrator")
+	try:
+		yield
+	finally:
+		frappe.set_user(user)
+
+
 def force_generate_invoice(membership, posting_date=None) -> str | None:
 	"""Generate the current period's Sales Invoice now (the prepaid first invoice,
 	or an owner-triggered catch-up). Uses native ``Subscription.process`` so it
@@ -194,7 +212,8 @@ def force_generate_invoice(membership, posting_date=None) -> str | None:
 	# the PAST — posting "today" would silently raise nothing. Default to the
 	# period start so the current period is always billed.
 	when = getdate(posting_date) if posting_date else getdate(sub.current_invoice_start or today())
-	sub.process(when)
+	with _as_engine():
+		sub.process(when)
 	invoice = _latest_invoice(sub_name)
 	if invoice:
 		membership.db_set("current_sales_invoice", invoice, update_modified=False)
@@ -749,6 +768,11 @@ def sync_from_billing(membership) -> None:
 	"""
 	obligations = open_obligations(membership)
 	if not obligations:
+		# OP-3: Cancelled is terminal even with nothing outstanding.
+		if membership.get("cancelled_on"):
+			membership.status = "Cancelled"
+			membership.next_renewal = None
+			return
 		# DS-4: nothing has been invoiced yet. If that is because the member is on a
 		# free trial, say so — "Pending" would read as money owed, and none is.
 		if trials.is_on_trial(membership):
@@ -788,6 +812,14 @@ def sync_from_billing(membership) -> None:
 		membership.status = "Partial"
 	else:
 		membership.status = "Pending"
+
+	# OP-3: Cancelled is terminal. The money fields above keep refreshing (a
+	# post-cancel write-off or refund must still read right), but the status
+	# never re-derives and nothing renews.
+	if membership.get("cancelled_on"):
+		membership.status = "Cancelled"
+		membership.next_renewal = None
+		return
 
 	if membership.get("subscription") and frappe.db.exists("Subscription", membership.subscription):
 		# Prepaid: the next charge falls on the next period's START, which the

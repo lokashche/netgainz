@@ -65,7 +65,9 @@ export type SubscriptionStatus =
   | 'Partial'
   // WP-8: settled as uncollectable rather than collected. ERPNext calls the
   // invoice "Paid" once the receivable is written off; the owner needs the truth.
-  | 'Written Off';
+  | 'Written Off'
+  // OP-3: terminal — billing stopped, nothing renews, the status never re-derives.
+  | 'Cancelled';
 
 export type Subscription = {
   name: string;         // SUB-2026-0001
@@ -393,7 +395,19 @@ export type GymSettings = {
   class_term_plural?: string;
   class_auto_generate?: 0 | 1;
   class_schedule_horizon_days?: number;
+  absence_alert_days?: number;
+  absence_alerts_enabled?: 0 | 1;
+  followup_reminders_enabled?: 0 | 1;
+  cancellation_refund_policy?: CancellationRefundPolicy;
+  pack_expiry_alert_days?: number;
+  pack_alerts_enabled?: 0 | 1;
+  day_pass_price?: number;
+  assessment_interval_days?: number;
+  assessment_due_soon_days?: number;
+  assessment_reminders_enabled?: 0 | 1;
 };
+
+export type CancellationRefundPolicy = 'No refund' | 'Prorated unused days';
 
 export type PFBucket =
   | 'Operating Expenses'
@@ -635,4 +649,447 @@ export type RenewalsDue = {
   overdue: RenewalRow[];
   due_soon_count: number;
   overdue_count: number;
+};
+
+// ── OP-1: gym-wide check-in & attendance ────────────────────────────────────
+
+export type CheckinSearchRow = {
+  name: string;
+  member_code?: string;
+  full_name: string;
+  phone?: string | null;
+  status: MemberStatus;
+  branch?: string;
+  /** Timestamp of today's earliest check-in, null when not yet in. */
+  checked_in_today: string | null;
+};
+
+/** The soft prompt: never blocks a check-in, only tells the desk. */
+export type CheckinAlert = {
+  overdue: boolean;
+  frozen: boolean;
+  balance_due: number;
+  due_date: string | null;
+  memberships: string[];
+};
+
+export type CheckinResult = {
+  check_in: string;
+  member: string;
+  member_name?: string;
+  timestamp: string;
+  branch?: string;
+  previous_today: string | null;
+  alert: CheckinAlert | null;
+};
+
+export type VisitRow = {
+  name: string;
+  member: string;
+  member_name?: string;
+  timestamp: string;
+  source: string;
+  branch?: string;
+};
+
+export type TodaysVisits = {
+  visits: VisitRow[];
+  count: number;
+};
+
+export type ChurnRiskRow = {
+  member: string;
+  member_name?: string;
+  phone?: string | null;
+  branch?: string;
+  last_visit: string | null;
+  never_visited: boolean;
+  days_absent: number;
+};
+
+export type ChurnRisk = {
+  threshold_days: number;
+  absent: ChurnRiskRow[];
+  absent_count: number;
+};
+
+// ── OP-2: enquiry → trial → member pipeline ─────────────────────────────────
+
+export type EnquiryStatus =
+  | 'New'
+  | 'Contacted'
+  | 'Trial Scheduled'
+  | 'Joined'
+  | 'Lost';
+
+export type EnquirySource = 'Walk-in' | 'Instagram' | 'Referral' | 'Other';
+
+export type Enquiry = {
+  name: string;
+  full_name: string;
+  phone?: string | null;
+  email?: string | null;
+  source: EnquirySource;
+  referred_by?: string | null;
+  interested_program?: string | null;
+  status: EnquiryStatus;
+  next_follow_up?: string | null;
+  lost_reason?: string | null;
+  notes?: string | null;
+  member?: string | null;
+  joined_on?: string | null;
+  branch?: string;
+};
+
+export type FollowupRow = {
+  enquiry: string;
+  full_name: string;
+  phone?: string | null;
+  source: EnquirySource;
+  interested_program?: string | null;
+  status: EnquiryStatus;
+  next_follow_up: string;
+  days_overdue: number;
+  branch?: string;
+};
+
+export type FollowupsDue = {
+  due_today: FollowupRow[];
+  overdue: FollowupRow[];
+  due_today_count: number;
+  overdue_count: number;
+};
+
+export type ConversionSourceRow = {
+  source: string;
+  total: number;
+  joined: number;
+  lost: number;
+  open: number;
+  /** joined / closed; null while a source has no closed enquiries yet. */
+  conversion_pct: number | null;
+};
+
+export type ConversionBySource = {
+  sources: ConversionSourceRow[];
+  total: number;
+};
+
+export type ConvertResult = {
+  enquiry: string;
+  member: string;
+  member_name?: string;
+  already_converted: boolean;
+};
+
+// ── OP-3: membership lifecycle ──────────────────────────────────────────────
+
+export type FreezeRow = {
+  name: string;
+  from_date: string;
+  to_date: string;
+  days_shifted: number;
+  reason?: string | null;
+};
+
+export type FreezeResult = {
+  freeze: string;
+  days: number;
+  next_bill_moved_from?: string | null;
+  next_bill_moved_to?: string | null;
+};
+
+export type ChangePlanResult = {
+  membership: string;
+  old_plan: string;
+  new_plan: string;
+  credit: number;
+  unused_days: number;
+  invoice?: string | null;
+};
+
+export type CancelResult = {
+  membership: string;
+  cancelled_on: string;
+  refund_policy: string;
+  refund_amount: number;
+};
+
+export type TransferResult = {
+  old_membership: string;
+  new_membership: string;
+  to_member: string;
+  credit: number;
+  unused_days: number;
+};
+
+// ── OP-4: session packs & day passes ────────────────────────────────────────
+
+export type SessionPack = {
+  name: string;
+  pack_name: string;
+  sessions: number;
+  validity_days: number;
+  price: number;
+  is_active: 0 | 1;
+  description?: string | null;
+};
+
+export type PackStatus = 'Active' | 'Exhausted' | 'Expired';
+
+export type PackBalanceRow = {
+  pack_purchase: string;
+  member: string;
+  member_name?: string;
+  session_pack: string;
+  used: number;
+  total: number;
+  remaining: number;
+  purchased_on: string;
+  expires_on: string;
+  days_left: number;
+  status: PackStatus;
+};
+
+export type PackBalances = {
+  active: PackBalanceRow[];
+  closed: PackBalanceRow[];
+  active_count: number;
+};
+
+export type PackAlertRow = PackBalanceRow & {
+  expiring: boolean;
+  low_balance: boolean;
+};
+
+export type PackAlerts = {
+  within_days: number;
+  alerts: PackAlertRow[];
+  alert_count: number;
+};
+
+export type PackSaleResult = {
+  pack_purchase: string;
+  member: string;
+  member_name?: string;
+  sessions: number;
+  expires_on: string;
+  amount: number;
+  sales_invoice: string;
+  payment_entry: string;
+};
+
+export type UseSessionResult = {
+  pack_purchase: string;
+  used: number;
+  total: number;
+  remaining: number;
+  status: PackStatus;
+};
+
+export type DayPassRow = {
+  name: string;
+  guest_name: string;
+  phone?: string | null;
+  amount: number;
+  payment_mode?: string;
+  creation: string;
+};
+
+export type TodaysDayPasses = {
+  passes: DayPassRow[];
+  count: number;
+  total: number;
+};
+
+export type DayPassSaleResult = {
+  day_pass: string;
+  guest_name: string;
+  amount: number;
+  sales_invoice: string;
+  payment_entry: string;
+};
+
+// ── OP-5: fitness assessments & progress ────────────────────────────────────
+
+export type MetricGroup = 'Body Composition' | 'Performance' | 'Other';
+export type MetricDirection = 'Higher is better' | 'Lower is better';
+export type MetricAppliesTo = 'Everyone' | 'Sport' | 'General';
+
+export type AssessmentMetric = {
+  name: string;              // same as metric_name
+  unit: string;
+  direction: MetricDirection;
+  metric_group: MetricGroup;
+  applies_to: MetricAppliesTo;
+  description?: string | null;
+  is_active: 0 | 1;
+};
+
+/** One reading the coach is about to file. */
+export type MeasurementInput = {
+  metric: string;
+  value: number | string;
+  note?: string;
+};
+
+export type ProgressReading = {
+  date: string;
+  value: number;
+  assessment: string;
+  note?: string | null;
+};
+
+/** One metric's whole story for one member. Deltas are signed so positive is
+ *  always an improvement, whichever way the metric runs. */
+export type ProgressSeries = {
+  metric: string;
+  unit: string;
+  direction: MetricDirection;
+  group: MetricGroup;
+  is_builtin: 0 | 1;
+  readings: ProgressReading[];
+  count: number;
+  current: number | null;
+  current_date: string | null;
+  change_since_last: number | null;
+  change_since_first: number | null;
+  target: number | null;
+  target_date: string | null;
+  target_name: string | null;
+  baseline: number | null;
+  percent_to_target: number | null;
+};
+
+export type ProgressVisit = {
+  assessment: string;
+  date: string;
+  coach?: string | null;
+  bmi?: number | null;
+  age_years?: number | null;
+  notes?: string | null;
+};
+
+export type MemberProgress = {
+  member: string;
+  member_name?: string | null;
+  sport_goal?: string | null;
+  category?: string | null;
+  coach?: string | null;
+  assessment_count: number;
+  first_assessment: string | null;
+  last_assessment: string | null;
+  next_due_date: string | null;
+  series: ProgressSeries[];
+  visits: ProgressVisit[];
+};
+
+export type RecordAssessmentResult = {
+  assessment: string;
+  member: string;
+  member_name?: string | null;
+  assessment_date: string;
+  bmi?: number | null;
+  age_years?: number | null;
+  next_due_date: string | null;
+  branch?: string | null;
+  progress: MemberProgress;
+};
+
+export type AssessmentDueRow = {
+  member: string;
+  member_name?: string | null;
+  phone?: string | null;
+  coach?: string | null;
+  category?: string | null;
+  sport_goal?: string | null;
+  branch?: string | null;
+  last_assessment: string;
+  assessment: string;
+  next_due_date: string;
+  days_until: number;
+};
+
+export type AssessmentNeverRow = {
+  member: string;
+  member_name?: string | null;
+  phone?: string | null;
+  coach?: string | null;
+  category?: string | null;
+  sport_goal?: string | null;
+  branch?: string | null;
+};
+
+export type AssessmentsDue = {
+  within_days: number;
+  due_soon: AssessmentDueRow[];
+  overdue: AssessmentDueRow[];
+  never_assessed: AssessmentNeverRow[];
+  due_soon_count: number;
+  overdue_count: number;
+  never_assessed_count: number;
+};
+
+export type SetTargetResult = {
+  target: string;
+  member: string;
+  metric: string;
+  target_value: number;
+  baseline_value?: number | null;
+  branch?: string | null;
+};
+
+/* ── Data load (TL-1) ─────────────────────────────────────────────────────── */
+
+export type DataLoadStatus =
+  | 'Not started'
+  | 'Importing'
+  | 'Partial'
+  | 'Complete'
+  | 'Failed';
+
+/** A problem found by reading the file. `error` blocks the load; `info` does not. */
+export type DataLoadProblem = {
+  rows: number[];
+  message: string;
+  kind: 'error' | 'info';
+};
+
+export type DataLoadValidation = {
+  ok: boolean;
+  step: string;
+  label?: string;
+  total_rows: number;
+  already_loaded?: number;
+  problems: DataLoadProblem[];
+};
+
+export type DataLoadFailure = {
+  rows: string;
+  message: string;
+};
+
+export type DataLoadStep = {
+  key: string;
+  label: string;
+  blurb?: string;
+  doctype: string;
+  required_columns?: string[];
+  step: string;
+  status: DataLoadStatus;
+  total_rows?: number;
+  imported_rows?: number;
+  failed_rows?: number;
+  last_run?: string | null;
+  message?: string | null;
+  failures?: DataLoadFailure[];
+  /** How many of this record type exist in the system right now. */
+  loaded: number;
+};
+
+export type DataLoadRunResult = {
+  started: boolean;
+  validation: DataLoadValidation;
+  status?: DataLoadStep;
+  error?: string;
 };
