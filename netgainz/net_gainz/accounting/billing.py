@@ -374,17 +374,31 @@ def _restore_service_period(doc) -> None:
 
 
 def on_sales_invoice_validate(doc, method=None):
-	"""WP-10.3 (D6): restate the installment amounts as clean numbers.
+	"""WP-10.3: restate WHAT each installment is, and WHEN it falls.
 
 	Runs AFTER the controller's own validate (frappe runs doc_event hooks after the
-	class method), so ``set_payment_schedule`` has already produced percentage-derived
-	amounts — 10,000 in 3 becomes 3,334 / 3,333 / 3,333. The owner asked for clean
-	numbers instead: 3,400 / 3,300 / 3,300.
+	class method), so ``set_payment_schedule`` has already built the rows from the
+	Payment Terms Template. Two things about those rows are wrong for a gym.
 
-	``invoice_portion`` is zeroed on each row deliberately: on any later save
+	**D6 — the amounts.** They are percentage-derived: 10,000 in 3 becomes
+	3,334 / 3,333 / 3,333. The owner asked for clean numbers: 3,400 / 3,300 / 3,300.
+	``invoice_portion`` is zeroed on each row deliberately — on any later save
 	``set_payment_schedule`` RE-derives ``payment_amount`` from the portion, which
-	would silently undo this. With no portion it preserves the explicit amount.
-	The split always totals the grand total, which ERPNext independently enforces.
+	would silently undo this. With no portion it preserves the explicit amount. The
+	split always totals the grand total, which ERPNext independently enforces.
+
+	**The dates.** A Payment Term can only say "N days after the invoice date" or
+	"N months after the END of the invoice month" — so it cannot express *the same
+	day next month*, which is what a gym means by "half now, half next month". The
+	dates are therefore recomputed here from the FIRST part's real due date, walking
+	the calendar (see ``payment_terms.part_due_dates``). Safe to do after the fact:
+	``set_payment_schedule`` only ever fills ``due_date`` when the schedule is empty,
+	so nothing downstream recomputes it.
+
+	Two things fall out of measuring from the first part rather than the invoice:
+	a monthly split now lands on the same day every month instead of drifting four
+	days a quarter, and a "by the 5th of next month" split lands on the 5th of each
+	following month instead of 45 days later.
 	"""
 	if frappe.flags.in_install or not doc.get("subscription") or doc.get("is_return"):
 		return
@@ -406,6 +420,27 @@ def on_sales_invoice_validate(doc, method=None):
 		row.base_payment_amount = flt(amount * conversion)
 		row.outstanding = amount
 		row.base_outstanding = row.base_payment_amount
+
+	_restate_installment_dates(doc, membership, rows)
+
+
+def _restate_installment_dates(doc, membership, rows) -> None:
+	"""Put the gym's real collection dates on the schedule (see caller).
+
+	Best-effort by design: a schedule with no first due date, or a policy that
+	cannot be read, leaves ERPNext's own dates alone rather than blocking billing.
+	"""
+	from netgainz.net_gainz.accounting import payment_terms
+
+	if not rows[0].get("due_date"):
+		return
+	policy = payment_terms.resolve_policy(membership)
+	dates = payment_terms.part_due_dates(rows[0].due_date, len(rows), policy.gap, policy.unit)
+	for row, due in zip(rows, dates, strict=True):
+		row.due_date = due
+	# The invoice's own due date is the LAST thing owed on it, which is how ERPNext
+	# already sets it from the schedule; keep the two in step after the restatement.
+	doc.due_date = max(dates)
 
 
 def on_sales_invoice_submit(doc, method=None):

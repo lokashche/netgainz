@@ -48,9 +48,7 @@ class MembershipPlan(Document):
 		"""
 		if self.gst_hsn_code:
 			return
-		default = (
-			frappe.db.get_single_value("Business Settings", "default_hsn_sac") or DEFAULT_HSN_SAC
-		)
+		default = frappe.db.get_single_value("Business Settings", "default_hsn_sac") or DEFAULT_HSN_SAC
 		if default and frappe.db.exists("GST HSN Code", default):
 			self.gst_hsn_code = default
 
@@ -81,11 +79,11 @@ class MembershipPlan(Document):
 		if parts < 1:
 			self.installment_count = parts = 1
 		if parts > payment_terms.MAX_INSTALLMENTS:
-			frappe.throw(
-				f"At most {payment_terms.MAX_INSTALLMENTS} installments are supported."
-			)
+			frappe.throw(f"At most {payment_terms.MAX_INSTALLMENTS} installments are supported.")
+		self.installment_gap_unit = payment_terms.normalise_unit(self.installment_gap_unit)
 		if parts > 1 and int(self.installment_gap_days or 0) < 1:
-			frappe.throw("Installments must be at least 1 day apart.")
+			unit = self.installment_gap_unit.lower().rstrip("s")
+			frappe.throw(f"Installments must be at least 1 {unit} apart.")
 
 		if parts > 1 and self.billing_mode == PAY_AS_YOU_GO:
 			self._validate_pay_as_you_go_split(parts)

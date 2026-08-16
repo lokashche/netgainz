@@ -19,6 +19,8 @@ export type Member = {
 export type PlanType = 'Monthly' | 'Quarterly' | 'Half-Yearly' | 'Yearly' | 'Custom';
 export type BillingMode = 'Commitment' | 'Pay-as-you-go';
 export type PaymentDueRule = 'On joining' | 'Within 7 days' | 'By the 5th of next month';
+/** How the gap between parts is counted. Months means the calendar month. */
+export type GapUnit = 'Days' | 'Weeks' | 'Months';
 
 export type MembershipPlan = {
   name: string;         // same as plan_name
@@ -29,7 +31,9 @@ export type MembershipPlan = {
   amount?: number;
   payment_due_rule?: PaymentDueRule;
   installment_count?: number;
+  /** How long after one part the next is due, counted in installment_gap_unit. */
   installment_gap_days?: number;
+  installment_gap_unit?: GapUnit;
   /** DS-4: days a new member trains free before their first invoice. 0 = no trial. */
   trial_days?: number;
   description?: string;
@@ -1110,11 +1114,13 @@ export type MembershipTerms = {
   payment_due_rule: PaymentDueRule;
   installment_count: number;
   installment_gap_days: number;
-  /** The policy in plain words, e.g. "Pays in 3 parts every 30 days". */
+  installment_gap_unit: GapUnit;
+  /** The policy in plain words, e.g. "Pays in 2 parts every month". */
   summary: string;
   plan: string | null;
   plan_summary: string;
   due_rules: PaymentDueRule[];
+  gap_units: GapUnit[];
   max_installments: number;
 };
 

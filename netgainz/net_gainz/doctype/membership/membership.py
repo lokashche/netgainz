@@ -52,22 +52,12 @@ class Membership(Document):
 		from netgainz.net_gainz.accounting import payment_terms
 
 		if self.payment_due_rule or int(self.installment_count or 0) > 1:
-			plan = (
-				frappe.db.get_value(
-					"Membership Plan",
-					self.membership_plan,
-					["payment_due_rule", "installment_count", "installment_gap_days"],
-					as_dict=True,
-				)
-				if self.membership_plan
-				else None
+			# resolve_policy owns the member-then-plan-then-default fallback, so the
+			# member screen and the invoice hook can never read it differently.
+			policy = payment_terms.resolve_policy(self)
+			self.payment_terms_template = payment_terms.ensure_template(
+				policy.due_rule, policy.parts, policy.gap, policy.unit
 			)
-			due_rule = self.payment_due_rule or (plan and plan.payment_due_rule)
-			parts = int(self.installment_count or 0) or int((plan and plan.installment_count) or 1)
-			gap = int(self.installment_gap_days or 0) or int(
-				(plan and plan.installment_gap_days) or 30
-			)
-			self.payment_terms_template = payment_terms.ensure_template(due_rule, parts, gap)
 		elif self.membership_plan:
 			self.payment_terms_template = frappe.db.get_value(
 				"Membership Plan", self.membership_plan, "payment_terms_template"

@@ -76,9 +76,7 @@ def ensure_cash_account(company=None) -> str | None:
 	existing = frappe.db.get_value("Company", company, "default_cash_account")
 	if existing:
 		return existing
-	cash = frappe.db.get_value(
-		"Account", {"company": company, "account_type": "Cash", "is_group": 0}, "name"
-	)
+	cash = frappe.db.get_value("Account", {"company": company, "account_type": "Cash", "is_group": 0}, "name")
 	if cash:
 		frappe.db.set_value("Company", company, "default_cash_account", cash)
 	return cash
@@ -93,6 +91,7 @@ def make_plan(
 	due_rule="On joining",
 	parts=1,
 	gap_days=30,
+	gap_unit="Days",
 ):
 	"""A Membership Plan (auto-provisions Item + Item Price + Subscription Plan).
 
@@ -120,6 +119,7 @@ def make_plan(
 		"payment_due_rule": due_rule,
 		"installment_count": parts,
 		"installment_gap_days": gap_days,
+		"installment_gap_unit": gap_unit,
 	}
 	# Mirror the owner app: the day count is set BY the cadence, and is only
 	# supplied directly for a Custom plan. Sending both would make the controller
@@ -144,8 +144,8 @@ def enrol(tag, amount=1000.0, duration=30, date_of_joining=None, **plan_kwargs):
 	so the returned membership already carries ``subscription`` +
 	``current_sales_invoice``. ``tag`` is suffixed with a process-unique sequence so
 	repeated calls can never collide on a master's name. Extra keyword arguments
-	(``plan_type``, ``billing_mode``, ``due_rule``, ``parts``, ``gap_days``) go
-	straight to :func:`make_plan`.
+	(``plan_type``, ``billing_mode``, ``due_rule``, ``parts``, ``gap_days``,
+	``gap_unit``) go straight to :func:`make_plan`.
 	"""
 	tag = f"{tag}-{next(_SEQ)}"
 	plan = make_plan(f"{tag} Plan", amount=amount, duration=duration, **plan_kwargs)

@@ -1,6 +1,6 @@
 "use client";
 
-import type { PaymentDueRule } from "@/lib/types";
+import type { GapUnit, PaymentDueRule } from "@/lib/types";
 
 // How a member pays: in full, or in parts. The plan carries the gym's usual answer;
 // this is where one member gets a different one — the deal struck at the desk.
@@ -14,18 +14,36 @@ export const DUE_RULES: PaymentDueRule[] = [
   "By the 5th of next month",
 ];
 
+// "Half now, half next month" is a different promise from "half now, half in 30
+// days" — 30 days from the 31st of January is the 2nd of March, and it drifts a
+// little further every renewal. Months here mean the calendar month.
+export const GAP_UNITS: { value: GapUnit; label: string; one: string }[] = [
+  { value: "Days", label: "days", one: "day" },
+  { value: "Weeks", label: "weeks", one: "week" },
+  { value: "Months", label: "months", one: "month" },
+];
+
 export type TermsDraft = {
   /** Empty string means "whatever the plan says". */
   payment_due_rule: PaymentDueRule | "";
   installment_count: number | "";
   installment_gap_days: number | "";
+  installment_gap_unit: GapUnit | "";
 };
 
 export const EMPTY_TERMS: TermsDraft = {
   payment_due_rule: "",
   installment_count: "",
   installment_gap_days: "",
+  installment_gap_unit: "",
 };
+
+/** "every month" / "every 4 weeks" / "every 45 days" — mirrors payment_terms.describe_gap. */
+export function describeGap(gap: number, unit: GapUnit | ""): string {
+  if (!gap || gap < 1) return "";
+  const u = GAP_UNITS.find((x) => x.value === (unit || "Days")) ?? GAP_UNITS[0];
+  return gap === 1 ? `every ${u.one}` : `every ${gap} ${u.label}`;
+}
 
 /** The draft in the gym's own words, so the owner reads a sentence, not a form. */
 export function describeTerms(t: TermsDraft, fallback: string): string {
@@ -41,7 +59,8 @@ export function describeTerms(t: TermsDraft, fallback: string): string {
     }`;
   }
   const gap = Number(t.installment_gap_days || 0);
-  const every = gap ? ` every ${gap} days` : "";
+  const spaced = describeGap(gap, t.installment_gap_unit);
+  const every = spaced ? ` ${spaced}` : "";
   const when = t.payment_due_rule
     ? t.payment_due_rule === "On joining"
       ? " starting when they join"
@@ -89,14 +108,19 @@ export default function PaymentTermsFields({
             value={value.installment_count === "" ? "" : String(value.installment_count)}
             onChange={(e) => {
               const n = e.target.value === "" ? "" : Number(e.target.value);
-              // Choosing a split with no gap yet gets the usual monthly one, so the
-              // owner does not have to know that a gap is even required.
+              // Choosing a split with no gap yet gets the commonest one — a part
+              // a month — so the owner never has to know a gap is even required.
+              const willSplit = n !== "" && Number(n) >= 2;
               set({
                 installment_count: n,
                 installment_gap_days:
-                  n !== "" && Number(n) >= 2 && value.installment_gap_days === ""
-                    ? 30
+                  willSplit && value.installment_gap_days === ""
+                    ? 1
                     : value.installment_gap_days,
+                installment_gap_unit:
+                  willSplit && value.installment_gap_unit === ""
+                    ? "Months"
+                    : value.installment_gap_unit,
               });
             }}
             className={inputClass}
@@ -113,21 +137,40 @@ export default function PaymentTermsFields({
 
         <div>
           <label className={labelClass} htmlFor="pt-gap">
-            Days between parts
+            Collect a part every
           </label>
-          <input
-            id="pt-gap"
-            type="number"
-            min={1}
-            max={365}
-            disabled={!splitting}
-            value={value.installment_gap_days === "" ? "" : String(value.installment_gap_days)}
-            onChange={(e) =>
-              set({ installment_gap_days: e.target.value === "" ? "" : Number(e.target.value) })
-            }
-            placeholder={splitting ? "30" : "—"}
-            className={`${inputClass} disabled:opacity-40`}
-          />
+          <div className="flex gap-2">
+            <input
+              id="pt-gap"
+              type="number"
+              min={1}
+              max={365}
+              disabled={!splitting}
+              value={value.installment_gap_days === "" ? "" : String(value.installment_gap_days)}
+              onChange={(e) =>
+                set({ installment_gap_days: e.target.value === "" ? "" : Number(e.target.value) })
+              }
+              placeholder={splitting ? "1" : "—"}
+              className={`${inputClass} disabled:opacity-40 w-20 shrink-0`}
+            />
+            <select
+              id="pt-gap-unit"
+              aria-label="Unit"
+              disabled={!splitting}
+              value={value.installment_gap_unit}
+              onChange={(e) =>
+                set({ installment_gap_unit: e.target.value as GapUnit | "" })
+              }
+              className={`${inputClass} disabled:opacity-40`}
+            >
+              <option value="">Whatever the plan says</option>
+              {GAP_UNITS.map((u) => (
+                <option key={u.value} value={u.value}>
+                  {u.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <div>
@@ -152,7 +195,9 @@ export default function PaymentTermsFields({
 
       <p className="text-xs text-[#8A97B2] mt-3">
         Leave these alone and the member follows the plan. Change them and this member
-        alone pays differently.
+        alone pays differently. <span className="text-[#A9B6CE]">Months</span> means the
+        same day next month, so a member who joins on the 31st is never pushed into the
+        month after.
       </p>
     </div>
   );

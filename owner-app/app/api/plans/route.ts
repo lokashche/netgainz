@@ -22,6 +22,7 @@ export async function GET(req: NextRequest) {
     "payment_due_rule",
     "installment_count",
     "installment_gap_days",
+    "installment_gap_unit",
   ]);
 
   const filters: Array<[string, string, string | number]> = [];

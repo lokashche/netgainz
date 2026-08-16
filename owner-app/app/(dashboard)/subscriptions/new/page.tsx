@@ -8,6 +8,7 @@ import LinkFieldPicker, { type LinkFieldOption } from "@/app/components/LinkFiel
 import OfferPicker from "@/app/components/OfferPicker";
 import PaymentTermsFields, {
   EMPTY_TERMS,
+  describeGap,
   type TermsDraft,
 } from "@/app/components/PaymentTermsFields";
 import DiscountBox, {
@@ -15,7 +16,7 @@ import DiscountBox, {
   discountPayload,
   type DiscountDraft,
 } from "@/app/components/DiscountBox";
-import type { Capabilities, Member, MembershipPlan } from "@/lib/types";
+import type { Capabilities, GapUnit, Member, MembershipPlan } from "@/lib/types";
 
 async function fetchMembers(q: string): Promise<LinkFieldOption[]> {
   const url = q ? `/api/members?q=${encodeURIComponent(q)}` : "/api/members";
@@ -33,12 +34,16 @@ async function fetchMembers(q: string): Promise<LinkFieldOption[]> {
 const PLAN_AMOUNTS: Record<string, number> = {};
 
 /** Each plan's own payment terms, so the form can show what the member gets by default. */
-const PLAN_TERMS: Record<string, { parts: number; gap: number; rule: string }> = {};
+const PLAN_TERMS: Record<
+  string,
+  { parts: number; gap: number; unit: GapUnit | ""; rule: string }
+> = {};
 
 function planTermsSummary(plan: string): string {
   const t = PLAN_TERMS[plan];
   if (!t || t.parts < 2) return "Pays in full";
-  return `Pays in ${t.parts} parts${t.gap ? ` every ${t.gap} days` : ""}`;
+  const every = describeGap(t.gap, t.unit);
+  return `Pays in ${t.parts} parts${every ? ` ${every}` : ""}`;
 }
 
 async function fetchPlans(q: string): Promise<LinkFieldOption[]> {
@@ -52,6 +57,7 @@ async function fetchPlans(q: string): Promise<LinkFieldOption[]> {
     PLAN_TERMS[p.name] = {
       parts: Number(p.installment_count ?? 0),
       gap: Number(p.installment_gap_days ?? 0),
+      unit: p.installment_gap_unit ?? "",
       rule: p.payment_due_rule ?? "",
     };
     return {
@@ -144,6 +150,9 @@ function NewSubscriptionForm() {
     }
     if (terms.installment_gap_days !== "") {
       payload.installment_gap_days = Number(terms.installment_gap_days);
+    }
+    if (terms.installment_gap_unit !== "") {
+      payload.installment_gap_unit = terms.installment_gap_unit;
     }
     if (comments) payload.comments = comments;
 

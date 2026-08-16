@@ -39,6 +39,7 @@ export async function POST(req: NextRequest, { params }: Params) {
         payment_due_rule: body.payment_due_rule ?? "",
         installment_count: body.installment_count ?? 0,
         installment_gap_days: body.installment_gap_days ?? 0,
+        installment_gap_unit: body.installment_gap_unit ?? "",
       }),
       sessionCookie: session.frappeCookies,
     }
