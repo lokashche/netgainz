@@ -46,7 +46,13 @@ from __future__ import annotations
 import frappe
 from frappe.utils import flt, get_first_day, get_last_day, getdate, today
 
-from netgainz.net_gainz.accounting import billing, billing_intervals, branch, provisioning
+from netgainz.net_gainz.accounting import (
+	billing,
+	billing_intervals,
+	branch,
+	currency,
+	provisioning,
+)
 from netgainz.net_gainz.profit_first import accounts as pf_accounts
 
 NEXT_PERIOD = "Next period"
@@ -259,6 +265,7 @@ def raise_part_month_invoice(membership, subscription, amount, company) -> str |
 	# invoice 1000 -> 1180, stub 500 -> 500). Invisible for a non-GST tenant, an
 	# under-charge for a registered one.
 	si.set_missing_values(for_validate=True)
+	currency.pin_to_company_currency(si, company)
 	if si.taxes_and_charges and not si.get("taxes"):
 		si.set_taxes()
 	si.insert(ignore_permissions=True)
