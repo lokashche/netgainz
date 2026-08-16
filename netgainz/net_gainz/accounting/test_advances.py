@@ -72,9 +72,7 @@ class TestAdvances(FrappeTestCase):
 		advances.record_advance(ms.member, 5000.0, "Cash", today())
 
 		self.assertAlmostEqual(advances.advance_balance(ms.member), 5000.0, places=2)
-		self.assertEqual(
-			self._cash(ms), 0, "unapplied money is a liability, not membership revenue"
-		)
+		self.assertEqual(self._cash(ms), 0, "unapplied money is a liability, not membership revenue")
 
 	def test_advance_requires_a_posting_date_and_a_positive_amount(self):
 		ms = fx.enrol("ADV Guard", amount=1000.0)
@@ -119,9 +117,13 @@ class TestAdvances(FrappeTestCase):
 				"company": frappe.db.get_value("Sales Invoice", ms.current_sales_invoice, "company"),
 				"posting_date": today(),
 				"due_date": today(),
-				"items": [{"item_code": frappe.db.get_value(
-					"Membership Plan", ms.membership_plan, "item"
-				), "qty": 1, "rate": 700}],
+				"items": [
+					{
+						"item_code": frappe.db.get_value("Membership Plan", ms.membership_plan, "item"),
+						"qty": 1,
+						"rate": 700,
+					}
+				],
 			}
 		).insert(ignore_permissions=True)
 		other.submit()
@@ -143,9 +145,7 @@ class TestAdvances(FrappeTestCase):
 		sub = frappe.get_doc("Subscription", ms.subscription)
 		si2 = sub.create_invoice()
 
-		self.assertEqual(
-			self._outstanding(si2.name), 0.0, "the advance settled the new period on submit"
-		)
+		self.assertEqual(self._outstanding(si2.name), 0.0, "the advance settled the new period on submit")
 		ms.reload()
 		ms.save(ignore_permissions=True)
 		ms.reload()

@@ -240,7 +240,12 @@ def get_write_off_context(membership) -> dict:
 
 	si_name = billing.current_invoice(membership)
 	if not si_name:
-		return {"sales_invoice": None, "outstanding": 0.0, "written_off": 0.0, "reasons": list(WRITE_OFF_REASONS)}
+		return {
+			"sales_invoice": None,
+			"outstanding": 0.0,
+			"written_off": 0.0,
+			"reasons": list(WRITE_OFF_REASONS),
+		}
 	return {
 		"sales_invoice": si_name,
 		"outstanding": flt(frappe.db.get_value("Sales Invoice", si_name, "outstanding_amount")),

@@ -42,9 +42,7 @@ def _clear():
 		if doc.docstatus == 1:
 			doc.cancel()
 		frappe.delete_doc("Expense", name, force=True, ignore_permissions=True)
-	for name in frappe.get_all(
-		"Expense Category", filters={"name": ["like", f"{TAG}%"]}, pluck="name"
-	):
+	for name in frappe.get_all("Expense Category", filters={"name": ["like", f"{TAG}%"]}, pluck="name"):
 		frappe.delete_doc("Expense Category", name, force=True, ignore_permissions=True)
 	frappe.db.commit()
 

@@ -246,7 +246,9 @@ def apply_advances(member_or_membership, company=None, limit_to_invoice=None) ->
 					"payment_entry": payment.reference_name,
 					"sales_invoice": inv.invoice_number,
 					"amount": take,
-					"received_on": str(getdate(payment.posting_date)) if payment.get("posting_date") else None,
+					"received_on": str(getdate(payment.posting_date))
+					if payment.get("posting_date")
+					else None,
 				}
 			)
 			remaining[inv.invoice_number] -= take
@@ -282,9 +284,7 @@ def _recognition_warnings(allocations) -> list[str]:
 			continue
 		seen.add(received)
 		for warning in refunds._sweep_warnings(received):
-			warnings.append(
-				f"Money received on {received} has now been recognised as revenue. {warning}"
-			)
+			warnings.append(f"Money received on {received} has now been recognised as revenue. {warning}")
 	return warnings
 
 
@@ -312,7 +312,11 @@ def record_member_advance(member, amount, payment_mode=None, posting_date=None, 
 
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
 	pe = record_advance(
-		member, amount, payment_mode=payment_mode, posting_date=posting_date or today(), reference_no=reference_no
+		member,
+		amount,
+		payment_mode=payment_mode,
+		posting_date=posting_date or today(),
+		reference_no=reference_no,
 	)
 	return {"payment_entry": pe, "advance_balance": advance_balance(member)}
 

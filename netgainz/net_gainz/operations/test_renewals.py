@@ -13,9 +13,9 @@ def _member(name):
 
 
 def _sub(member, next_renewal):
-	return frappe.get_doc(
-		{"doctype": "Membership", "member": member, "next_renewal": next_renewal}
-	).insert(ignore_permissions=True)
+	return frappe.get_doc({"doctype": "Membership", "member": member, "next_renewal": next_renewal}).insert(
+		ignore_permissions=True
+	)
 
 
 class TestRenewals(FrappeTestCase):

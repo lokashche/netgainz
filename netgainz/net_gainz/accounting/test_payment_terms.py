@@ -74,12 +74,8 @@ class TestEnsureTemplate(FrappeTestCase):
 		grace = frappe.get_doc("Payment Terms Template", pt.ensure_template(pt.DUE_IN_7_DAYS))
 		self.assertEqual(grace.terms[0].credit_days, 7)
 
-		month_end = frappe.get_doc(
-			"Payment Terms Template", pt.ensure_template(pt.DUE_5TH_NEXT_MONTH)
-		)
-		self.assertEqual(
-			month_end.terms[0].due_date_based_on, "Day(s) after the end of the invoice month"
-		)
+		month_end = frappe.get_doc("Payment Terms Template", pt.ensure_template(pt.DUE_5TH_NEXT_MONTH))
+		self.assertEqual(month_end.terms[0].due_date_based_on, "Day(s) after the end of the invoice month")
 		self.assertEqual(month_end.terms[0].credit_days, 5)
 
 	def test_installments_build_one_row_each_with_increasing_due_dates(self):
@@ -91,9 +87,7 @@ class TestEnsureTemplate(FrappeTestCase):
 
 	def test_allocate_by_payment_terms_is_on(self):
 		"""Required for per-installment paid/outstanding tracking (WP-10.5)."""
-		doc = frappe.get_doc(
-			"Payment Terms Template", pt.ensure_template(pt.DUE_ON_JOINING, parts=2, gap=30)
-		)
+		doc = frappe.get_doc("Payment Terms Template", pt.ensure_template(pt.DUE_ON_JOINING, parts=2, gap=30))
 		self.assertTrue(doc.allocate_payment_based_on_payment_terms)
 		self.assertTrue(all(r.payment_term for r in doc.terms))
 
@@ -212,6 +206,4 @@ class TestGapUnits(FrappeTestCase):
 		)
 
 	def test_paying_in_full_never_mentions_a_gap(self):
-		self.assertEqual(
-			pt.describe(pt.DUE_ON_JOINING, 1, 1, pt.GAP_MONTHS), "Pays in full when they join"
-		)
+		self.assertEqual(pt.describe(pt.DUE_ON_JOINING, 1, 1, pt.GAP_MONTHS), "Pays in full when they join")

@@ -70,9 +70,7 @@ class SessionSchedule(Document):
 			if getdate(d).weekday() not in days:
 				continue
 			start_dt = get_datetime(f"{getdate(d)} {self.start_time}")
-			if frappe.db.exists(
-				"Session", {"class_schedule": self.name, "start_time": start_dt}
-			):
+			if frappe.db.exists("Session", {"class_schedule": self.name, "start_time": start_dt}):
 				continue
 			frappe.get_doc(
 				{

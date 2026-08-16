@@ -133,9 +133,7 @@ def _sync_item_price(item_code: str, amount) -> str | None:
 	if not frappe.db.exists("Price List", price_list):
 		return None
 
-	name = frappe.db.get_value(
-		"Item Price", {"item_code": item_code, "price_list": price_list}, "name"
-	)
+	name = frappe.db.get_value("Item Price", {"item_code": item_code, "price_list": price_list}, "name")
 	if name:
 		if flt(frappe.db.get_value("Item Price", name, "price_list_rate")) != flt(amount):
 			frappe.db.set_value("Item Price", name, "price_list_rate", flt(amount))
@@ -177,8 +175,10 @@ def provision_item(plan, company=None) -> str | None:
 		item.item_code = item_code
 		item.item_name = plan.plan_name
 		item.item_group = _resolve("Item Group", DEFAULT_ITEM_GROUP, _ROOT_ITEM_GROUP)
-		item.stock_uom = DEFAULT_UOM if frappe.db.exists("UOM", DEFAULT_UOM) else (
-			frappe.db.get_single_value("Stock Settings", "stock_uom") or DEFAULT_UOM
+		item.stock_uom = (
+			DEFAULT_UOM
+			if frappe.db.exists("UOM", DEFAULT_UOM)
+			else (frappe.db.get_single_value("Stock Settings", "stock_uom") or DEFAULT_UOM)
 		)
 		item.is_stock_item = 0
 		item.is_sales_item = 1

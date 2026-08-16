@@ -214,9 +214,7 @@ def _provision(row, start_mode, company, bill_part_month=True) -> str | None:
 
 	membership.db_set("subscription", sub.name, update_modified=False)
 	if start_mode == CALENDAR_MONTH and bill_part_month:
-		invoice = raise_part_month_invoice(
-			membership.name, sub.name, row["part_month_amount"], company
-		)
+		invoice = raise_part_month_invoice(membership.name, sub.name, row["part_month_amount"], company)
 		if invoice:
 			billing.sync_derived_fields(membership.name)
 	# The load flag has done its job — clear it so the membership behaves like any
@@ -317,9 +315,7 @@ def start_billing(start_mode=NEXT_PERIOD, dry_run=1, memberships=None, bill_part
 			first_invoice = row["current_period_start"]
 		else:
 			first_invoice = row["next_period_start"]
-		part_month_now = (
-			row["part_month_amount"] if start_mode == CALENDAR_MONTH and bill_part_month else 0.0
-		)
+		part_month_now = row["part_month_amount"] if start_mode == CALENDAR_MONTH and bill_part_month else 0.0
 		if dry_run:
 			started.append(
 				{

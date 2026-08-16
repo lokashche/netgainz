@@ -16,9 +16,9 @@ class TestBusinessBranch(FrappeTestCase):
 	def test_rejects_cost_center_from_another_company(self):
 		company = pf_accounts.default_company()
 		other = frappe.db.get_value("Company", {"name": ["!=", company]}, "name")
-		other_cc = frappe.db.get_value(
-			"Cost Center", {"company": other, "is_group": 0}, "name"
-		) if other else None
+		other_cc = (
+			frappe.db.get_value("Cost Center", {"company": other, "is_group": 0}, "name") if other else None
+		)
 		if not other_cc:
 			self.skipTest("no second company with a cost center on this site")
 		b = frappe.get_doc(
