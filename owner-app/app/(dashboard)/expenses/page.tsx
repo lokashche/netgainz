@@ -3,6 +3,7 @@ import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
 import { buildHref, fetchListPage, readPageParams } from "@/lib/pagination";
 import Pagination from "@/app/components/Pagination";
+import RepeatingExpensesBanner from "@/app/components/RepeatingExpensesBanner";
 import type { GymExpense, ExpenseCategory } from "@/lib/types";
 
 type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
@@ -109,6 +110,9 @@ export default async function ExpensesPage({
           Add Expense
         </a>
       </div>
+
+      {/* Repeating expenses the app is behind on, raised as drafts */}
+      <RepeatingExpensesBanner />
 
       {/* Summary stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">

@@ -56,6 +56,7 @@ export default function SettingsPage() {
   // Money owed: how far ahead a payment counts as coming up, and the daily nudge.
   const [dues_reminder_days, setDuesReminderDays] = useState("3");
   const [dues_reminders_enabled, setDuesRemindersEnabled] = useState(true);
+  const [recurring_expenses_enabled, setRecurringExpensesEnabled] = useState(true);
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -101,6 +102,7 @@ export default function SettingsPage() {
           setAssessmentRemindersEnabled(s.assessment_reminders_enabled !== 0);
           setDuesReminderDays(String(s.dues_reminder_days || 3));
           setDuesRemindersEnabled(s.dues_reminders_enabled !== 0);
+          setRecurringExpensesEnabled(s.recurring_expenses_enabled !== 0);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unexpected error");
@@ -155,6 +157,7 @@ export default function SettingsPage() {
           assessment_reminders_enabled: assessment_reminders_enabled ? 1 : 0,
           dues_reminder_days: Number(dues_reminder_days) || 3,
           dues_reminders_enabled: dues_reminders_enabled ? 1 : 0,
+          recurring_expenses_enabled: recurring_expenses_enabled ? 1 : 0,
         }),
       });
 
@@ -698,6 +701,23 @@ export default function SettingsPage() {
               Daily in-app reminder of money owed
             </label>
           </div>
+
+          <div className="mt-4 flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="recurring_expenses_enabled"
+              checked={recurring_expenses_enabled}
+              onChange={(e) => setRecurringExpensesEnabled(e.target.checked)}
+              className="w-4 h-4 rounded accent-[#22D38C] cursor-pointer"
+            />
+            <label htmlFor="recurring_expenses_enabled" className="text-sm text-[#E6EDF7]">
+              Raise repeating expenses automatically
+            </label>
+          </div>
+          <p className="mt-2 text-xs text-[#8A97B2]">
+            Next period&apos;s copy of anything marked as repeating, added as a draft for
+            you to check. Never posts to your accounts on its own.
+          </p>
         </section>
 
         <div className="flex gap-3 pt-2">

@@ -63,7 +63,8 @@
   "dues_section",
   "dues_reminder_days",
   "column_break_dues",
-  "dues_reminders_enabled"
+  "dues_reminders_enabled",
+  "recurring_expenses_enabled"
  ],
  "fields": [
   {
@@ -438,6 +439,13 @@
    "label": "Remind Me About Money Owed",
    "default": "1",
    "description": "A daily in-app note listing payments that are late or due today. Silent when nothing is owed."
+  },
+  {
+   "fieldname": "recurring_expenses_enabled",
+   "fieldtype": "Check",
+   "label": "Raise Repeating Expenses Automatically",
+   "default": "1",
+   "description": "Creates next period's copy of any expense marked as repeating, as a DRAFT for you to check and submit. Never posts to the accounts on its own."
   }
  ],
  "issingle": 1,

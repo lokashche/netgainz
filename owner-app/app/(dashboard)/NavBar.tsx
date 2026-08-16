@@ -18,6 +18,8 @@ const SETUP_ITEMS: NavItem[] = [
 
 const CASHFLOW_ITEMS: NavItem[] = [
   { href: "/subscriptions", label: "Subscriptions" },
+  // Where the daily money reminder points: one line per unpaid part.
+  { href: "/collections", label: "Money to Collect" },
   { href: "/expenses", label: "Expenses" },
   { href: "/discounts", label: "Discounts" },
   // Go-live: members loaded from the gym's own records are not billed until the

@@ -245,6 +245,10 @@ scheduler_events = {
 		# them was about being paid -- the gym was told to chase a member who had
 		# stopped coming, but not one who had missed an instalment.
 		"netgainz.net_gainz.accounting.collections.notify_dues",
+		# Expenses the owner marked as repeating. Raised as DRAFTS - rent is the same
+		# every month but electricity is not, so a repeat that posts itself would be
+		# worse than one that does nothing.
+		"netgainz.net_gainz.accounting.recurring.generate_recurring_expenses",
 	],
 }
 

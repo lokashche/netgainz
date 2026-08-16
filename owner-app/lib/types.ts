@@ -407,6 +407,7 @@ export type GymSettings = {
   assessment_reminders_enabled?: 0 | 1;
   dues_reminder_days?: number;
   dues_reminders_enabled?: 0 | 1;
+  recurring_expenses_enabled?: 0 | 1;
 };
 
 export type CancellationRefundPolicy = 'No refund' | 'Prorated unused days';
@@ -1139,4 +1140,26 @@ export type Collections = {
   total_late: number;
   total_due_today: number;
   total_due_soon: number;
+};
+
+
+/* ── Repeating expenses ───────────────────────────────────────────────────── */
+
+export type RepeatingRow = {
+  root: string;
+  category: string | null;
+  amount: number;
+  vendor: string | null;
+  frequency: string;
+  last_raised: string;
+  /** Dates waiting to be raised as drafts. */
+  due: string[];
+  /** How many further periods were beyond the catch-up cap. */
+  skipped: number;
+};
+
+export type RepeatingExpenses = {
+  rows: RepeatingRow[];
+  due_now: number;
+  max_catch_up: number;
 };
