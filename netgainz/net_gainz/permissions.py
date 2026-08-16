@@ -48,7 +48,17 @@ SYSTEM_MANAGER = "System Manager"
 NETGAINZ_ROLES = (GYM_OWNER, GYM_STAFF)
 
 # Permission shorthands. `submit` implies the doctype is submittable.
-FULL = {"read": 1, "write": 1, "create": 1, "delete": 1, "report": 1, "export": 1, "print": 1, "email": 1, "share": 1}
+FULL = {
+	"read": 1,
+	"write": 1,
+	"create": 1,
+	"delete": 1,
+	"report": 1,
+	"export": 1,
+	"print": 1,
+	"email": 1,
+	"share": 1,
+}
 SUBMIT = {**FULL, "submit": 1, "cancel": 1, "amend": 1}
 EDIT = {"read": 1, "write": 1, "create": 1, "report": 1, "print": 1}
 READ = {"read": 1, "report": 1, "print": 1}
@@ -157,8 +167,20 @@ ERPNEXT_READ_FOR_OWNER = ("Journal Entry", "GL Entry")
 # Every grantable right on a (Custom) DocPerm in Frappe v15. `if_owner` is a
 # scoping flag rather than a right, so it is deliberately not written here.
 ALL_PERM_KEYS = (
-	"read", "write", "create", "delete", "submit", "cancel", "amend",
-	"report", "export", "import", "print", "email", "share", "select",
+	"read",
+	"write",
+	"create",
+	"delete",
+	"submit",
+	"cancel",
+	"amend",
+	"report",
+	"export",
+	"import",
+	"print",
+	"email",
+	"share",
+	"select",
 )
 
 
@@ -183,8 +205,7 @@ def require_role(*roles: str) -> None:
 	permitted = set(roles) | {SYSTEM_MANAGER}
 	if permitted.isdisjoint(frappe.get_roles(user)):
 		frappe.throw(
-			"You do not have permission to do this. It is restricted to: "
-			+ ", ".join(sorted(roles)),
+			"You do not have permission to do this. It is restricted to: " + ", ".join(sorted(roles)),
 			frappe.PermissionError,
 			title="Not Permitted",
 		)
@@ -252,9 +273,7 @@ def _write_docperm(doctype: str, role: str, perms: dict) -> bool:
 	values = {key: int(bool(perms.get(key))) for key in ALL_PERM_KEYS}
 	values["permlevel"] = 0
 
-	name = frappe.db.get_value(
-		"Custom DocPerm", {"parent": doctype, "role": role, "permlevel": 0}, "name"
-	)
+	name = frappe.db.get_value("Custom DocPerm", {"parent": doctype, "role": role, "permlevel": 0}, "name")
 	if name:
 		existing = frappe.db.get_value("Custom DocPerm", name, list(values), as_dict=True)
 		if all(int(existing.get(key) or 0) == values[key] for key in values):

@@ -90,8 +90,12 @@ class TestMemberPricing(FrappeTestCase):
 
 	def test_installments_split_the_member_price_not_the_plan_price(self):
 		ms = self._enrol_at(
-			"MP Parts", price=9000.0, plan_amount=3000.0,
-			plan_type="Quarterly", parts=3, gap_days=30,
+			"MP Parts",
+			price=9000.0,
+			plan_amount=3000.0,
+			plan_type="Quarterly",
+			parts=3,
+			gap_days=30,
 		)
 		self.assertEqual(self._net(ms.current_sales_invoice), 9000.0)
 		obligations = billing.open_obligations(ms.name)
@@ -103,8 +107,12 @@ class TestMemberPricing(FrappeTestCase):
 		"""PAYG raises an invoice per installment, so each is the member's price
 		divided by the parts — not the plan's."""
 		ms = self._enrol_at(
-			"MP PAYG", price=12000.0, plan_amount=3000.0,
-			plan_type="Quarterly", billing_mode="Pay-as-you-go", parts=3,
+			"MP PAYG",
+			price=12000.0,
+			plan_amount=3000.0,
+			plan_type="Quarterly",
+			billing_mode="Pay-as-you-go",
+			parts=3,
 		)
 		self.assertEqual(billing.installment_parts(ms), 3)
 		self.assertEqual(billing.membership_price(ms), 4000.0)
@@ -147,7 +155,9 @@ class TestMemberPricing(FrappeTestCase):
 		self.assertIsNone(ms.subscription, "no Subscription, so the scheduler cannot bill either")
 		self.assertIsNone(ms.current_sales_invoice)
 		self.assertEqual(
-			frappe.db.count("Sales Invoice", {"customer": frappe.db.get_value("Member", member.name, "customer")}),
+			frappe.db.count(
+				"Sales Invoice", {"customer": frappe.db.get_value("Member", member.name, "customer")}
+			),
 			0,
 		)
 
@@ -161,9 +171,9 @@ class TestMemberPricing(FrappeTestCase):
 	def test_unbillable_report_lists_them_with_a_reason(self):
 		plan = fx.make_plan("MP Report Plan", amount=0.0)
 		member = fx.make_member("MP Report Member", plan.name)
-		frappe.get_doc(
-			{"doctype": "Membership", "member": member.name, "membership_plan": plan.name}
-		).insert(ignore_permissions=True)
+		frappe.get_doc({"doctype": "Membership", "member": member.name, "membership_plan": plan.name}).insert(
+			ignore_permissions=True
+		)
 		self._enrol_at("MP Report Priced", price=1200.0, plan_amount=0.0)
 
 		report = billing.unbillable_memberships()

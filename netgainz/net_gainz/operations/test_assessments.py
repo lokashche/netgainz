@@ -420,11 +420,11 @@ class TestAssessments(FrappeTestCase):
 		assessments.set_target(self.member.name, "Weight", 62.0)
 		_assess(self.member.name, date=today(), weight=58.0)
 
-		weight = next(s for s in assessments.get_progress(self.member.name)["series"] if s["metric"] == "Weight")
-		self.assertEqual(weight["direction"], "Higher is better", "this member is gaining on purpose")
-		self.assertAlmostEqual(
-			weight["change_since_last"], 3.0, places=2, msg="+3kg is progress for them"
+		weight = next(
+			s for s in assessments.get_progress(self.member.name)["series"] if s["metric"] == "Weight"
 		)
+		self.assertEqual(weight["direction"], "Higher is better", "this member is gaining on purpose")
+		self.assertAlmostEqual(weight["change_since_last"], 3.0, places=2, msg="+3kg is progress for them")
 		self.assertAlmostEqual(weight["percent_to_target"], 42.9, places=1, msg="3 of the 7 kg")
 
 	def test_the_same_metric_still_reads_the_gyms_way_without_a_target(self):

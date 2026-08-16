@@ -36,7 +36,9 @@ class InstructorCommissionRun(Document):
 
 		# Read the toggle directly: a Single's scalar fields can be served stale
 		# from the singles cache within the request they were last changed in.
-		self.post_to_ledger = 1 if frappe.db.get_single_value("Business Settings", "commission_post_to_ledger") else 0
+		self.post_to_ledger = (
+			1 if frappe.db.get_single_value("Business Settings", "commission_post_to_ledger") else 0
+		)
 		self.commission_expense_account = settings.commission_expense_account
 		self.commission_payable_account = settings.commission_payable_account
 		if not self.company:
@@ -81,9 +83,7 @@ class InstructorCommissionRun(Document):
 			if flt(self.total_commission) <= 0:
 				frappe.throw("There is no commission to post for this period.")
 			if not self.commission_expense_account or not self.commission_payable_account:
-				frappe.throw(
-					"Commission ledger accounts are not set. Run commission account setup first."
-				)
+				frappe.throw("Commission ledger accounts are not set. Run commission account setup first.")
 
 	def on_submit(self):
 		if self.post_to_ledger and flt(self.total_commission) > 0:

@@ -243,7 +243,9 @@ def _refundable_document(sales_invoice, credit_note) -> tuple[str, float] | tupl
 	return None, 0.0
 
 
-def pay_refund(document, amount, payment_mode=None, posting_date=None, company=None, reference_no=None) -> str:
+def pay_refund(
+	document, amount, payment_mode=None, posting_date=None, company=None, reference_no=None
+) -> str:
 	"""Send ``amount`` back to the member as a submitted ``Pay`` Payment Entry.
 
 	``document`` is whichever Sales Invoice carries the negative outstanding (the
@@ -394,7 +396,13 @@ def get_refund_context(membership) -> dict:
 
 	si_name = billing.current_invoice(membership)
 	if not si_name:
-		return {"sales_invoice": None, "refundable": 0.0, "credited": 0.0, "collected": 0.0, "reasons": list(CREDIT_NOTE_REASONS)}
+		return {
+			"sales_invoice": None,
+			"refundable": 0.0,
+			"credited": 0.0,
+			"collected": 0.0,
+			"reasons": list(CREDIT_NOTE_REASONS),
+		}
 	si = _invoice(si_name, ["grand_total", "rounded_total", "outstanding_amount"])
 	total = flt(si.rounded_total) or flt(si.grand_total)
 	return {

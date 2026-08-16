@@ -99,9 +99,7 @@ class TestRefunds(FrappeTestCase):
 		credit_note = refunds.refund_membership(ms.name, amount=gross)["credit_note"]
 
 		# The credit note really does carry the subscription link...
-		self.assertEqual(
-			frappe.db.get_value("Sales Invoice", credit_note, "subscription"), ms.subscription
-		)
+		self.assertEqual(frappe.db.get_value("Sales Invoice", credit_note, "subscription"), ms.subscription)
 		# ...and is still never treated as the period's invoice.
 		self.assertEqual(billing._latest_invoice(ms.subscription), si)
 		self.assertEqual(billing.current_invoice(ms.name), si)

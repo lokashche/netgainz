@@ -58,12 +58,8 @@ class TestPaymentTermsWords(FrappeTestCase):
 	"""``describe`` is the only place the policy is ever put to the owner in words."""
 
 	def test_a_single_payment_reads_as_one(self):
-		self.assertEqual(
-			payment_terms.describe("On joining", 1, 0), "Pays in full when they join"
-		)
-		self.assertEqual(
-			payment_terms.describe("Within 7 days", 1, 30), "Pays in full within 7 days"
-		)
+		self.assertEqual(payment_terms.describe("On joining", 1, 0), "Pays in full when they join")
+		self.assertEqual(payment_terms.describe("Within 7 days", 1, 30), "Pays in full within 7 days")
 
 	def test_a_split_names_the_parts_the_gap_and_the_start(self):
 		self.assertEqual(
@@ -122,11 +118,12 @@ class TestCollections(FrappeTestCase):
 		si = frappe.db.get_value("Membership", membership, "current_sales_invoice")
 		if not si:
 			return
-		for row in frappe.get_all(
-			"Payment Schedule", filters={"parent": si}, fields=["name", "due_date"]
-		):
+		for row in frappe.get_all("Payment Schedule", filters={"parent": si}, fields=["name", "due_date"]):
 			frappe.db.set_value(
-				"Payment Schedule", row.name, "due_date", add_days(row.due_date, -days),
+				"Payment Schedule",
+				row.name,
+				"due_date",
+				add_days(row.due_date, -days),
 				update_modified=False,
 			)
 		frappe.db.commit()
@@ -153,11 +150,7 @@ class TestCollections(FrappeTestCase):
 		"""
 		ms = self._membership(self._member(), self.plan)
 		d = collections.get_dues(within_days=365)
-		rows = [
-			r
-			for r in d["late"] + d["due_today"] + d["due_soon"]
-			if r["membership"] == ms.name
-		]
+		rows = [r for r in d["late"] + d["due_today"] + d["due_soon"] if r["membership"] == ms.name]
 		self.assertEqual(len(rows), 3, "a 3-part fee must appear as three separate debts")
 		self.assertTrue(all(r["outstanding"] > 0 for r in rows))
 		# Distinct dates, so each one is a date the gym can actually chase on.
@@ -180,9 +173,7 @@ class TestCollections(FrappeTestCase):
 		ms = self._membership(self._member(), self.plan)
 		self._make_late(ms.name)
 		d = collections.get_dues()
-		self.assertAlmostEqual(
-			d["total_late"], round(sum(r["outstanding"] for r in d["late"]), 2), places=2
-		)
+		self.assertAlmostEqual(d["total_late"], round(sum(r["outstanding"] for r in d["late"]), 2), places=2)
 
 	def test_days_late_is_positive_only_for_the_overdue(self):
 		ms = self._membership(self._member(), self.plan)

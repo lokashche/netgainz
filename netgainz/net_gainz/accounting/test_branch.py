@@ -52,21 +52,24 @@ class TestBranch(FrappeTestCase):
 
 	def test_cost_center_uses_branch_own_cost_center(self):
 		cc = self._make_leaf_cost_center("WP3 Branch CC")
-		b = frappe.get_doc(
-			{"doctype": "Business Branch", "branch_name": "WP3 CC Branch", "cost_center": cc}
-		)
+		b = frappe.get_doc({"doctype": "Business Branch", "branch_name": "WP3 CC Branch", "cost_center": cc})
 		b.insert(ignore_permissions=True)
 		self.assertEqual(branch.branch_cost_center(b.name, self.company), cc)
 
 	def test_cost_center_from_foreign_company_falls_back(self):
 		other = frappe.db.get_value("Company", {"name": ["!=", self.company]}, "name")
-		other_cc = frappe.db.get_value(
-			"Cost Center", {"company": other, "is_group": 0}, "name"
-		) if other else None
+		other_cc = (
+			frappe.db.get_value("Cost Center", {"company": other, "is_group": 0}, "name") if other else None
+		)
 		if not other_cc:
 			self.skipTest("no second company with a cost center on this site")
 		b = frappe.get_doc(
-			{"doctype": "Business Branch", "branch_name": "WP3 Foreign", "company": other, "cost_center": other_cc}
+			{
+				"doctype": "Business Branch",
+				"branch_name": "WP3 Foreign",
+				"company": other,
+				"cost_center": other_cc,
+			}
 		)
 		b.insert(ignore_permissions=True)
 		# Posting for self.company must NOT borrow the other company's cost center.
@@ -81,13 +84,9 @@ class TestBranch(FrappeTestCase):
 
 	def test_membership_inherits_member_branch(self):
 		cc = self._make_leaf_cost_center("WP3 Studio CC")
-		b = frappe.get_doc(
-			{"doctype": "Business Branch", "branch_name": "WP3 Studio B", "cost_center": cc}
-		)
+		b = frappe.get_doc({"doctype": "Business Branch", "branch_name": "WP3 Studio B", "cost_center": cc})
 		b.insert(ignore_permissions=True)
-		member = frappe.get_doc(
-			{"doctype": "Member", "full_name": "WP3 Studio Member", "branch": b.name}
-		)
+		member = frappe.get_doc({"doctype": "Member", "full_name": "WP3 Studio Member", "branch": b.name})
 		member.insert(ignore_permissions=True)
 		self.assertEqual(member.branch, "WP3 Studio B")
 		ms = frappe.get_doc({"doctype": "Membership", "member": member.name, "month": "January"})
@@ -98,13 +97,9 @@ class TestBranch(FrappeTestCase):
 		# OP-1: the resolver is generic — any member-bearing doc inherits the
 		# member's home branch, so a check-in lands at the member's own branch.
 		cc = self._make_leaf_cost_center("OP1 Desk CC")
-		b = frappe.get_doc(
-			{"doctype": "Business Branch", "branch_name": "OP1 Desk B", "cost_center": cc}
-		)
+		b = frappe.get_doc({"doctype": "Business Branch", "branch_name": "OP1 Desk B", "cost_center": cc})
 		b.insert(ignore_permissions=True)
-		member = frappe.get_doc(
-			{"doctype": "Member", "full_name": "OP1 Desk Member", "branch": b.name}
-		)
+		member = frappe.get_doc({"doctype": "Member", "full_name": "OP1 Desk Member", "branch": b.name})
 		member.insert(ignore_permissions=True)
 		chk = frappe.get_doc({"doctype": "Member Check-in", "member": member.name})
 		chk.insert(ignore_permissions=True)
@@ -114,8 +109,6 @@ class TestBranch(FrappeTestCase):
 		cat = frappe.db.get_value("Expense Category", {}, "name")
 		if not cat:
 			self.skipTest("no Expense Category on this site")
-		e = frappe.get_doc(
-			{"doctype": "Expense", "date": today(), "category": cat, "amount": 100}
-		)
+		e = frappe.get_doc({"doctype": "Expense", "date": today(), "category": cat, "amount": 100})
 		e.insert(ignore_permissions=True)
 		self.assertEqual(e.branch, "Main")

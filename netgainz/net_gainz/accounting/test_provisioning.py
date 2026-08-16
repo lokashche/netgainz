@@ -114,9 +114,7 @@ class TestProvisioning(FrappeTestCase):
 		)
 		self.assertEqual(rate, 1750.0)
 		# Still a single canonical price row, not a stacked duplicate.
-		self.assertEqual(
-			frappe.db.count("Item Price", {"item_code": plan.item, "price_list": price_list}), 1
-		)
+		self.assertEqual(frappe.db.count("Item Price", {"item_code": plan.item, "price_list": price_list}), 1)
 
 	def test_provision_plan_is_idempotent(self):
 		plan = self._make_plan("WP2 Plan Idem", amount=1200.0, duration=365, sac=SAC)
@@ -145,7 +143,8 @@ class TestProvisioning(FrappeTestCase):
 		# defaults the code, so strip both fields directly to recreate that state.
 		plan = self._make_plan("WP2 Backfill Plan", amount=3000.0, duration=30, sac=None)
 		frappe.db.set_value(
-			"Membership Plan", plan.name,
+			"Membership Plan",
+			plan.name,
 			{"gst_hsn_code": None, "item": None, "subscription_plan": None},
 			update_modified=False,
 		)
@@ -154,9 +153,7 @@ class TestProvisioning(FrappeTestCase):
 
 		backfill_masters.execute()
 
-		self.assertTrue(
-			frappe.db.get_value("Member", member.name, "customer"), "backfill links a Customer"
-		)
+		self.assertTrue(frappe.db.get_value("Member", member.name, "customer"), "backfill links a Customer")
 		plan.reload()
 		self.assertEqual(
 			plan.gst_hsn_code, backfill_masters.DEFAULT_PILOT_SAC, "backfill seeds the default SAC"

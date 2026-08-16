@@ -142,9 +142,7 @@ def notify_dues():
 	lines = []
 	for r in chase[:20]:
 		who = r["member_name"] or r["member"]
-		when = (
-			_("{0} days late").format(r["days_late"]) if r["days_late"] > 0 else _("due today")
-		)
+		when = _("{0} days late").format(r["days_late"]) if r["days_late"] > 0 else _("due today")
 		lines.append(f"{who} — {frappe.utils.fmt_money(r['outstanding'])} ({when})")
 	body = "<br>".join(lines)
 

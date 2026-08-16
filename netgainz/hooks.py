@@ -8,7 +8,15 @@ app_license = "agpl-3.0"
 # Apps
 # ------------------
 
-required_apps = ["erpnext", "india_compliance"]
+# Org-qualified ON PURPOSE. A bare name sends frappe's installer to GitHub at
+# install time (`parse_app_name` -> `find_org`), probing github.com/frappe/<name>
+# and github.com/erpnext/<name>. Neither exists for india_compliance — it lives
+# under resilient-tech — so the install depends on an HTTP call that cannot
+# succeed, and site creation dies with a bare `InvalidRemoteException`. An
+# org-qualified entry is parsed locally and never touches the network; frappe uses
+# only the part after the slash as the app name, which is why the underscore
+# spelling (the app) is right here rather than the hyphen (the repo).
+required_apps = ["frappe/erpnext", "resilient-tech/india_compliance"]
 
 # Each item in the list will be shown as an app in the apps page
 # add_to_apps_screen = [

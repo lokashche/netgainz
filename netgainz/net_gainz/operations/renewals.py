@@ -63,9 +63,7 @@ def get_renewals(within_days=None) -> dict:
 	members = {s.member for s in current if s.member}
 	phones = {}
 	if members:
-		for m in frappe.get_all(
-			"Member", filters={"name": ["in", list(members)]}, fields=["name", "phone"]
-		):
+		for m in frappe.get_all("Member", filters={"name": ["in", list(members)]}, fields=["name", "phone"]):
 			phones[m.name] = m.phone
 
 	due_soon, overdue = [], []
