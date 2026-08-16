@@ -12,7 +12,9 @@ paths the product uses. Nothing here paints a fixture: a check-in is a real chec
 pack sale raises a real invoice and payment.
 
     bench --site <site> console
-    >>> from netgainz.net_gainz.demo import stage9; stage9.seed()
+    >>> from netgainz.net_gainz.demo import stage9
+    ...
+    ... stage9.seed()
 
 Idempotent: everything is keyed, so a re-run tops up rather than duplicating.
 """
@@ -59,8 +61,14 @@ def _check_ins(days_back=21):
 	def visit(member, days_ago, hour):
 		stamp = add_to_date(now_datetime(), days=-days_ago).replace(hour=hour, minute=15, second=0)
 		if frappe.db.exists(
-			"Member Check-in", {"member": member, "timestamp": ["between", [
-				stamp.replace(hour=0, minute=0), stamp.replace(hour=23, minute=59)]]}
+			"Member Check-in",
+			{
+				"member": member,
+				"timestamp": [
+					"between",
+					[stamp.replace(hour=0, minute=0), stamp.replace(hour=23, minute=59)],
+				],
+			},
 		):
 			return 0
 		doc = frappe.new_doc("Member Check-in")
@@ -77,7 +85,7 @@ def _check_ins(days_back=21):
 	for i, m in enumerate(fading):
 		for d in range(7, days_back, 3):
 			made += visit(m.name, d, 18 + (i % 2))
-	for i, m in enumerate(lapsed):
+	for m in lapsed:
 		for d in range(16, days_back, 2):
 			made += visit(m.name, d, 8)
 	return made

@@ -96,9 +96,22 @@ jobs:
           # ERPNext fixtures (Payment Gateway Account, Item Tax Template, ...) that
           # india_compliance's GST validations reject — failures unrelated to
           # NetGainz. Per-module runs build only each module's own deps and pass.
-          modules=$(cd apps/netgainz && find netgainz -name 'test_*.py' | sed 's#/#.#g; s#\.py$##')
+          #
+          # Every module runs even after one fails. The step used to abort on the
+          # first failure (`bash -e`), so a single red module hid the other forty —
+          # for weeks CI only ever ran `test_permissions` and stopped there.
+          modules=$(cd apps/netgainz && find netgainz -name 'test_*.py' | sort | sed 's#/#.#g; s#\.py$##')
+          failed=""
           for m in $modules; do
             echo "::group::$m"
-            bench --site test.localhost run-tests --module "$m"
+            if ! bench --site test.localhost run-tests --module "$m"; then
+              failed="$failed $m"
+            fi
             echo "::endgroup::"
           done
+          if [ -n "$failed" ]; then
+            echo "::error::Failing modules:$failed"
+            for m in $failed; do echo "  - $m"; done
+            exit 1
+          fi
+          echo "All $(echo "$modules" | wc -l) test modules passed."
