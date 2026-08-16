@@ -24,21 +24,21 @@ import frappe
 from frappe.tests.utils import FrappeTestCase
 from frappe.utils import add_days, today
 
+from netgainz.net_gainz.accounting import billing_fixtures as fx
 from netgainz.net_gainz.accounting import collections, payment_terms
 
 TAG = "ZZCOL"
 
 
 def _clear():
-	for dt, filters in (
-		("Membership", {"member_name": ["like", f"{TAG}%"]}),
-		("Membership", {"membership_plan": ["like", f"{TAG}%"]}),
-	):
-		for name in frappe.get_all(dt, filters=filters, pluck="name"):
-			doc = frappe.get_doc(dt, name)
-			if doc.docstatus == 1:
-				doc.cancel()
-			frappe.delete_doc(dt, name, force=True, ignore_permissions=True)
+	# Enrolling raises a real submitted Sales Invoice, and a submitted document
+	# survives FrappeTestCase's per-test rollback. Deleting only the Membership and
+	# the Member left those invoices behind pointing at a deleted Customer -- and
+	# because the CUST- series is reset between loads, the next test customer was
+	# handed the SAME id and inherited 52 orphaned invoices, which broke Payment
+	# Reconciliation and made test_advances fail in a completely unrelated suite.
+	# clear_billing_data exists for exactly this; use it rather than reinventing it.
+	fx.clear_billing_data()
 	for name in frappe.get_all("Member", filters={"full_name": ["like", f"{TAG}%"]}, pluck="name"):
 		customer = frappe.db.get_value("Member", name, "customer")
 		frappe.delete_doc("Member", name, force=True, ignore_permissions=True)
@@ -110,6 +110,27 @@ class TestCollections(FrappeTestCase):
 		doc.insert(ignore_permissions=True)
 		return doc.name
 
+	def _make_late(self, membership, days=45):
+		"""Move this membership's instalments into the past.
+
+		Backdating ``start_date`` does NOT backdate the invoice -- billing raises it on
+		the day the membership is created -- so the only honest way to produce a late
+		part in a test is to move the schedule, which is what the passage of time does.
+		Before this existed these tests read the seeded demo gym's overdue money and
+		passed without exercising their own fixture at all.
+		"""
+		si = frappe.db.get_value("Membership", membership, "current_sales_invoice")
+		if not si:
+			return
+		for row in frappe.get_all(
+			"Payment Schedule", filters={"parent": si}, fields=["name", "due_date"]
+		):
+			frappe.db.set_value(
+				"Payment Schedule", row.name, "due_date", add_days(row.due_date, -days),
+				update_modified=False,
+			)
+		frappe.db.commit()
+
 	def _membership(self, member, plan, start=None, **overrides):
 		doc = frappe.new_doc("Membership")
 		doc.member = member
@@ -143,7 +164,8 @@ class TestCollections(FrappeTestCase):
 		self.assertEqual(len({r["due_date"] for r in rows}), 3)
 
 	def test_late_is_included_however_short_the_window(self):
-		self._membership(self._member(), self.plan, start=add_days(today(), -120))
+		ms = self._membership(self._member(), self.plan)
+		self._make_late(ms.name)
 		narrow = collections.get_dues(within_days=0)
 		self.assertTrue(narrow["late"], "a zero-day window must still surface what is overdue")
 
@@ -155,14 +177,16 @@ class TestCollections(FrappeTestCase):
 		self.assertEqual(len(wide["late"]), len(narrow["late"]))
 
 	def test_totals_match_the_rows(self):
-		self._membership(self._member(), self.plan, start=add_days(today(), -120))
+		ms = self._membership(self._member(), self.plan)
+		self._make_late(ms.name)
 		d = collections.get_dues()
 		self.assertAlmostEqual(
 			d["total_late"], round(sum(r["outstanding"] for r in d["late"]), 2), places=2
 		)
 
 	def test_days_late_is_positive_only_for_the_overdue(self):
-		self._membership(self._member(), self.plan, start=add_days(today(), -120))
+		ms = self._membership(self._member(), self.plan)
+		self._make_late(ms.name)
 		d = collections.get_dues()
 		self.assertTrue(all(r["days_late"] > 0 for r in d["late"]))
 		self.assertTrue(all(r["days_late"] == 0 for r in d["due_today"]))
@@ -180,12 +204,14 @@ class TestCollections(FrappeTestCase):
 			)
 
 	def test_the_digest_honours_its_off_switch(self):
-		self._membership(self._member(), self.plan, start=add_days(today(), -120))
+		ms = self._membership(self._member(), self.plan)
+		self._make_late(ms.name)
 		frappe.db.set_single_value("Business Settings", "dues_reminders_enabled", 0)
 		self.assertIsNone(collections.notify_dues())
 
 	def test_the_digest_is_one_per_user_per_day(self):
-		self._membership(self._member(), self.plan, start=add_days(today(), -120))
+		ms = self._membership(self._member(), self.plan)
+		self._make_late(ms.name)
 		frappe.db.set_single_value("Business Settings", "dues_reminders_enabled", 1)
 		first = collections.notify_dues()
 		second = collections.notify_dues()
