@@ -48,18 +48,25 @@ jobs:
       - name: Install bench
         run: pip install frappe-bench
 
-      # Versions are PINNED, not tracked. `version-15` is a moving branch, and it
-      # moved: erpnext v15.119 changed the signature of the regional hook
-      # `get_regional_round_off_accounts(company, account_list)` to take a third
-      # `doc` argument, which india_compliance v15.30.1 does not accept. Every
-      # Sales Invoice save then died with a TypeError that enrolment swallowed —
-      # 23 of 45 modules red, for a reason nothing in this repo had changed.
-      # These are the versions development actually runs against.
+      # Versions are PINNED, and pinned to PRODUCTION — netgainz.frappe.cloud, read
+      # off its About dialog 2026-08-16. Not to a moving branch, and not to whatever
+      # the local bench happens to hold.
+      #
+      # Pinning is not freezing. It makes an upgrade a decision taken here, on a
+      # branch, with the suite proving it — instead of arriving mid-build because
+      # somebody else released. Both are moved together, deliberately.
+      #
+      # What tracking cost: erpnext v15.119 gave the regional hook
+      # `get_regional_round_off_accounts(company, account_list)` a third `doc`
+      # argument. india_compliance v15.30.1 does not accept it, so every Sales
+      # Invoice save died with a TypeError that enrolment swallowed — 23 of 49
+      # modules red for a reason nothing in this repo had changed. Production was
+      # never exposed: it runs india_compliance v15.31.3, which takes the argument.
       - name: Init bench
         run: |
           bench init \
             --skip-redis-config-generation \
-            --frappe-branch v15.97.0 \
+            --frappe-branch v15.118.0 \
             frappe-bench
           cd frappe-bench
           bench set-mariadb-host 127.0.0.1
@@ -69,7 +76,7 @@ jobs:
       - name: Install ERPNext
         run: |
           cd frappe-bench
-          bench get-app erpnext --branch v15.95.0
+          bench get-app erpnext --branch v15.119.2
 
       - name: Install netgainz
         run: |
@@ -81,12 +88,8 @@ jobs:
           cd frappe-bench
           # India Compliance pinned (needs frappe>=15.50 / erpnext>=15.60); payments
           # provides the Payment Gateway doctype the test-record sweep needs.
-          #
-          # india_compliance v15.31.0+ accepts the third `doc` argument, so moving
-          # BOTH forward together is the other valid pairing — but that is an
-          # upgrade decision, not a CI fix, and it has to happen on Frappe Cloud
-          # first. payments has no tags to pin to.
-          bench get-app https://github.com/resilient-tech/india-compliance --branch v15.30.1
+          # payments has no tags to pin to.
+          bench get-app https://github.com/resilient-tech/india-compliance --branch v15.31.3
           bench get-app https://github.com/frappe/payments --branch version-15
 
       - name: Create test site
