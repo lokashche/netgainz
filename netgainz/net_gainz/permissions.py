@@ -300,15 +300,36 @@ def apply_permission_matrix() -> dict:
 	created_roles = ensure_roles()
 	changed = 0
 
+	# A Custom DocPerm row replaces the doctype's built-in permission rows
+	# WHOLESALE — including the JSON's System Manager grant. So every doctype
+	# this matrix touches must carry an explicit System Manager row as well, or
+	# the site admin is locked out of the product the moment the custom rows
+	# land. Found live on production 2026-08-18: the owner's System Manager
+	# login 403'd on every screen, while the tests — which run as
+	# Administrator, who bypasses permissions — stayed green.
+	sm_grants: dict[str, dict] = {}
+
+	def note_sm(doctype: str, perms: dict) -> None:
+		merged = sm_grants.setdefault(doctype, {})
+		for key, value in perms.items():
+			if value:
+				merged[key] = 1
+
 	for role, doctypes in NETGAINZ_MATRIX.items():
 		for doctype, perms in doctypes.items():
 			changed += _write_docperm(doctype, role, perms)
+			note_sm(doctype, perms)
 
 	for doctype in ERPNEXT_READ:
 		for role in NETGAINZ_ROLES:
 			changed += _write_docperm(doctype, role, READ)
+		note_sm(doctype, READ)
 	for doctype in ERPNEXT_READ_FOR_OWNER:
 		changed += _write_docperm(doctype, GYM_OWNER, READ)
+		note_sm(doctype, READ)
+
+	for doctype, merged in sm_grants.items():
+		changed += _write_docperm(doctype, SYSTEM_MANAGER, merged)
 
 	frappe.clear_cache()
 	return {"roles_created": created_roles, "permissions_written": changed}
