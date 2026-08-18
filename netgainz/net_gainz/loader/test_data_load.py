@@ -51,11 +51,14 @@ def _clear():
 	# Delete by target doctype, not by what a step still points at. Clearing only the
 	# LINKED import left orphans behind from earlier runs, and those orphans then
 	# inflated the "exactly one Data Import" count in the re-upload test.
-	for target in ("Program", "Membership Plan", "Member"):
+	for target in ("Program", "Membership Plan", "Member", "Membership"):
 		for di in frappe.get_all("Data Import", filters={"reference_doctype": target}, pluck="name"):
 			frappe.db.delete("Data Import Log", {"data_import": di})
 			frappe.db.delete("Data Import", {"name": di})
 	frappe.db.delete("Data Load Step")
+	# Memberships first: they link the members deleted just below.
+	for name in frappe.get_all("Membership", filters={"member": ["like", "TL%"]}, pluck="name"):
+		frappe.delete_doc("Membership", name, force=True, ignore_permissions=True)
 	# Member has no on_trash, so deleting one leaves its auto-provisioned Customer
 	# behind. Under "Customer Name" naming -- which the test fixtures use -- that
 	# orphan then collides with the next run and fails the whole member row.
@@ -202,6 +205,48 @@ class TestDataLoad(FrappeTestCase):
 		self.assertEqual(frappe.db.get_value("Member", "TL0001", "membership_plan"), "TL Monthly")
 		self.assertEqual(frappe.db.get_value("Member", "TL0002", "gym_program"), "TL Mobility")
 
+	# ------------------------------------------------- subscriptions (phase 2)
+
+	# Deliberately no is_backfill column: the loader must force it, not trust it.
+	MEMBERSHIPS_CSV = (
+		"member,member_name,membership_plan,month,tariff,fee_collected,balance_due,due_date,status\n"
+		"TL0001,Loader One,TL Monthly,July,1000,1000,0,2026-07-05,Paid\n"
+		"TL0002,Loader Two,TL Monthly,July,1500,0,1500,2026-07-10,Overdue\n"
+	)
+
+	def _load_register(self):
+		self._load_masters()
+		data_load.run("members", MEMBERS_CSV, "tl_members.csv")
+
+	def test_subscriptions_refused_until_their_members_exist(self):
+		self._load_masters()
+		report = data_load.validate("memberships", self.MEMBERSHIPS_CSV)
+		self.assertFalse(report["ok"])
+		self.assertTrue(any("Load members first" in p["message"] for p in report["problems"]))
+
+	def test_subscriptions_load_as_history_with_codes_resolved(self):
+		self._load_register()
+		result = data_load.run("memberships", self.MEMBERSHIPS_CSV, "tl_memberships.csv")
+		self.assertTrue(result["started"])
+		rows = frappe.get_all(
+			"Membership",
+			filters={"member": ["in", ["TL0001", "TL0002"]]},
+			fields=["member", "month", "is_backfill"],
+		)
+		self.assertEqual(len(rows), 2)
+		# History, not live billing -- forced even though the file has no such column.
+		self.assertTrue(all(r.is_backfill for r in rows))
+
+	def test_subscriptions_reupload_loads_nothing_twice(self):
+		"""A Membership has no natural key, so the loader's own duplicate guard is
+		the only thing standing between a nervous double-click and doubled history."""
+		self._load_register()
+		data_load.run("memberships", self.MEMBERSHIPS_CSV, "tl_memberships.csv")
+		second = data_load.run("memberships", self.MEMBERSHIPS_CSV, "tl_memberships.csv")
+		self.assertFalse(second.get("started"))
+		self.assertTrue(second.get("nothing_to_do"))
+		self.assertEqual(frappe.db.count("Membership", {"member": ["in", ["TL0001", "TL0002"]]}), 2)
+
 	TWINS = (
 		"member_code,full_name,membership_plan,gym_program\n"
 		"TL0003,Loader Twin,TL Monthly,TL Strength\n"
@@ -270,7 +315,10 @@ class TestDataLoad(FrappeTestCase):
 	# ------------------------------------------------------------------ shape
 
 	def test_get_steps_is_in_load_order(self):
-		self.assertEqual([s["key"] for s in data_load.get_steps()], ["programs", "plans", "members"])
+		self.assertEqual(
+			[s["key"] for s in data_load.get_steps()],
+			["programs", "plans", "members", "memberships"],
+		)
 
 	def test_status_of_an_untouched_step(self):
 		state = data_load.status("members")
