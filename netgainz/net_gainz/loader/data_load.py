@@ -33,7 +33,10 @@ written.
 
 Phase 1 covers masters and members -- programs, plans, people. Nothing here submits a
 document or touches the ledger, which is why it can be trusted with a plain upload
-button. Memberships, invoices and payments are phase 2 and need their own guards.
+button. Phase 2 begins with Subscriptions: memberships loaded strictly as history
+(``is_backfill`` forced on every row, so nothing starts billing), member codes
+translated to register names, and rows already present dropped before Data Import
+sees the file. Invoices and payments are still to come and need their own guards.
 """
 
 from __future__ import annotations
@@ -122,6 +125,18 @@ STEPS: tuple[Step, ...] = (
 		},
 		blurb="The register. Needs its programs and plans to exist first.",
 	),
+	Step(
+		key="memberships",
+		label="Subscriptions",
+		doctype="Membership",
+		key_column="member",
+		required=("member", "membership_plan", "month", "due_date", "status"),
+		links={"membership_plan": "Membership Plan"},
+		blurb=(
+			"Billing history -- one row per member per month, one month per upload. "
+			"Loaded as history: these rows never bill anyone by themselves."
+		),
+	),
 )
 
 _BY_KEY = {s.key: s for s in STEPS}
@@ -195,6 +210,85 @@ def _already_there(step: Step, row: dict) -> bool:
 def _describe(step: Step, row: dict, index: int) -> str:
 	"""Name a row the way the owner would: by its code, else its name, else its line."""
 	return row.get(step.key_column) or row.get("full_name") or f"row {index}"
+
+
+# ------------------------------------------------------- subscriptions (phase 2)
+
+
+def _member_map(codes: set[str]) -> dict[str, str]:
+	"""Member code in a file -> Member docname in the register.
+
+	A freshly loaded register names members by series and carries the code in
+	``member_code``; a register from before that field existed names them BY the
+	code. Accept both, so the same subscriptions file works against either history.
+	"""
+	if not codes:
+		return {}
+	out = {
+		r.member_code: r.name
+		for r in frappe.get_all(
+			"Member", filters={"member_code": ["in", sorted(codes)]}, fields=["name", "member_code"]
+		)
+	}
+	rest = codes - set(out)
+	if rest:
+		for name in frappe.get_all("Member", filters={"name": ["in", sorted(rest)]}, pluck="name"):
+			out[name] = name
+	return out
+
+
+def _memberships_already_loaded(rows: list[dict], members: dict[str, str]) -> list[int]:
+	"""File row numbers (2-based, like every message here) already in the register.
+
+	A Membership has no natural key the database could refuse a duplicate with, so
+	"already loaded" is defined here: same member, same month, loaded as history.
+	The same definition is what makes a re-upload safe -- matching rows are dropped
+	before Data Import ever sees the file.
+	"""
+	wanted = {(members[r["member"]], r.get("month")) for r in rows if r.get("member") in members}
+	if not wanted:
+		return []
+	existing = {
+		(m.member, m.month)
+		for m in frappe.get_all(
+			"Membership",
+			filters={"member": ["in", sorted({d for d, _ in wanted})], "is_backfill": 1},
+			fields=["member", "month"],
+		)
+	}
+	return [
+		i
+		for i, r in enumerate(rows, start=2)
+		if r.get("member") in members and (members[r["member"]], r.get("month")) in existing
+	]
+
+
+def _rewrite_membership_file(header: list[str], rows: list[dict]) -> tuple[str, int]:
+	"""The file the owner uploads speaks member codes; Data Import needs docnames.
+
+	Returns ``(rewritten csv, rows remaining)``. Three rewrites, none optional:
+	member code -> Member docname; rows already in the register dropped; and
+	``is_backfill`` forced to 1 on every row -- this step loads history, and a row
+	slipping through without the flag would start real billing.
+	"""
+	members = _member_map({r["member"] for r in rows if r.get("member")})
+	skip = set(_memberships_already_loaded(rows, members))
+	out_header = list(header)
+	if "is_backfill" not in out_header:
+		out_header.append("is_backfill")
+	buf = io.StringIO()
+	writer = csv.DictWriter(buf, fieldnames=out_header, extrasaction="ignore")
+	writer.writeheader()
+	remaining = 0
+	for i, row_in in enumerate(rows, start=2):
+		if i in skip:
+			continue
+		row = dict(row_in)
+		row["member"] = members.get(row.get("member", ""), row.get("member", ""))
+		row["is_backfill"] = "1"
+		writer.writerow(row)
+		remaining += 1
+	return buf.getvalue(), remaining
 
 
 # ------------------------------------------------------------------- validation
@@ -310,6 +404,29 @@ def validate(step_key: str, content: str) -> dict:
 			)
 	problems.extend(p for _rank, p in sorted(link_problems, key=lambda x: x[0]))
 
+	# --- subscriptions: member codes must resolve against the register -----------
+	# Not in `links`: the file speaks member codes (KE1003) while the register names
+	# members by series, so the generic name-based resolver cannot see them.
+	membership_members: dict[str, str] = {}
+	if step.doctype == "Membership" and "member" in header:
+		codes = {r["member"] for r in rows if r.get("member")}
+		membership_members = _member_map(codes)
+		missing_members = sorted(codes - set(membership_members))
+		if missing_members:
+			problems.append(
+				_problem(
+					[i for i, r in enumerate(rows, start=2) if r.get("member") in missing_members],
+					_(
+						"{0} {1} named in this file {2} not in the register yet: {3}. Load members first."
+					).format(
+						len(missing_members),
+						_("member") if len(missing_members) == 1 else _("members"),
+						_("is") if len(missing_members) == 1 else _("are"),
+						", ".join(missing_members[:10]) + ("…" if len(missing_members) > 10 else ""),
+					),
+				)
+			)
+
 	# --- customer naming: the trap that silently drops members -------------------
 	# A Member auto-provisions a Customer. If ERPNext is naming Customers by NAME,
 	# the customer's ID *is* the person's name, so two members called the same thing
@@ -361,7 +478,11 @@ def validate(step_key: str, content: str) -> dict:
 	# Not an error. Data Import skips what it already loaded, so a re-upload after a
 	# partial load is the normal way to finish the job.
 	already = 0
-	if step.key_column in header:
+	if step.doctype == "Membership":
+		# A Membership's key column holds a member code, never its own docname, so
+		# the generic name lookup below would always answer zero.
+		already = len(_memberships_already_loaded(rows, membership_members))
+	elif step.key_column in header:
 		keys = [r[step.key_column] for r in rows if r.get(step.key_column)]
 		if keys:
 			already = len(frappe.get_all(step.doctype, filters={"name": ["in", keys]}, pluck="name"))
@@ -455,11 +576,34 @@ def run(step_key: str, content: str, filename: str = "") -> dict:
 			),
 		}
 
+	# Subscriptions: translate member codes to docnames, force the history flag,
+	# and drop rows already in the register. After this rewrite the file itself is
+	# duplicate-proof, which is what lets this step use a FRESH Data Import record
+	# below -- reusing one would skip rows by their position in the previous file,
+	# and the dropped rows shift every position.
+	total_rows = report["total_rows"]
+	if step.doctype == "Membership":
+		header, rows = _parse(content)
+		content, total_rows = _rewrite_membership_file(header, rows)
+		if total_rows == 0:
+			return {
+				"started": False,
+				"nothing_to_do": True,
+				"validation": report,
+				"message": _("Every one of these {0} is already loaded. Nothing to do.").format(
+					_(step.label.lower())
+				),
+			}
+
 	doc = _get_or_create_step(step)
 	file_url = _attach(step, content, filename)
 
 	with _as_engine():
-		if doc.data_import and frappe.db.exists("Data Import", doc.data_import):
+		if (
+			step.doctype != "Membership"
+			and doc.data_import
+			and frappe.db.exists("Data Import", doc.data_import)
+		):
 			# Reuse. A fresh Data Import would re-attempt every row -- see the module
 			# docstring. Retrying THIS one skips whatever already succeeded.
 			di = frappe.get_doc("Data Import", doc.data_import)
@@ -479,7 +623,7 @@ def run(step_key: str, content: str, filename: str = "") -> dict:
 		doc.data_import = di.name
 		doc.file_url = file_url
 		doc.status = IMPORTING
-		doc.total_rows = report["total_rows"]
+		doc.total_rows = total_rows
 		doc.last_run = now()
 		doc.message = ""
 		doc.save(ignore_permissions=True)
