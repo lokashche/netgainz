@@ -29,12 +29,14 @@ export async function getSession() {
  * an owner can read "Rs.0.00" and believe it.
  *
  * Server components call this with the status of any Frappe response. A dead login
- * clears the stale app session and sends the user to sign in again; everything else
- * passes straight through.
+ * sends the user to sign in again; everything else passes straight through.
+ *
+ * It must NOT touch the session cookie: it runs during server-component render,
+ * where Next.js forbids cookie writes — `session.destroy()` here threw and turned
+ * an expired login into a 500 on every page. The stale app session is harmless:
+ * /login always renders, and a successful login overwrites it.
  */
 export async function assertFrappeSession(status: number): Promise<void> {
   if (status !== 401 && status !== 403) return;
-  const session = await getSession();
-  session.destroy();
   redirect("/login?reason=session-expired");
 }
