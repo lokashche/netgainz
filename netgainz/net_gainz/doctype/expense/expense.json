@@ -21,7 +21,8 @@
   "ledger_section",
   "company",
   "journal_entry",
-  "amended_from"
+  "amended_from",
+  "recurred_from"
  ],
  "fields": [
   {
@@ -135,6 +136,14 @@
    "options": "Expense",
    "print_hide": 1,
    "read_only": 1
+  },
+  {
+   "fieldname": "recurred_from",
+   "fieldtype": "Link",
+   "label": "Repeated From",
+   "options": "Expense",
+   "read_only": 1,
+   "description": "The expense this one was generated from. Set by the app; the chain is what stops the same month being raised twice."
   }
  ],
  "grid_page_length": 50,

@@ -44,6 +44,7 @@ export default function PaymentTermsPanel({
                 payment_due_rule: body.payment_due_rule,
                 installment_count: body.installment_count,
                 installment_gap_days: body.installment_gap_days,
+                installment_gap_unit: body.installment_gap_unit,
               }
             : EMPTY_TERMS
         );
@@ -71,6 +72,7 @@ export default function PaymentTermsPanel({
           installment_count: draft.installment_count === "" ? 0 : Number(draft.installment_count),
           installment_gap_days:
             draft.installment_gap_days === "" ? 0 : Number(draft.installment_gap_days),
+          installment_gap_unit: draft.installment_gap_unit || "",
         }),
       });
       if (!res.ok) {
@@ -150,6 +152,7 @@ export default function PaymentTermsPanel({
                         payment_due_rule: terms.payment_due_rule,
                         installment_count: terms.installment_count,
                         installment_gap_days: terms.installment_gap_days,
+                        installment_gap_unit: terms.installment_gap_unit,
                       }
                     : EMPTY_TERMS
                 );

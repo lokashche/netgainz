@@ -24,6 +24,4 @@ class BusinessBranch(Document):
 		if self.cost_center and self.company:
 			cc_company = frappe.db.get_value("Cost Center", self.cost_center, "company")
 			if cc_company and cc_company != self.company:
-				frappe.throw(
-					f"Cost Center {self.cost_center} belongs to {cc_company}, not {self.company}."
-				)
+				frappe.throw(f"Cost Center {self.cost_center} belongs to {cc_company}, not {self.company}.")

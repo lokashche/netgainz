@@ -59,14 +59,24 @@ INSTRUCTORS = [
 
 PLANS = [
 	{"plan_name": "Monthly", "plan_type": "Monthly", "amount": 1500, "trial_days": 7},
-	{"plan_name": "Quarterly", "plan_type": "Quarterly", "amount": 4000},
+	{
+		# The split the pilot gym asked for: pay half on joining, half next month —
+		# a CALENDAR month, so a member who joins on the 31st is not pushed past it.
+		"plan_name": "Quarterly",
+		"plan_type": "Quarterly",
+		"amount": 4000,
+		"installment_count": 2,
+		"installment_gap_days": 1,
+		"installment_gap_unit": "Months",
+	},
 	{"plan_name": "Half-Yearly", "plan_type": "Half-Yearly", "amount": 7500},
 	{
 		"plan_name": "Annual",
 		"plan_type": "Yearly",
 		"amount": 14000,
 		"installment_count": 3,
-		"installment_gap_days": 30,
+		"installment_gap_days": 1,
+		"installment_gap_unit": "Months",
 	},
 	{"plan_name": "Student Monthly", "plan_type": "Monthly", "amount": 1000},
 ]

@@ -42,9 +42,7 @@ def execute():
 			)
 
 	# 2. Provision a Customer for every Member that has none yet.
-	for name in frappe.get_all(
-		"Member", filters={"customer": ["in", [None, ""]]}, pluck="name"
-	):
+	for name in frappe.get_all("Member", filters={"customer": ["in", [None, ""]]}, pluck="name"):
 		provisioning.provision_customer(name, company)
 
 	# 3. Provision Item + Subscription Plan for every plan (idempotent per plan).

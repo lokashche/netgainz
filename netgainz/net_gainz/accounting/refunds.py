@@ -45,7 +45,8 @@ Traced mechanics (2026-08-08, live on the dev site — do not re-derive):
 from __future__ import annotations
 
 import frappe
-from frappe.utils import flt, getdate, today
+from frappe import _
+from frappe.utils import flt, getdate, nowtime, today
 
 from netgainz.net_gainz.accounting import branch, currency, payment_modes, period_lock
 from netgainz.net_gainz.profit_first import accounts as pf_accounts
@@ -104,6 +105,37 @@ def credited_against(sales_invoice) -> float:
 	)
 
 
+def _is_bank_account(account) -> bool:
+	"""ERPNext demands a reference number for money moving through a bank account."""
+	if not account:
+		return False
+	return frappe.db.get_value("Account", account, "account_type") == "Bank"
+
+
+def _credit_note_time(posting_date, src) -> str:
+	"""A time for the credit note that is never earlier than the invoice it credits.
+
+	ERPNext compares the two timestamps and refuses a return that lands before its
+	original. Same day is the interesting case: "now" is normally after the invoice,
+	but an invoice raised by the daily scheduler at 03:00 and refunded at 09:00 is
+	fine while one raised at 09:05 and refunded at 09:04 is not -- so on the same
+	day take whichever is later.
+	"""
+	invoice_date = getdate(src.get("posting_date")) if src.get("posting_date") else None
+	invoice_time = str(src.get("posting_time") or "00:00:00")
+	now = nowtime()
+
+	if invoice_date and getdate(posting_date) < invoice_date:
+		frappe.throw(
+			_("A refund cannot be dated {0}, before the invoice it credits ({1}).").format(
+				frappe.utils.formatdate(posting_date), frappe.utils.formatdate(invoice_date)
+			)
+		)
+	if invoice_date and getdate(posting_date) == invoice_date:
+		return max(now, invoice_time)
+	return now
+
+
 def create_credit_note(sales_invoice, amount=None, reason=None, posting_date=None, company=None) -> str:
 	"""Raise and submit a credit note for ``amount`` (gross) against an invoice.
 
@@ -119,7 +151,17 @@ def create_credit_note(sales_invoice, amount=None, reason=None, posting_date=Non
 		frappe.throw("No default Company is set. Create or set a Company in ERPNext first.")
 
 	src = _invoice(
-		sales_invoice, ["net_total", "grand_total", "rounded_total", "currency", "docstatus", "is_return"]
+		sales_invoice,
+		[
+			"net_total",
+			"grand_total",
+			"rounded_total",
+			"currency",
+			"docstatus",
+			"is_return",
+			"posting_date",
+			"posting_time",
+		],
 	)
 	if not src:
 		frappe.throw(f"Sales Invoice {sales_invoice} does not exist.")
@@ -168,6 +210,13 @@ def create_credit_note(sales_invoice, amount=None, reason=None, posting_date=Non
 	cn.update_outstanding_for_self = 0
 	cn.set_posting_time = 1
 	cn.posting_date = posting_date
+	# Setting `set_posting_time` tells ERPNext to keep whatever time is on the doc
+	# rather than stamping "now" -- so the TIME has to be set too, or the credit
+	# note inherits midnight and ERPNext's own return guard
+	# (`validate_return_against`) refuses it: "Posting timestamp must be after ...".
+	# It bit only when crediting on the same day as the invoice, which is exactly
+	# what a mistake-at-the-desk refund is.
+	cn.posting_time = _credit_note_time(posting_date, src)
 	cn.cost_center = cn.get("cost_center") or branch.branch_cost_center(None, company)
 	if reason:
 		cn.remarks = f"NetGainz refund: {reason}"
@@ -194,7 +243,9 @@ def _refundable_document(sales_invoice, credit_note) -> tuple[str, float] | tupl
 	return None, 0.0
 
 
-def pay_refund(document, amount, payment_mode=None, posting_date=None, company=None, reference_no=None) -> str:
+def pay_refund(
+	document, amount, payment_mode=None, posting_date=None, company=None, reference_no=None
+) -> str:
 	"""Send ``amount`` back to the member as a submitted ``Pay`` Payment Entry.
 
 	``document`` is whichever Sales Invoice carries the negative outstanding (the
@@ -225,8 +276,16 @@ def pay_refund(document, amount, payment_mode=None, posting_date=None, company=N
 	pe.paid_amount = amount
 	pe.received_amount = amount
 	pe.cost_center = pe.get("cost_center") or branch.branch_cost_center(None, company)
-	if reference_no:
-		pe.reference_no = reference_no
+	# ERPNext makes Reference No mandatory whenever the money moves through a BANK
+	# account, and refuses the Payment Entry without it. The owner refunding cash
+	# has nothing to type, and should not be handed
+	# "Reference No and Reference Date is mandatory for Bank transaction" -- which
+	# names a field the refund screen does not even show. Fall back to the document
+	# being refunded: it is traceable, and it is what a bank statement gets
+	# reconciled against anyway.
+	pe.reference_no = reference_no or (
+		document if _is_bank_account(pe.get("paid_from")) else pe.get("reference_no")
+	)
 	# One reference, one negative allocation: ERPNext's own sign convention, and
 	# what makes billing.collected_paise net the refund out.
 	for row in pe.references:
@@ -337,7 +396,13 @@ def get_refund_context(membership) -> dict:
 
 	si_name = billing.current_invoice(membership)
 	if not si_name:
-		return {"sales_invoice": None, "refundable": 0.0, "credited": 0.0, "collected": 0.0, "reasons": list(CREDIT_NOTE_REASONS)}
+		return {
+			"sales_invoice": None,
+			"refundable": 0.0,
+			"credited": 0.0,
+			"collected": 0.0,
+			"reasons": list(CREDIT_NOTE_REASONS),
+		}
 	si = _invoice(si_name, ["grand_total", "rounded_total", "outstanding_amount"])
 	total = flt(si.rounded_total) or flt(si.grand_total)
 	return {

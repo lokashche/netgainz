@@ -114,9 +114,7 @@ class TestGoLive(FrappeTestCase):
 		self.assertFalse(result["dry_run"])
 		ms.reload()
 		self.assertTrue(ms.subscription)
-		self.assertEqual(
-			frappe.db.get_value("Subscription", ms.subscription, "docstatus"), 0
-		)
+		self.assertEqual(frappe.db.get_value("Subscription", ms.subscription, "docstatus"), 0)
 		self.assertFalse(ms.is_backfill, "the load flag is cleared once billing starts")
 
 	def test_next_period_never_bills_a_period_the_gym_already_collected(self):
@@ -126,7 +124,8 @@ class TestGoLive(FrappeTestCase):
 		ms = self._loaded("GL Safe", joined_days_ago=200)
 		row = go_live.assess(ms.name)
 		self.assertLess(
-			getdate(row["current_period_start"]), getdate(today()),
+			getdate(row["current_period_start"]),
+			getdate(today()),
 			"precondition: the current period started in the past",
 		)
 
@@ -166,9 +165,7 @@ class TestGoLive(FrappeTestCase):
 
 		second = go_live.start_billing(dry_run=0)
 		self.assertEqual(second["started_count"], 0)
-		self.assertTrue(
-			any("Already billing" == s["reason"] for s in second["skipped"])
-		)
+		self.assertTrue(any("Already billing" == s["reason"] for s in second["skipped"]))
 
 	def test_unpriced_memberships_are_skipped_not_billed_at_zero(self):
 		ms = self._loaded("GL Zero", price=0.0, plan_amount=0.0)
@@ -259,13 +256,12 @@ class TestGoLive(FrappeTestCase):
 
 	def test_part_month_can_be_waived(self):
 		ms = self._loaded("GL Cal NoPart", price=3100.0)
-		go_live.start_billing(
-			start_mode=go_live.CALENDAR_MONTH, dry_run=0, bill_part_month=0
-		)
+		go_live.start_billing(start_mode=go_live.CALENDAR_MONTH, dry_run=0, bill_part_month=0)
 		ms.reload()
 		self.assertTrue(ms.subscription)
 		self.assertEqual(
-			frappe.db.count("Sales Invoice", {"subscription": ms.subscription}), 0,
+			frappe.db.count("Sales Invoice", {"subscription": ms.subscription}),
+			0,
 			"no stub invoice when the gym waives the part month",
 		)
 
@@ -301,6 +297,4 @@ class TestGoLive(FrappeTestCase):
 		# grand total can sit up to ~1 paisa per row away from the unrounded product —
 		# and the pro-rata net changes with the calendar day, so a places=2 comparison
 		# fails on the dates where the rounding lands past 0.005 (seen 2026-08-11).
-		self.assertAlmostEqual(
-			flt(stub.grand_total), flt(stub.net_total) * (1 + tax_rate / 100), delta=0.02
-		)
+		self.assertAlmostEqual(flt(stub.grand_total), flt(stub.net_total) * (1 + tax_rate / 100), delta=0.02)

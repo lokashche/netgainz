@@ -101,9 +101,7 @@ class TestDataLoad(FrappeTestCase):
 		csv = "program_name,is_active\nTL Strength,1\nTL Strength,1\n"
 		report = data_load.validate("programs", csv)
 		self.assertFalse(report["ok"])
-		self.assertTrue(
-			any("more than once" in p["message"] for p in report["problems"])
-		)
+		self.assertTrue(any("more than once" in p["message"] for p in report["problems"]))
 
 	def test_empty_file_is_refused(self):
 		self.assertFalse(data_load.validate("programs", "")["ok"])
@@ -173,9 +171,7 @@ class TestDataLoad(FrappeTestCase):
 		second = frappe.db.get_value("Data Load Step", "programs", "data_import")
 
 		self.assertEqual(first, second, "a re-upload must not start a new Data Import")
-		self.assertEqual(
-			frappe.db.count("Program", {"name": ["like", "TL %"]}), count_after_first
-		)
+		self.assertEqual(frappe.db.count("Program", {"name": ["like", "TL %"]}), count_after_first)
 		self.assertEqual(frappe.db.count("Data Import", {"reference_doctype": "Program"}), 1)
 
 	def test_reupload_of_a_fully_loaded_file_does_nothing(self):
@@ -203,9 +199,7 @@ class TestDataLoad(FrappeTestCase):
 		self._load_masters()
 		data_load.run("members", MEMBERS_CSV, "tl_members.csv")
 		self.assertTrue(frappe.db.exists("Member", "TL0001"))
-		self.assertEqual(
-			frappe.db.get_value("Member", "TL0001", "membership_plan"), "TL Monthly"
-		)
+		self.assertEqual(frappe.db.get_value("Member", "TL0001", "membership_plan"), "TL Monthly")
 		self.assertEqual(frappe.db.get_value("Member", "TL0002", "gym_program"), "TL Mobility")
 
 	TWINS = (
@@ -242,9 +236,7 @@ class TestDataLoad(FrappeTestCase):
 		try:
 			result = data_load.run("members", self.TWINS, "tl_twins.csv")
 			self.assertTrue(result["started"], result)
-			self.assertEqual(
-				frappe.defaults.get_global_default("cust_master_name"), "Naming Series"
-			)
+			self.assertEqual(frappe.defaults.get_global_default("cust_master_name"), "Naming Series")
 			# Both twins survived, which is the whole point.
 			self.assertTrue(frappe.db.exists("Member", "TL0003"))
 			self.assertTrue(frappe.db.exists("Member", "TL0004"))
@@ -278,9 +270,7 @@ class TestDataLoad(FrappeTestCase):
 	# ------------------------------------------------------------------ shape
 
 	def test_get_steps_is_in_load_order(self):
-		self.assertEqual(
-			[s["key"] for s in data_load.get_steps()], ["programs", "plans", "members"]
-		)
+		self.assertEqual([s["key"] for s in data_load.get_steps()], ["programs", "plans", "members"])
 
 	def test_status_of_an_untouched_step(self):
 		state = data_load.status("members")

@@ -58,18 +58,28 @@ class TestGymExpense(FrappeTestCase):
 		if frappe.db.exists("Expense Category", name):
 			frappe.db.set_value("Expense Category", name, "expense_account", expense_account)
 			return name
-		return frappe.get_doc(
-			{
-				"doctype": "Expense Category",
-				"category_name": name,
-				"pf_bucket": bucket,
-				"expense_account": expense_account,
-			}
-		).insert(ignore_permissions=True).name
+		return (
+			frappe.get_doc(
+				{
+					"doctype": "Expense Category",
+					"category_name": name,
+					"pf_bucket": bucket,
+					"expense_account": expense_account,
+				}
+			)
+			.insert(ignore_permissions=True)
+			.name
+		)
 
 	def _make_expense(self, amount, category):
 		return frappe.get_doc(
-			{"doctype": "Expense", "date": today(), "category": category, "amount": amount, "payment_mode": "Cash"}
+			{
+				"doctype": "Expense",
+				"date": today(),
+				"category": category,
+				"amount": amount,
+				"payment_mode": "Cash",
+			}
 		).insert(ignore_permissions=True)
 
 	def test_submit_posts_nothing_when_ledger_posting_off(self):

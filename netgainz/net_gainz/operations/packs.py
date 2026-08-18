@@ -155,6 +155,7 @@ def _sell(customer, item, rate, payment_mode, cost_center, remarks, company) -> 
 	si.remarks = remarks
 	si.append("items", {"item_code": item, "qty": 1, "rate": flt(rate), "cost_center": cost_center})
 	si.set_missing_values(for_validate=True)
+	currency.pin_to_company_currency(si, company)
 	if si.taxes_and_charges and not si.get("taxes"):
 		si.set_taxes()
 	si.insert(ignore_permissions=True)

@@ -7,12 +7,12 @@ from frappe.tests.utils import FrappeTestCase
 
 class TestClassBooking(FrappeTestCase):
 	def setUp(self):
-		self.member = frappe.get_doc(
-			{"doctype": "Member", "full_name": "Booking Test Member One"}
-		).insert(ignore_permissions=True)
-		self.member2 = frappe.get_doc(
-			{"doctype": "Member", "full_name": "Booking Test Member Two"}
-		).insert(ignore_permissions=True)
+		self.member = frappe.get_doc({"doctype": "Member", "full_name": "Booking Test Member One"}).insert(
+			ignore_permissions=True
+		)
+		self.member2 = frappe.get_doc({"doctype": "Member", "full_name": "Booking Test Member Two"}).insert(
+			ignore_permissions=True
+		)
 		self.session = frappe.get_doc(
 			{
 				"doctype": "Session",

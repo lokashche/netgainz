@@ -185,9 +185,7 @@ def _already_there(step: Step, row: dict) -> bool:
 	key = row.get(step.key_column)
 	if not key:
 		return False
-	cache = frappe.local.netgainz_load_seen = getattr(
-		frappe.local, "netgainz_load_seen", {}
-	)
+	cache = frappe.local.netgainz_load_seen = getattr(frappe.local, "netgainz_load_seen", {})
 	bucket = cache.setdefault(step.doctype, {})
 	if key not in bucket:
 		bucket[key] = bool(frappe.db.exists(step.doctype, key))
@@ -291,9 +289,7 @@ def validate(step_key: str, content: str) -> dict:
 		wanted = {r[column] for r in rows if r.get(column)}
 		if not wanted:
 			continue
-		existing = set(
-			frappe.get_all(target, filters={"name": ["in", list(wanted)]}, pluck="name")
-		)
+		existing = set(frappe.get_all(target, filters={"name": ["in", list(wanted)]}, pluck="name"))
 		missing = sorted(wanted - existing)
 		if missing:
 			rows_hit = [i for i, r in enumerate(rows, start=2) if r.get(column) in missing]
@@ -337,9 +333,7 @@ def validate(step_key: str, content: str) -> dict:
 			pending = [r for r in rows if not _already_there(step, r)]
 			names = [r["full_name"] for r in pending if r.get("full_name")]
 			repeated = sorted({n for n in names if names.count(n) > 1})
-			clashing = set(
-				frappe.get_all("Customer", filters={"name": ["in", names]}, pluck="name")
-			)
+			clashing = set(frappe.get_all("Customer", filters={"name": ["in", names]}, pluck="name"))
 			if repeated or clashing:
 				offenders = sorted(set(repeated) | clashing)
 				# Information, not an error, and no instruction to go anywhere: `run`
@@ -370,9 +364,7 @@ def validate(step_key: str, content: str) -> dict:
 	if step.key_column in header:
 		keys = [r[step.key_column] for r in rows if r.get(step.key_column)]
 		if keys:
-			already = len(
-				frappe.get_all(step.doctype, filters={"name": ["in", keys]}, pluck="name")
-			)
+			already = len(frappe.get_all(step.doctype, filters={"name": ["in", keys]}, pluck="name"))
 	if already:
 		problems.append(
 			_problem(
@@ -536,9 +528,7 @@ def status(step_key: str) -> dict:
 		imported = sum(1 for log in logs if log.success)
 		failed = [log for log in logs if not log.success]
 		for log in failed[:20]:
-			failures.append(
-				{"rows": log.row_indexes, "message": _first_line(log.exception)}
-			)
+			failures.append({"rows": log.row_indexes, "message": _first_line(log.exception)})
 		doc.db_set("imported_rows", imported, update_modified=False)
 		doc.db_set("failed_rows", len(failed), update_modified=False)
 		doc.db_set("status", _STATUS_MAP.get(di_status, IMPORTING), update_modified=False)

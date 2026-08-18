@@ -86,9 +86,10 @@ class TestWriteOff(FrappeTestCase):
 		writeoff.write_off_membership(ms.name)
 
 		# The raw schedule still says the money is owed...
-		raw = sum(flt(r.outstanding) for r in frappe.get_all(
-			"Payment Schedule", filters={"parent": si}, fields=["outstanding"]
-		))
+		raw = sum(
+			flt(r.outstanding)
+			for r in frappe.get_all("Payment Schedule", filters={"parent": si}, fields=["outstanding"])
+		)
 		self.assertGreater(raw, 0)
 		# ...but the obligations seam reconciles to the invoice and reports zero.
 		obligations = billing.open_obligations(ms.name)

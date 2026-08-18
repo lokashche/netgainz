@@ -23,9 +23,7 @@ def _default_expense_account(company: str) -> str | None:
 		)
 		if acc:
 			return acc
-	return frappe.db.get_value(
-		"Account", {"company": company, "root_type": "Expense", "is_group": 0}, "name"
-	)
+	return frappe.db.get_value("Account", {"company": company, "root_type": "Expense", "is_group": 0}, "name")
 
 
 def execute():
@@ -46,4 +44,6 @@ def execute():
 	for name in frappe.get_all(
 		"Expense Category", filters={"expense_account": ["in", [None, ""]]}, pluck="name"
 	):
-		frappe.db.set_value("Expense Category", name, "expense_account", default_account, update_modified=False)
+		frappe.db.set_value(
+			"Expense Category", name, "expense_account", default_account, update_modified=False
+		)

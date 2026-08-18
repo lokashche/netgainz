@@ -76,9 +76,7 @@ def ensure_cash_account(company=None) -> str | None:
 	existing = frappe.db.get_value("Company", company, "default_cash_account")
 	if existing:
 		return existing
-	cash = frappe.db.get_value(
-		"Account", {"company": company, "account_type": "Cash", "is_group": 0}, "name"
-	)
+	cash = frappe.db.get_value("Account", {"company": company, "account_type": "Cash", "is_group": 0}, "name")
 	if cash:
 		frappe.db.set_value("Company", company, "default_cash_account", cash)
 	return cash
@@ -93,6 +91,7 @@ def make_plan(
 	due_rule="On joining",
 	parts=1,
 	gap_days=30,
+	gap_unit="Days",
 ):
 	"""A Membership Plan (auto-provisions Item + Item Price + Subscription Plan).
 
@@ -120,6 +119,7 @@ def make_plan(
 		"payment_due_rule": due_rule,
 		"installment_count": parts,
 		"installment_gap_days": gap_days,
+		"installment_gap_unit": gap_unit,
 	}
 	# Mirror the owner app: the day count is set BY the cadence, and is only
 	# supplied directly for a Custom plan. Sending both would make the controller
@@ -144,8 +144,8 @@ def enrol(tag, amount=1000.0, duration=30, date_of_joining=None, **plan_kwargs):
 	so the returned membership already carries ``subscription`` +
 	``current_sales_invoice``. ``tag`` is suffixed with a process-unique sequence so
 	repeated calls can never collide on a master's name. Extra keyword arguments
-	(``plan_type``, ``billing_mode``, ``due_rule``, ``parts``, ``gap_days``) go
-	straight to :func:`make_plan`.
+	(``plan_type``, ``billing_mode``, ``due_rule``, ``parts``, ``gap_days``,
+	``gap_unit``) go straight to :func:`make_plan`.
 	"""
 	tag = f"{tag}-{next(_SEQ)}"
 	plan = make_plan(f"{tag} Plan", amount=amount, duration=duration, **plan_kwargs)
@@ -154,7 +154,63 @@ def enrol(tag, amount=1000.0, duration=30, date_of_joining=None, **plan_kwargs):
 		{"doctype": "Membership", "member": member.name, "membership_plan": plan.name}
 	).insert(ignore_permissions=True)
 	ms.reload()
+	assert_billing_provisioned(ms)
 	return ms
+
+
+def assert_billing_provisioned(membership) -> None:
+	"""Fail HERE, with the reason, when enrolment produced no invoice.
+
+	Enrolment is deliberately best-effort in production: `on_membership_insert`
+	swallows exceptions into the Error Log, and `ensure_subscription` returns None
+	on a missing prerequisite without raising at all. A billing hiccup must never
+	block a gym signing someone up.
+
+	In a test that same silence is poison. A membership with no invoice makes every
+	later assertion measure an empty invoice — and several of them still pass, so
+	the suite reports green while proving nothing. The three CI failures that
+	prompted this raised "payment must be greater than zero" and "no invoice to
+	write off" from three frames away, naming neither the missing prerequisite nor
+	the module that was actually broken.
+
+	So each prerequisite is re-checked in the same order `ensure_subscription` uses,
+	and the swallowed Error Log is quoted if one was written.
+	"""
+	membership.reload()
+	if membership.get("current_sales_invoice"):
+		return
+
+	company = pf_accounts.default_company()
+	plan = membership.get("membership_plan")
+	reasons = []
+	if not company:
+		reasons.append("no default Company (Global Defaults / Business Settings)")
+	if not frappe.db.get_value("Member", membership.member, "customer"):
+		reasons.append("the Member has no ERPNext Customer")
+	if plan:
+		if not frappe.db.get_value("Membership Plan", plan, "item"):
+			reasons.append("the plan has no Item (a missing HSN/SAC code skips provisioning)")
+		if not frappe.db.get_value("Membership Plan", plan, "subscription_plan"):
+			reasons.append("the plan has no Subscription Plan")
+	if not billing.is_billable(membership):
+		reasons.append("no price resolves for this membership")
+	if not membership.get("subscription"):
+		reasons.append("no Subscription was created")
+
+	logged = frappe.get_all(
+		"Error Log",
+		filters={"method": ["like", f"%{membership.name}%"]},
+		fields=["error"],
+		order_by="creation desc",
+		limit=1,
+	)
+	detail = f"\n\nSwallowed error:\n{logged[0].error}" if logged else ""
+	raise AssertionError(
+		f"Membership {membership.name} enrolled but was never billed — "
+		f"every assertion after this would measure an empty invoice.\n"
+		f"Prerequisites missing: {'; '.join(reasons) or 'none found (see the log below)'}"
+		f"{detail}"
+	)
 
 
 def collect(membership, amount=None, posting_date=None, payment_mode="Cash") -> str:

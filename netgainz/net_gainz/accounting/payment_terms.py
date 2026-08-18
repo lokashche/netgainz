@@ -7,7 +7,8 @@ Payment Terms Template — silently.
 plan, in gym language::
 
     Payment due:        On joining | Within 7 days | By the 5th of next month
-    Allow installments: No | 2 | 3 | 4 ... parts, every N days
+    Allow installments: No | 2 | 3 | 4 ... parts
+    Collect a part:     every N days | weeks | months
 
 Everything below is the machinery that turns that pair into a native
 ``Payment Terms Template`` (+ its ``Payment Terms Template Detail`` rows). The
@@ -28,7 +29,7 @@ Two things ERPNext enforces that shape the code:
 """
 
 import frappe
-from frappe.utils import flt
+from frappe.utils import add_days, add_months, flt, getdate
 
 from netgainz.net_gainz.profit_first import calc
 
@@ -46,9 +47,64 @@ DUE_RULES = {
 	DUE_5TH_NEXT_MONTH: ("Day(s) after the end of the invoice month", 5, 0),
 }
 
+# --------------------------------------------------------------------------- #
+# how far apart the parts fall (the gym picks the unit, not just the number)
+# --------------------------------------------------------------------------- #
+# A gym does not think in days. "Half now, half next month" is the deal struck at
+# the desk; expressing it as 30 days is a different promise, because 30 days from
+# the 31st of January is the 2nd of March and every renewal drifts further. So the
+# gap carries a UNIT, and MONTHS means the calendar month — same day, next month,
+# clamped to the month's last day when that day does not exist.
+GAP_DAYS = "Days"
+GAP_WEEKS = "Weeks"
+GAP_MONTHS = "Months"
+GAP_UNITS = (GAP_DAYS, GAP_WEEKS, GAP_MONTHS)
+
+# Nominal day-length of one unit. Used ONLY to space the generated Payment Terms
+# Template rows far enough apart that ERPNext accepts them as distinct; the real
+# due dates are computed by :func:`part_due_dates` and written onto the invoice.
+_NOMINAL_DAYS = {GAP_DAYS: 1, GAP_WEEKS: 7, GAP_MONTHS: 30}
+
 # D6: installment amounts round to clean numbers. ₹10,000 in 3 -> 3,400/3,300/3,300.
 ROUNDING_UNIT = 100.0
 MAX_INSTALLMENTS = 12
+
+
+def normalise_unit(unit: str | None) -> str:
+	"""Any unknown / empty unit means Days — the behaviour before units existed."""
+	return unit if unit in GAP_UNITS else GAP_DAYS
+
+
+def gap_nominal_days(gap: int, unit: str | None) -> int:
+	"""Approximate day-length of one gap. Spacing only — never a real due date."""
+	return int(gap or 0) * _NOMINAL_DAYS[normalise_unit(unit)]
+
+
+def part_due_dates(first_due, parts: int, gap: int, unit: str | None = GAP_DAYS) -> list:
+	"""**When each part actually falls**, given when the FIRST part is due.
+
+	The single source of truth for installment timing. Every later part is measured
+	from the first part's real due date, not from the invoice date — so a policy
+	like "by the 5th of next month, then monthly" lands on the 5th every time
+	instead of drifting by whatever the first row's offset happened to be.
+
+	``Months`` uses :func:`frappe.utils.add_months`, which walks the calendar and
+	clamps: a member who joins on the 31st of January owes part two on the 28th of
+	February, not the 2nd of March.
+	"""
+	first = getdate(first_due)
+	parts = max(1, int(parts or 1))
+	gap = int(gap or 0)
+	unit = normalise_unit(unit)
+	dates = [first]
+	for index in range(1, parts):
+		if unit == GAP_MONTHS:
+			dates.append(getdate(add_months(first, gap * index)))
+		elif unit == GAP_WEEKS:
+			dates.append(getdate(add_days(first, gap * 7 * index)))
+		else:
+			dates.append(getdate(add_days(first, gap * index)))
+	return dates
 
 
 # --------------------------------------------------------------------------- #
@@ -103,15 +159,22 @@ def split_portions(parts: int) -> list[float]:
 # --------------------------------------------------------------------------- #
 # policy -> Payment Terms Template
 # --------------------------------------------------------------------------- #
-def template_name(due_rule: str, parts: int, gap_days: int) -> str:
+def template_name(due_rule: str, parts: int, gap: int, unit: str | None = GAP_DAYS) -> str:
 	"""Deterministic, human-readable name. Same policy -> same template, always.
 
 	Prefixed so it is obvious in Desk (support/superadmin only) that these are
 	generated, not hand-authored.
+
+	A Days gap keeps its original ``...every 30d`` spelling on purpose: every plan
+	written before units existed is a Days plan, and changing the name would strand
+	them on an orphaned template and generate a duplicate for the same policy.
 	"""
 	if parts <= 1:
 		return f"NetGainz: {due_rule}"
-	return f"NetGainz: {due_rule}, {parts} parts every {gap_days}d"
+	unit = normalise_unit(unit)
+	if unit == GAP_DAYS:
+		return f"NetGainz: {due_rule}, {parts} parts every {gap}d"
+	return f"NetGainz: {due_rule}, {parts} parts {describe_gap(gap, unit)}"
 
 
 def ensure_payment_term(name, portion, based_on, credit_days, credit_months) -> str:
@@ -135,26 +198,33 @@ def ensure_payment_term(name, portion, based_on, credit_days, credit_months) -> 
 	return term.name
 
 
-def _row_specs(due_rule: str, parts: int, gap_days: int) -> list[tuple]:
+def _row_specs(due_rule: str, parts: int, gap: int, unit: str | None) -> list[tuple]:
 	"""(portion, due_date_based_on, credit_days, credit_months) per installment.
 
-	The FIRST installment carries the gym's chosen due rule verbatim; each later
-	one falls ``gap_days`` after the previous. A month-end-based rule only makes
-	sense for the first row, so later rows always count plain days after the
-	invoice date.
+	The FIRST installment carries the gym's chosen due rule verbatim; each later one
+	is spaced by the gap's NOMINAL day-length. A month-end-based rule only makes
+	sense for the first row, so later rows always count plain days after the invoice
+	date.
+
+	These template dates are a fallback, not the promise. ERPNext builds the
+	schedule from them and ``billing.on_sales_invoice_validate`` then restates each
+	row's due date from :func:`part_due_dates`, which walks the real calendar. The
+	template only has to place the rows in the right order and keep them distinct —
+	ERPNext rejects two rows sharing (term, credit_days, credit_months, based_on).
 	"""
 	based_on, credit_days, credit_months = DUE_RULES[due_rule]
+	step = gap_nominal_days(gap, unit)
 	specs = []
 	for index, portion in enumerate(split_portions(parts)):
 		if index == 0:
 			specs.append((portion, based_on, credit_days, credit_months))
 		else:
-			offset = _first_row_offset_days(based_on, credit_days) + gap_days * index
+			offset = _first_row_offset_days(based_on, credit_days) + step * index
 			specs.append((portion, "Day(s) after invoice date", offset, 0))
 	return specs
 
 
-def ensure_template(due_rule: str, parts: int = 1, gap_days: int = 30) -> str | None:
+def ensure_template(due_rule: str, parts: int = 1, gap: int = 30, unit: str | None = GAP_DAYS) -> str | None:
 	"""Find-or-create the Payment Terms Template for a policy; return its name.
 
 	Returns ``None`` for an unknown due rule (best-effort — never block a save).
@@ -168,11 +238,12 @@ def ensure_template(due_rule: str, parts: int = 1, gap_days: int = 30) -> str | 
 	# ERPNext rejects a template whose rows share
 	# (payment_term, credit_days, credit_months, due_date_based_on) — with no gap
 	# every installment would collapse onto the same due date anyway.
-	gap_days = int(gap_days or 0)
-	if parts > 1 and gap_days < 1:
-		frappe.throw("Installments must be at least 1 day apart.")
+	gap = int(gap or 0)
+	unit = normalise_unit(unit)
+	if parts > 1 and gap < 1:
+		frappe.throw(f"Installments must be at least 1 {unit.lower().rstrip('s')} apart.")
 
-	name = template_name(due_rule, parts, gap_days)
+	name = template_name(due_rule, parts, gap, unit)
 	if frappe.db.exists("Payment Terms Template", name):
 		return name
 
@@ -181,9 +252,7 @@ def ensure_template(due_rule: str, parts: int = 1, gap_days: int = 30) -> str | 
 	# Lets ERPNext track paid/outstanding PER installment on the invoice's
 	# payment_schedule, and lets a Payment Entry name the installment it settles.
 	template.allocate_payment_based_on_payment_terms = 1
-	for index, (portion, based_on, days, months) in enumerate(
-		_row_specs(due_rule, parts, gap_days)
-	):
+	for index, (portion, based_on, days, months) in enumerate(_row_specs(due_rule, parts, gap, unit)):
 		term_name = f"{name} — part {index + 1}" if parts > 1 else name
 		template.append(
 			"terms",
@@ -234,13 +303,55 @@ def resolve_for_membership(membership) -> str | None:
 	return None
 
 
+def resolve_policy(membership) -> "frappe._dict":
+	"""**Whose payment policy is in force for this membership** — and what it says.
+
+	A member's own setting wins field by field; anything they leave blank falls back
+	to the plan; anything the plan leaves blank falls back to the built-in default.
+	One function, so the membership controller, the invoice hook and the owner's
+	screen can never disagree about which policy applies.
+	"""
+	plan_name = membership.get("membership_plan")
+	plan = (
+		frappe.db.get_value(
+			"Membership Plan",
+			plan_name,
+			[
+				"payment_due_rule",
+				"installment_count",
+				"installment_gap_days",
+				"installment_gap_unit",
+			],
+			as_dict=True,
+		)
+		if plan_name
+		else None
+	) or frappe._dict()
+
+	return frappe._dict(
+		plan=plan_name,
+		uses_own_terms=bool(
+			membership.get("payment_due_rule") or int(membership.get("installment_count") or 0) > 1
+		),
+		due_rule=membership.get("payment_due_rule") or plan.get("payment_due_rule") or DUE_ON_JOINING,
+		parts=int(membership.get("installment_count") or 0) or int(plan.get("installment_count") or 1),
+		gap=int(membership.get("installment_gap_days") or 0) or int(plan.get("installment_gap_days") or 30),
+		unit=normalise_unit(membership.get("installment_gap_unit") or plan.get("installment_gap_unit")),
+		plan_due_rule=plan.get("payment_due_rule"),
+		plan_parts=plan.get("installment_count"),
+		plan_gap=plan.get("installment_gap_days"),
+		plan_unit=plan.get("installment_gap_unit"),
+	)
+
+
 def sync_plan_template(plan) -> str | None:
 	"""Regenerate a Membership Plan's system-managed ``payment_terms_template``
 	from its owner-facing policy fields. Called from the plan controller."""
 	due_rule = plan.get("payment_due_rule") or DUE_ON_JOINING
 	parts = int(plan.get("installment_count") or 1)
-	gap_days = int(plan.get("installment_gap_days") or 30)
-	template = ensure_template(due_rule, parts, gap_days)
+	gap = int(plan.get("installment_gap_days") or 30)
+	unit = normalise_unit(plan.get("installment_gap_unit"))
+	template = ensure_template(due_rule, parts, gap, unit)
 	if template and plan.get("payment_terms_template") != template:
 		plan.payment_terms_template = template
 	return template
@@ -249,14 +360,30 @@ def sync_plan_template(plan) -> str | None:
 # --------------------------------------------------------------------------- #
 # owner-facing: describing and changing a member's terms
 # --------------------------------------------------------------------------- #
-def describe(due_rule: str | None, parts: int | None, gap_days: int | None) -> str:
+def describe_gap(gap: int | None, unit: str | None) -> str:
+	"""\"every month\" / \"every 4 weeks\" / \"every 45 days\" — never \"gap_days=45\"."""
+	gap = int(gap or 0)
+	if gap < 1:
+		return ""
+	unit = normalise_unit(unit)
+	singular = {GAP_DAYS: "day", GAP_WEEKS: "week", GAP_MONTHS: "month"}[unit]
+	if gap == 1:
+		return f"every {singular}"
+	return f"every {gap} {singular}s"
+
+
+def describe(
+	due_rule: str | None,
+	parts: int | None,
+	gap_days: int | None,
+	gap_unit: str | None = GAP_DAYS,
+) -> str:
 	"""The policy in the words a gym owner would use.
 
 	The owner never sees a Payment Terms Template, so this is the only place the
 	policy is ever spelled out to them.
 	"""
 	parts = max(1, int(parts or 1))
-	gap = int(gap_days or 0)
 	rule = due_rule or DUE_ON_JOINING
 	if parts == 1:
 		return {
@@ -269,7 +396,7 @@ def describe(due_rule: str | None, parts: int | None, gap_days: int | None) -> s
 		DUE_IN_7_DAYS: "starting within 7 days",
 		DUE_5TH_NEXT_MONTH: "starting by the 5th of next month",
 	}.get(rule, "")
-	every = f"every {gap} days" if gap else ""
+	every = describe_gap(gap_days, gap_unit)
 	return " ".join(x for x in (f"Pays in {parts} parts", every, when) if x)
 
 
@@ -280,43 +407,31 @@ def get_membership_terms(membership) -> dict:
 
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
 	ms = frappe.get_doc("Membership", membership)
-	plan = (
-		frappe.db.get_value(
-			"Membership Plan",
-			ms.membership_plan,
-			["payment_due_rule", "installment_count", "installment_gap_days"],
-			as_dict=True,
-		)
-		if ms.membership_plan
-		else None
-	) or frappe._dict()
-
-	own = bool(ms.payment_due_rule or int(ms.installment_count or 0) > 1)
-	rule = ms.payment_due_rule or plan.get("payment_due_rule") or DUE_ON_JOINING
-	parts = int(ms.installment_count or 0) or int(plan.get("installment_count") or 1)
-	gap = int(ms.installment_gap_days or 0) or int(plan.get("installment_gap_days") or 30)
+	policy = resolve_policy(ms)
 
 	return {
 		"membership": ms.name,
-		"uses_own_terms": own,
-		"payment_due_rule": rule,
-		"installment_count": parts,
-		"installment_gap_days": gap,
-		"summary": describe(rule, parts, gap),
+		"uses_own_terms": policy.uses_own_terms,
+		"payment_due_rule": policy.due_rule,
+		"installment_count": policy.parts,
+		"installment_gap_days": policy.gap,
+		"installment_gap_unit": policy.unit,
+		"summary": describe(policy.due_rule, policy.parts, policy.gap, policy.unit),
 		"plan": ms.membership_plan,
-		"plan_summary": describe(
-			plan.get("payment_due_rule"),
-			plan.get("installment_count"),
-			plan.get("installment_gap_days"),
-		),
+		"plan_summary": describe(policy.plan_due_rule, policy.plan_parts, policy.plan_gap, policy.plan_unit),
 		"due_rules": list(DUE_RULES),
+		"gap_units": list(GAP_UNITS),
 		"max_installments": MAX_INSTALLMENTS,
 	}
 
 
 @frappe.whitelist()
 def set_membership_terms(
-	membership, payment_due_rule=None, installment_count=None, installment_gap_days=None
+	membership,
+	payment_due_rule=None,
+	installment_count=None,
+	installment_gap_days=None,
+	installment_gap_unit=None,
 ) -> dict:
 	"""Owner/BFF: give ONE member their own payment terms, or send them back to
 	the plan's.
@@ -337,10 +452,14 @@ def set_membership_terms(
 		frappe.throw(f"At most {MAX_INSTALLMENTS} parts are supported (got {parts}).")
 	if payment_due_rule and payment_due_rule not in DUE_RULES:
 		frappe.throw(f"Unknown payment due rule {payment_due_rule!r}.")
+	if installment_gap_unit and installment_gap_unit not in GAP_UNITS:
+		frappe.throw(f"Unknown gap unit {installment_gap_unit!r}.")
 
 	ms.payment_due_rule = payment_due_rule or None
 	ms.installment_count = parts or 0
 	ms.installment_gap_days = int(installment_gap_days or 0) or 0
+	# Blank means "follow the plan", exactly as the count and the due rule do.
+	ms.installment_gap_unit = installment_gap_unit or None
 	ms.save(ignore_permissions=True)
 	frappe.db.commit()
 	return get_membership_terms(ms.name)

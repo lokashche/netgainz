@@ -15,12 +15,8 @@ class TestClassSchedule(FrappeTestCase):
 		return doc
 
 	def tearDown(self):
-		for sched in frappe.get_all(
-			"Session Schedule", filters={"title": "Morning Batch"}, pluck="name"
-		):
-			for sess in frappe.get_all(
-				"Session", filters={"class_schedule": sched}, pluck="name"
-			):
+		for sched in frappe.get_all("Session Schedule", filters={"title": "Morning Batch"}, pluck="name"):
+			for sess in frappe.get_all("Session", filters={"class_schedule": sched}, pluck="name"):
 				frappe.delete_doc("Session", sess, ignore_permissions=True, force=True)
 			frappe.delete_doc("Session Schedule", sched, ignore_permissions=True, force=True)
 
@@ -43,9 +39,7 @@ class TestClassSchedule(FrappeTestCase):
 		first = frappe.db.count("Session", {"class_schedule": doc.name})
 		self.assertGreaterEqual(first, 1)
 		# Every generated session must be a Monday.
-		for s in frappe.get_all(
-			"Session", filters={"class_schedule": doc.name}, fields=["start_time"]
-		):
+		for s in frappe.get_all("Session", filters={"class_schedule": doc.name}, fields=["start_time"]):
 			self.assertEqual(frappe.utils.getdate(s.start_time).weekday(), 0)
 
 		again = doc.generate()

@@ -104,6 +104,39 @@ def assert_company_currency(doc_currency: str | None, company: str | None = None
 	)
 
 
+def pin_to_company_currency(doc, company: str | None = None) -> None:
+	"""Raise ``doc`` in the tenant's OWN currency, explicitly — never by inference.
+
+	WP-8's rule is one transaction currency per tenant, but a document that simply
+	does not say so inherits whatever the default Selling price list happens to be.
+	ERPNext seeds "Standard Selling" in **USD** at install and only the setup wizard
+	re-denominates it, so on any tenant where that never happened, an invoice built
+	from the price list comes out in USD against an INR ledger and ERPNext refuses
+	it outright:
+
+	    Party Account Debtors - X currency (INR) and document currency (USD)
+	    should be same
+
+	Membership invoices escape this because the Subscription carries the company's
+	currency down. Anything that builds a Sales Invoice by hand does not, which is
+	how a PT pack sale and the go-live part-month invoice ended up exposed.
+
+	Call AFTER ``set_missing_values``: that is what fills the currency in from the
+	party and the price list, so setting it earlier is simply overwritten. The rate
+	is 1 because both sides are the same currency by construction.
+	"""
+	base = company_currency(company or doc.get("company"))
+	if not base:
+		return
+	doc.currency = base
+	doc.conversion_rate = 1.0
+	# The price list side is validated separately; leaving it foreign would demand a
+	# plc_conversion_rate for prices this document never reads (every rate is
+	# passed in explicitly).
+	doc.price_list_currency = base
+	doc.plc_conversion_rate = 1.0
+
+
 def assert_membership_billing_currency(customer: str | None, company: str | None = None) -> None:
 	"""Guard the party side: a Customer with a foreign default currency would make
 	ERPNext raise the membership's Sales Invoice in that currency."""

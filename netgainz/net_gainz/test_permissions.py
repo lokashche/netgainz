@@ -79,11 +79,14 @@ class TestPermissionMatrix(FrappeTestCase):
 		self.assertTrue(plan.read)
 		self.assertFalse(plan.write, "pricing is the owner's call")
 
-		for doctype in ("Expense", "Expense Category", "PF Sweep", "Profit First Settings",
-		                "Instructor Commission Run"):
-			self.assertIsNone(
-				self._perms(doctype, permissions.GYM_STAFF), f"staff must not see {doctype}"
-			)
+		for doctype in (
+			"Expense",
+			"Expense Category",
+			"PF Sweep",
+			"Profit First Settings",
+			"Instructor Commission Run",
+		):
+			self.assertIsNone(self._perms(doctype, permissions.GYM_STAFF), f"staff must not see {doctype}")
 
 	def test_owner_can_read_the_erpnext_documents_the_engine_creates(self):
 		for doctype in ("Sales Invoice", "Payment Entry", "Journal Entry", "Subscription"):
@@ -211,7 +214,10 @@ class TestRolesCanActuallyWork(FrappeTestCase):
 
 		context = refunds.get_refund_context(ms.name)
 		result = refunds.refund_membership_payment(
-			ms.name, amount=context["refundable"], reason="Goodwill", posting_date=today(),
+			ms.name,
+			amount=context["refundable"],
+			reason="Goodwill",
+			posting_date=today(),
 			payment_mode="Cash",
 		)
 

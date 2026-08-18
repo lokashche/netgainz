@@ -4,6 +4,7 @@ import { useState, useEffect, SyntheticEvent, use } from "react";
 import { decodeId, extractFrappeError } from "@/lib/frappe";
 import { useRouter } from "next/navigation";
 import type { MembershipPlan } from "@/lib/types";
+import { GAP_UNITS } from "@/app/components/PaymentTermsFields";
 
 type Params = Promise<{ id: string }>;
 
@@ -30,6 +31,7 @@ export default function PlanDetailPage({ params }: { params: Params }) {
   const [payment_due_rule, setPaymentDueRule] = useState("On joining");
   const [installment_count, setInstallmentCount] = useState("1");
   const [installment_gap_days, setInstallmentGapDays] = useState("30");
+  const [installment_gap_unit, setInstallmentGapUnit] = useState("Days");
   const [trial_days, setTrialDays] = useState("0");
 
   const [amount, setAmount] = useState("");
@@ -51,6 +53,7 @@ export default function PlanDetailPage({ params }: { params: Params }) {
         setPaymentDueRule(p.payment_due_rule ?? "On joining");
         setInstallmentCount(String(p.installment_count ?? 1));
         setInstallmentGapDays(String(p.installment_gap_days ?? 30));
+        setInstallmentGapUnit(p.installment_gap_unit ?? "Days");
         setTrialDays(String(p.trial_days ?? 0));
         setAmount(p.amount !== undefined ? String(p.amount) : "");
         setDescription(p.description ?? "");
@@ -79,6 +82,7 @@ export default function PlanDetailPage({ params }: { params: Params }) {
     payload.payment_due_rule = payment_due_rule;
     payload.installment_count = Number(installment_count);
     payload.installment_gap_days = Number(installment_gap_days);
+    payload.installment_gap_unit = installment_gap_unit;
     payload.trial_days = Number(trial_days) || 0;
     if (duration_in_days) payload.duration_in_days = Number(duration_in_days);
     if (amount) payload.amount = Number(amount);
@@ -227,15 +231,33 @@ export default function PlanDetailPage({ params }: { params: Params }) {
               </select>
             </div>
             <div>
-              <label className={labelClass}>Days Between Parts</label>
-              <input
-                type="number"
-                min="1"
-                value={installment_gap_days}
-                onChange={(e) => setInstallmentGapDays(e.target.value)}
-                disabled={installment_count === "1"}
-                className={`${inputClass} disabled:opacity-50`}
-              />
+              <label className={labelClass}>Collect Each Part Every</label>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  min="1"
+                  value={installment_gap_days}
+                  onChange={(e) => setInstallmentGapDays(e.target.value)}
+                  disabled={installment_count === "1"}
+                  className={`${inputClass} disabled:opacity-50 w-20 shrink-0`}
+                />
+                <select
+                  aria-label="Unit"
+                  value={installment_gap_unit}
+                  onChange={(e) => setInstallmentGapUnit(e.target.value)}
+                  disabled={installment_count === "1"}
+                  className={`${inputClass} disabled:opacity-50`}
+                >
+                  {GAP_UNITS.map((u) => (
+                    <option key={u.value} value={u.value}>{u.label}</option>
+                  ))}
+                </select>
+              </div>
+              <p className="text-xs text-[#8A97B2] mt-1">
+                {billing_mode === "Pay-as-you-go"
+                  ? "Not used on this billing mode — each part is its own invoice on its own cycle."
+                  : "Months means the same day next month, so nothing drifts."}
+              </p>
             </div>
           </div>
         </div>

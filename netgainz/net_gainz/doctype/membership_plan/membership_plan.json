@@ -24,6 +24,7 @@
   "installment_count",
   "column_break_pay",
   "installment_gap_days",
+  "installment_gap_unit",
   "payment_terms_template",
   "erpnext_mapping_section",
   "item",
@@ -157,10 +158,19 @@
   {
    "default": "30",
    "depends_on": "eval:doc.installment_count > 1",
-   "description": "Days between installments.",
+   "description": "How long after one part the next one is due.",
    "fieldname": "installment_gap_days",
    "fieldtype": "Int",
-   "label": "Days Between Installments"
+   "label": "Collect Each Part Every"
+  },
+  {
+   "default": "Days",
+   "depends_on": "eval:doc.installment_count > 1",
+   "description": "Months means the calendar month — same day next month, so nothing drifts.",
+   "fieldname": "installment_gap_unit",
+   "fieldtype": "Select",
+   "label": "Collect Each Part Every (unit)",
+   "options": "Days\nWeeks\nMonths"
   },
   {
    "description": "Generated from the payment policy above. Managed by NetGainz — do not edit.",
