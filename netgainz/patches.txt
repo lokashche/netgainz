@@ -28,3 +28,4 @@ netgainz.patches.v0_8.apply_permission_matrix #7 TL-1: grant Data Load Step to G
 netgainz.patches.v0_8.ensure_customer_naming
 netgainz.patches.v0_8.assign_gym_owner_to_login_users
 netgainz.patches.v0_8.apply_permission_matrix #8 restore the System Manager rows the custom overrides erased
+netgainz.patches.v0_8.stamp_backfill_paid_dates
