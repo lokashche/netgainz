@@ -34,3 +34,90 @@ input, textarea, select {
 input::placeholder, textarea::placeholder {
   color: var(--ng-muted);
 }
+
+/* ──────────────────────────────────────────────────────────────────
+   Phone + tablet rules.
+
+   These sit outside Tailwind's layers on purpose, so they win over a
+   utility class. Each fixes something that cannot be fixed page by
+   page without editing every file in the app.
+   ────────────────────────────────────────────────────────────────── */
+
+/* Stop iOS from re-scaling text when the phone is turned sideways. */
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+/* iOS Safari zooms the page in whenever you tap a field whose text is
+   smaller than 16px, and it never zooms back out. Forcing 16px on
+   phones is the only cure. Tablets and desktop keep the designed size. */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* Tables: six columns at px-6 do not fit a phone. Tighter cells mean
+   more real columns are readable before you have to scroll sideways. */
+@media (max-width: 767px) {
+  table th,
+  table td {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+    padding-top: 0.625rem;
+    padding-bottom: 0.625rem;
+  }
+}
+
+/* Wide content scrolls inside its own box, never by moving the page.
+   Momentum scroll on touch, and a sideways swipe on a table must not
+   trigger the browser's "go back" gesture. */
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+/* Finger-sized tap targets on phones. Limited to real controls: a
+   button, or a link that is already laid out as a button. A link
+   inside a sentence is left alone. */
+@media (max-width: 767px) {
+  button,
+  [role="button"],
+  a[class*="inline-flex"] {
+    min-height: 40px;
+  }
+
+  button,
+  [role="button"],
+  a {
+    touch-action: manipulation;
+  }
+}
+
+/* A long email or a note with no spaces should wrap, not widen the page. */
+td,
+th,
+p,
+h1,
+h2,
+h3 {
+  overflow-wrap: anywhere;
+}
+
+/* ...but money, dates and IDs stay on one line. */
+.whitespace-nowrap,
+.font-mono {
+  overflow-wrap: normal;
+}
+
+/* A row of filter tabs scrolls sideways on a phone rather than squashing.
+   The scrollbar itself is hidden — the row is short and obviously swipeable. */
+.ng-noscrollbar {
+  scrollbar-width: none;
+}
+
+.ng-noscrollbar::-webkit-scrollbar {
+  display: none;
+}

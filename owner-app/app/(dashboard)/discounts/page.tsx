@@ -31,6 +31,7 @@ function Breakdown({ title, rows, empty }: { title: string; rows: DiscountGroup[
       {rows.length === 0 ? (
         <p className="p-6 text-sm text-[#8A97B2]">{empty}</p>
       ) : (
+        <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <tbody>
             {rows.map((row) => (
@@ -46,6 +47,7 @@ function Breakdown({ title, rows, empty }: { title: string; rows: DiscountGroup[
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   );
@@ -87,7 +89,7 @@ export default async function DiscountsPage({ searchParams }: { searchParams: Se
             What the gym gave away in {period.label} — and what it cost.
           </p>
         </div>
-        <div className="flex gap-1 bg-[#111A2E] p-1 rounded-lg">
+        <div className="flex gap-1 bg-[#111A2E] p-1 rounded-lg overflow-x-auto ng-noscrollbar">
           {[
             { label: "This month", value: 0 },
             { label: "Last month", value: -1 },
@@ -98,8 +100,8 @@ export default async function DiscountsPage({ searchParams }: { searchParams: Se
               href={tab.value ? `/discounts?month=${tab.value}` : "/discounts"}
               className={
                 offset === tab.value
-                  ? "px-3 py-1.5 text-sm font-semibold rounded-md bg-[#22D38C] text-[#0B1220]"
-                  : "px-3 py-1.5 text-sm font-medium rounded-md text-[#8A97B2] hover:text-[#E6EDF7]"
+                  ? "px-3 py-2.5 sm:py-1.5 text-sm font-semibold rounded-md whitespace-nowrap shrink-0 flex items-center bg-[#22D38C] text-[#0B1220]"
+                  : "px-3 py-2.5 sm:py-1.5 text-sm font-medium rounded-md whitespace-nowrap shrink-0 flex items-center text-[#8A97B2] hover:text-[#E6EDF7]"
               }
             >
               {tab.label}
@@ -112,7 +114,7 @@ export default async function DiscountsPage({ searchParams }: { searchParams: Se
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-[#111A2E] border border-[#1E2D45] rounded-xl p-5">
           <p className="text-xs uppercase tracking-wider text-[#8A97B2]">Given away</p>
-          <p className="text-3xl font-bold text-[#F87171] mt-1">{money(report.given)}</p>
+          <p className="text-2xl sm:text-3xl font-bold text-[#F87171] mt-1">{money(report.given)}</p>
           <p className="text-xs text-[#8A97B2] mt-1">
             {report.given_percent}% of {money(report.gross)} in fees · {report.members}{" "}
             {report.members === 1 ? "member" : "members"}
@@ -120,7 +122,7 @@ export default async function DiscountsPage({ searchParams }: { searchParams: Se
         </div>
         <div className="bg-[#111A2E] border border-[#1E2D45] rounded-xl p-5">
           <p className="text-xs uppercase tracking-wider text-[#8A97B2]">Actually billed</p>
-          <p className="text-3xl font-bold text-[#E6EDF7] mt-1">{money(report.net)}</p>
+          <p className="text-2xl sm:text-3xl font-bold text-[#E6EDF7] mt-1">{money(report.net)}</p>
           <p className="text-xs text-[#8A97B2] mt-1">
             across {report.invoices} discounted {report.invoices === 1 ? "invoice" : "invoices"}
           </p>

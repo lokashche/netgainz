@@ -69,7 +69,7 @@ function statusBadge(status: SubscriptionStatus): string {
 }
 
 function tabClass(isActive: boolean, value: string): string {
-  const base = "px-3 py-1.5 text-sm font-medium rounded-md transition-colors";
+  const base = "px-3 py-2.5 sm:py-1.5 text-sm font-medium rounded-md whitespace-nowrap shrink-0 flex items-center transition-colors";
   if (!isActive) return `${base} text-[#8A97B2] hover:text-[#E6EDF7]`;
   switch (value) {
     case "Paid":
@@ -137,7 +137,7 @@ export default async function SubscriptionsPage({
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h1 className="text-2xl font-bold text-[#E6EDF7]">Subscriptions</h1>
         <Link
           href="/subscriptions/new"

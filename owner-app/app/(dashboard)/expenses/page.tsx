@@ -101,7 +101,7 @@ export default async function ExpensesPage({
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h1 className="text-2xl font-bold text-[#E6EDF7]">Expenses</h1>
         <a
           href="/expenses/new"
@@ -135,7 +135,7 @@ export default async function ExpensesPage({
       {/* Filter controls */}
       <div className="flex flex-col sm:flex-row gap-4 mb-6 items-start sm:items-center">
         {/* Recurring tabs */}
-        <div className="flex gap-1 bg-[#111A2E] p-1 rounded-lg">
+        <div className="flex gap-1 bg-[#111A2E] p-1 rounded-lg overflow-x-auto ng-noscrollbar">
           {[
             { label: "All", value: "" },
             { label: "Recurring", value: "1" },
@@ -148,8 +148,8 @@ export default async function ExpensesPage({
                 href={recurringTabHref(tab.value)}
                 className={
                   isActive
-                    ? "px-3 py-1.5 text-sm font-semibold rounded-md bg-[#22D38C] text-[#0B1220]"
-                    : "px-3 py-1.5 text-sm font-medium rounded-md text-[#8A97B2] hover:text-[#E6EDF7]"
+                    ? "px-3 py-2.5 sm:py-1.5 text-sm font-semibold rounded-md whitespace-nowrap shrink-0 flex items-center bg-[#22D38C] text-[#0B1220]"
+                    : "px-3 py-2.5 sm:py-1.5 text-sm font-medium rounded-md whitespace-nowrap shrink-0 flex items-center text-[#8A97B2] hover:text-[#E6EDF7]"
                 }
               >
                 {tab.label}

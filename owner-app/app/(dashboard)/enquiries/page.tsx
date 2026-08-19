@@ -200,8 +200,8 @@ export default function EnquiriesPage() {
                 <tr className="text-[#8A97B2] text-xs uppercase tracking-wider border-b border-[#1E2D45]">
                   <th className="text-left font-medium px-4 py-3">Name</th>
                   <th className="text-left font-medium px-4 py-3">Phone</th>
-                  <th className="text-left font-medium px-4 py-3">Source</th>
-                  <th className="text-left font-medium px-4 py-3">Program</th>
+                  <th className="hidden md:table-cell text-left font-medium px-4 py-3">Source</th>
+                  <th className="hidden md:table-cell text-left font-medium px-4 py-3">Program</th>
                   <th className="text-left font-medium px-4 py-3">Status</th>
                   <th className="text-left font-medium px-4 py-3">Follow-up</th>
                 </tr>
@@ -221,8 +221,8 @@ export default function EnquiriesPage() {
                       </Link>
                     </td>
                     <td className="px-4 py-3 text-[#8A97B2]">{e.phone || "—"}</td>
-                    <td className="px-4 py-3 text-[#8A97B2]">{e.source}</td>
-                    <td className="px-4 py-3 text-[#8A97B2]">
+                    <td className="hidden md:table-cell px-4 py-3 text-[#8A97B2]">{e.source}</td>
+                    <td className="hidden md:table-cell px-4 py-3 text-[#8A97B2]">
                       {e.interested_program || "—"}
                     </td>
                     <td className="px-4 py-3">

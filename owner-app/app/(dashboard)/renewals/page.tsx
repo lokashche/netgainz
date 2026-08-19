@@ -61,7 +61,7 @@ export default async function RenewalsPage() {
               <thead>
                 <tr className="text-[#8A97B2] text-xs uppercase tracking-wider border-b border-[#1E2D45]">
                   <th className="text-left font-medium px-4 py-3">Member</th>
-                  <th className="text-left font-medium px-4 py-3">Plan</th>
+                  <th className="hidden md:table-cell text-left font-medium px-4 py-3">Plan</th>
                   <th className="text-left font-medium px-4 py-3">Trial Ends</th>
                   <th className="text-left font-medium px-4 py-3">First Invoice</th>
                   <th className="text-right font-medium px-4 py-3"></th>
@@ -81,7 +81,7 @@ export default async function RenewalsPage() {
                         {t.member_name || t.member}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-[#8A97B2]">{t.membership_plan || "—"}</td>
+                    <td className="hidden md:table-cell px-4 py-3 text-[#8A97B2]">{t.membership_plan || "—"}</td>
                     <td className="px-4 py-3 text-[#E6EDF7]">{fmtDate(t.trial_ends_on)}</td>
                     <td className="px-4 py-3 text-[#8A97B2]">
                       {fmtDate(
@@ -130,7 +130,7 @@ export default async function RenewalsPage() {
                   <thead>
                     <tr className="text-[#8A97B2] text-xs uppercase tracking-wider border-b border-[#1E2D45]">
                       <th className="text-left font-medium px-4 py-3">Member</th>
-                      <th className="text-left font-medium px-4 py-3">Plan</th>
+                      <th className="hidden md:table-cell text-left font-medium px-4 py-3">Plan</th>
                       <th className="text-left font-medium px-4 py-3">
                         Next Renewal
                       </th>
@@ -155,7 +155,7 @@ export default async function RenewalsPage() {
                             {r.member_name || r.member}
                           </Link>
                         </td>
-                        <td className="px-4 py-3 text-[#8A97B2]">
+                        <td className="hidden md:table-cell px-4 py-3 text-[#8A97B2]">
                           {r.membership_plan || "—"}
                         </td>
                         <td className="px-4 py-3 text-[#E6EDF7]">
@@ -199,7 +199,7 @@ export default async function RenewalsPage() {
                   <thead>
                     <tr className="text-[#8A97B2] text-xs uppercase tracking-wider border-b border-[#1E2D45]">
                       <th className="text-left font-medium px-4 py-3">Member</th>
-                      <th className="text-left font-medium px-4 py-3">Plan</th>
+                      <th className="hidden md:table-cell text-left font-medium px-4 py-3">Plan</th>
                       <th className="text-left font-medium px-4 py-3">
                         Next Renewal
                       </th>
@@ -222,7 +222,7 @@ export default async function RenewalsPage() {
                             {r.member_name || r.member}
                           </Link>
                         </td>
-                        <td className="px-4 py-3 text-[#8A97B2]">
+                        <td className="hidden md:table-cell px-4 py-3 text-[#8A97B2]">
                           {r.membership_plan || "—"}
                         </td>
                         <td className="px-4 py-3 text-[#E6EDF7]">
