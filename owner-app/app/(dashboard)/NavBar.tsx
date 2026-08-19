@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import LogoutButton from "./LogoutButton";
+import NavIcon from "@/app/components/NavIcon";
 
 type NavItem = { href: string; label: string };
 
@@ -25,6 +26,13 @@ const CASHFLOW_ITEMS: NavItem[] = [
   // Go-live: members loaded from the gym's own records are not billed until the
   // owner switches them on here.
   { href: "/billing", label: "Start Billing" },
+];
+
+const BOTTOM_TABS: NavItem[] = [
+  { href: "/dashboard", label: "Home" },
+  { href: "/collections", label: "Money" },
+  { href: "/check-in", label: "Check-in" },
+  { href: "/members", label: "Members" },
 ];
 
 const linkClass =
@@ -103,12 +111,13 @@ function NavGroup({
                 href={it.href}
                 role="menuitem"
                 onClick={() => setOpen(false)}
-                className={`block px-3 py-2 text-sm transition-colors ${
+                className={`flex items-center gap-2.5 px-3 py-2 text-sm transition-colors ${
                   active
                     ? "text-[#22D38C] bg-[#1A2540]"
                     : "text-[#8A97B2] hover:text-[#E6EDF7] hover:bg-[#1A2540]"
                 }`}
               >
+                <NavIcon href={it.href} className="w-4 h-4" />
                 {it.label}
               </Link>
             );
@@ -182,12 +191,13 @@ function DrawerSection({
                 key={it.href}
                 href={it.href}
                 onClick={onNavigate}
-                className={`flex items-center min-h-[44px] pl-9 pr-4 text-sm transition-colors border-l-[3px] ${
+                className={`flex items-center gap-3 min-h-[44px] pl-9 pr-4 text-sm transition-colors border-l-[3px] ${
                   active
                     ? "text-[#22D38C] bg-[#1A2540] border-[#22D38C]"
                     : "text-[#E6EDF7] hover:bg-[#1A2540] border-transparent"
                 }`}
               >
+                <NavIcon href={it.href} className="w-[18px] h-[18px]" />
                 {it.label}
               </Link>
             );
@@ -397,28 +407,30 @@ export default function NavBar({
             id="mobile-menu"
             className="md:hidden absolute left-0 right-0 top-14 z-40 bg-[#111A2E] border-b border-[#1E2D45] shadow-xl max-h-[calc(100dvh-3.5rem)] overflow-y-auto overscroll-contain"
           >
-            <div className="py-2 divide-y divide-[#1E2D45]">
+            <div className="py-2 pb-[calc(4.5rem+env(safe-area-inset-bottom))] divide-y divide-[#1E2D45]">
               <div className="py-2">
                 <Link
                   href="/dashboard"
                   onClick={closeMenu}
-                  className={`flex items-center min-h-[44px] px-4 text-sm font-medium transition-colors ${
+                  className={`flex items-center gap-3 min-h-[44px] px-4 text-sm font-medium transition-colors ${
                     isActive(pathname, "/dashboard")
                       ? "text-[#22D38C] bg-[#1A2540]"
                       : "text-[#E6EDF7] hover:bg-[#1A2540]"
                   }`}
                 >
+                  <NavIcon href="/dashboard" className="w-[18px] h-[18px]" />
                   Dashboard
                 </Link>
                 <Link
                   href="/profit-first"
                   onClick={closeMenu}
-                  className={`flex items-center min-h-[44px] px-4 text-sm font-medium transition-colors ${
+                  className={`flex items-center gap-3 min-h-[44px] px-4 text-sm font-medium transition-colors ${
                     isActive(pathname, "/profit-first")
                       ? "text-[#22D38C] bg-[#1A2540]"
                       : "text-[#E6EDF7] hover:bg-[#1A2540]"
                   }`}
                 >
+                  <NavIcon href="/profit-first" className="w-[18px] h-[18px]" />
                   Profit First
                 </Link>
               </div>
@@ -442,12 +454,13 @@ export default function NavBar({
                 <Link
                   href="/settings"
                   onClick={closeMenu}
-                  className={`flex items-center min-h-[44px] px-4 text-sm transition-colors ${
+                  className={`flex items-center gap-3 min-h-[44px] px-4 text-sm transition-colors ${
                     isActive(pathname, "/settings")
                       ? "text-[#22D38C] bg-[#1A2540]"
                       : "text-[#E6EDF7] hover:bg-[#1A2540]"
                   }`}
                 >
+                  <NavIcon href="/settings" className="w-[18px] h-[18px]" />
                   Settings
                 </Link>
                 <div className="flex items-center justify-between gap-3 px-4 min-h-[44px]">
@@ -459,6 +472,48 @@ export default function NavBar({
           </div>
         </>
       )}
+
+      {/* ── Phone: the four daily screens, always within thumb reach ──
+          Fixed to the bottom of the window. "More" opens the same drawer as
+          the hamburger above. pb-[env(safe-area-inset-bottom)] keeps the row
+          clear of the iPhone home bar — that is what viewportFit:"cover" in
+          app/layout.tsx was for. */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#111A2E] border-t border-[#1E2D45] pb-[env(safe-area-inset-bottom)]">
+        <div className="grid grid-cols-5">
+          {BOTTOM_TABS.map((t) => {
+            const active = isActive(pathname, t.href);
+            return (
+              <Link
+                key={t.href}
+                href={t.href}
+                aria-current={active ? "page" : undefined}
+                className={`flex flex-col items-center justify-center gap-1 min-h-[56px] px-1 py-1.5 transition-colors ${
+                  active ? "text-[#22D38C]" : "text-[#8A97B2] active:bg-[#1A2540]"
+                }`}
+              >
+                <NavIcon href={t.href} className="w-[22px] h-[22px]" />
+                <span className="text-[10px] font-medium leading-none truncate max-w-full">
+                  {t.label}
+                </span>
+              </Link>
+            );
+          })}
+
+          <button
+            type="button"
+            onClick={toggleMenu}
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={menuOpen}
+            aria-controls="mobile-menu"
+            className={`flex flex-col items-center justify-center gap-1 min-h-[56px] px-1 py-1.5 transition-colors ${
+              menuOpen ? "text-[#22D38C]" : "text-[#8A97B2] active:bg-[#1A2540]"
+            }`}
+          >
+            <NavIcon href="more" className="w-[22px] h-[22px]" />
+            <span className="text-[10px] font-medium leading-none">More</span>
+          </button>
+        </div>
+      </div>
     </nav>
   );
 }
