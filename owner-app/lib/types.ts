@@ -12,6 +12,7 @@ export type Member = {
   date_of_joining?: string;
   category?: string;
   source_of_reference?: string;
+  referred_by?: string;
   status: MemberStatus;
   inactive_reason?: string;
 };

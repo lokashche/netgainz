@@ -30,3 +30,19 @@ class TestMember(FrappeTestCase):
 			doc.autoname()
 			mock_gsv.assert_called_once_with("Business Settings", "member_id_prefix")
 			self.assertTrue(doc.name.startswith("TEST-"))
+
+	def test_new_ids_continue_after_an_imported_register(self):
+		# An imported member carries its own code as the ID and never touches the
+		# series counter, so without the sync the first member added through the
+		# app would restart at 0001 while the register already runs to 1267.
+		imported = frappe.get_doc(
+			{"doctype": "Member", "full_name": "Imported Register Member", "member_code": "RGSTR1267"}
+		).insert(ignore_permissions=True)
+		self.assertEqual(imported.name, "RGSTR1267")
+
+		with patch("frappe.db.get_single_value", return_value="RGSTR"):
+			doc = frappe.new_doc("Member")
+			doc.full_name = "First App Member"
+			doc.autoname()
+		self.assertEqual(doc.name, "RGSTR1268")
+		self.assertEqual(doc.member_code, "RGSTR1268")

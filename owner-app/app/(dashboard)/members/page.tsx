@@ -43,7 +43,13 @@ export default async function MembersPage({
 
   const filters: string[][] = [];
   if (status) filters.push(["status", "=", status]);
-  if (q) filters.push(["full_name", "like", `%${q}%`]);
+  // A query with a digit in it is a member ID (KE1105, or just 1105); anything
+  // else is a name. IDs always carry digits and people's names never do.
+  if (q) {
+    filters.push(
+      /\d/.test(q) ? ["name", "like", `%${q}%`] : ["full_name", "like", `%${q}%`]
+    );
+  }
 
   const requested = readPageParams(sp);
   const {
@@ -65,12 +71,21 @@ export default async function MembersPage({
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h1 className="text-2xl font-bold text-[#E6EDF7]">Members</h1>
-        <a
-          href="/members/new"
-          className="inline-flex items-center px-4 py-2 bg-[#22D38C] text-[#0B1220] text-sm font-semibold rounded-lg hover:bg-[#5EEAD4] transition-colors"
-        >
-          Add Member
-        </a>
+        <div className="flex items-center gap-3">
+          <a
+            href={buildHref("/api/members/export", {}, { status: status || undefined, q: q || undefined })}
+            download
+            className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg border border-[#1E2D45] text-[#8A97B2] hover:text-[#E6EDF7] hover:border-[#22D38C] transition-colors"
+          >
+            Download CSV
+          </a>
+          <a
+            href="/members/new"
+            className="inline-flex items-center px-4 py-2 bg-[#22D38C] text-[#0B1220] text-sm font-semibold rounded-lg hover:bg-[#5EEAD4] transition-colors"
+          >
+            Add Member
+          </a>
+        </div>
       </div>
 
       {/* Filters row */}
@@ -108,7 +123,7 @@ export default async function MembersPage({
             type="search"
             name="q"
             defaultValue={q}
-            placeholder="Search by name…"
+            placeholder="Search by name or ID…"
             className="flex-1 px-3 py-2 text-sm rounded-lg focus:outline-none focus:ring-2 bg-[#1A2540] border border-[#1E2D45] text-[#E6EDF7] placeholder:text-[#8A97B2] focus:ring-[#22D38C]"
           />
           <button

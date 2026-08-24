@@ -23,7 +23,12 @@ export async function GET(req: NextRequest) {
 
   const filters: string[][] = [];
   if (status) filters.push(["status", "=", status]);
-  if (q) filters.push(["full_name", "like", `%${q}%`]);
+  // Same rule as the Members screen: a query with a digit is an ID search.
+  if (q) {
+    filters.push(
+      /\d/.test(q) ? ["name", "like", `%${q}%`] : ["full_name", "like", `%${q}%`]
+    );
+  }
 
   let path = `api/resource/Member?fields=${encodeURIComponent(fields)}&limit=50&order_by=${encodeURIComponent("full_name asc")}`;
   if (filters.length > 0) {

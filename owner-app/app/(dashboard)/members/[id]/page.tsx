@@ -39,6 +39,7 @@ export default function MemberDetailPage({ params }: { params: Params }) {
   const [date_of_joining, setDateOfJoining] = useState("");
   const [category, setCategory] = useState("");
   const [source_of_reference, setSource] = useState("");
+  const [referred_by, setReferredBy] = useState("");
   const [status, setStatus] = useState<MemberStatus>("Active");
   const [inactive_reason, setInactiveReason] = useState("");
 
@@ -60,6 +61,7 @@ export default function MemberDetailPage({ params }: { params: Params }) {
         setDateOfJoining(m.date_of_joining ?? "");
         setCategory(m.category ?? "");
         setSource(m.source_of_reference ?? "");
+        setReferredBy(m.referred_by ?? "");
         setStatus(m.status ?? "Active");
         setInactiveReason(m.inactive_reason ?? "");
       } catch (err) {
@@ -87,6 +89,7 @@ export default function MemberDetailPage({ params }: { params: Params }) {
     payload.date_of_joining = date_of_joining;
     payload.category = category;
     payload.source_of_reference = source_of_reference;
+    payload.referred_by = source_of_reference === "Referral" ? referred_by : "";
     payload.inactive_reason = status === "Inactive" ? inactive_reason : "";
 
     try {
@@ -294,6 +297,20 @@ export default function MemberDetailPage({ params }: { params: Params }) {
             ))}
           </select>
         </div>
+
+        {/* Referred By — shown only when the source is a referral */}
+        {source_of_reference === "Referral" && (
+          <div>
+            <label className={labelClass}>Referred By</label>
+            <input
+              type="text"
+              value={referred_by}
+              onChange={(e) => setReferredBy(e.target.value)}
+              placeholder="Who referred them?"
+              className={inputClass}
+            />
+          </div>
+        )}
 
         {/* Status */}
         <div>
