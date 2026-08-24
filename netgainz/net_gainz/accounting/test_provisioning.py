@@ -132,6 +132,43 @@ class TestProvisioning(FrappeTestCase):
 		annual = frappe.get_doc("Subscription Plan", sub)
 		self.assertEqual((annual.billing_interval, annual.billing_interval_count), ("Year", 1))
 
+	# ---- renaming a plan -------------------------------------------------- #
+	def test_rename_plan_moves_the_item_and_every_link(self):
+		plan = self._make_plan("WP2 Rename Before", amount=900.0, duration=30, sac=SAC)
+		plan.reload()
+		self.assertTrue(plan.item)
+		member = self._make_member("WP2 Rename Member")
+		member.db_set("membership_plan", plan.name, update_modified=False)
+
+		new_name = provisioning.rename_plan(plan.name, "WP2 Rename After")
+
+		self.assertEqual(new_name, "WP2 Rename After")
+		self.assertTrue(frappe.db.exists("Membership Plan", "WP2 Rename After"))
+		self.assertFalse(frappe.db.exists("Membership Plan", "WP2 Rename Before"))
+		# The autoname field follows the document ID.
+		self.assertEqual(
+			frappe.db.get_value("Membership Plan", "WP2 Rename After", "plan_name"),
+			"WP2 Rename After",
+		)
+		# The invariant provision_item relies on: Item code == plan name.
+		self.assertTrue(frappe.db.exists("Item", "WP2 Rename After"))
+		self.assertFalse(frappe.db.exists("Item", "WP2 Rename Before"))
+		self.assertEqual(
+			frappe.db.get_value("Membership Plan", "WP2 Rename After", "item"),
+			"WP2 Rename After",
+		)
+		# Links from other records follow.
+		self.assertEqual(
+			frappe.db.get_value("Member", member.name, "membership_plan"),
+			"WP2 Rename After",
+		)
+
+	def test_rename_plan_refuses_a_name_already_taken(self):
+		self._make_plan("WP2 Rename Taken", sac=SAC)
+		plan = self._make_plan("WP2 Rename Clash", sac=SAC)
+		with self.assertRaises(frappe.ValidationError):
+			provisioning.rename_plan(plan.name, "WP2 Rename Taken")
+
 	# ---- backfill patch -------------------------------------------------- #
 	def test_backfill_patch_seeds_sac_and_provisions(self):
 		from netgainz.patches.v0_7 import backfill_masters

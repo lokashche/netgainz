@@ -68,7 +68,7 @@ export default async function OffersPage({ searchParams }: { searchParams: Searc
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-[#E6EDF7]">Offers</h1>
           <p className="text-sm text-[#8A97B2] mt-1">
@@ -84,7 +84,7 @@ export default async function OffersPage({ searchParams }: { searchParams: Searc
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        <div className="flex gap-1 bg-[#111A2E] p-1 rounded-lg">
+        <div className="flex gap-1 bg-[#111A2E] p-1 rounded-lg overflow-x-auto ng-noscrollbar">
           {STATUS_TABS.map((tab) => {
             const isActive = status === tab.value;
             const href = buildHref("/offers", sp, {
@@ -97,8 +97,8 @@ export default async function OffersPage({ searchParams }: { searchParams: Searc
                 href={href}
                 className={
                   isActive
-                    ? "px-3 py-1.5 text-sm font-semibold rounded-md bg-[#22D38C] text-[#0B1220]"
-                    : "px-3 py-1.5 text-sm font-medium rounded-md text-[#8A97B2] hover:text-[#E6EDF7]"
+                    ? "px-3 py-2.5 sm:py-1.5 text-sm font-semibold rounded-md whitespace-nowrap shrink-0 flex items-center bg-[#22D38C] text-[#0B1220]"
+                    : "px-3 py-2.5 sm:py-1.5 text-sm font-medium rounded-md whitespace-nowrap shrink-0 flex items-center text-[#8A97B2] hover:text-[#E6EDF7]"
                 }
               >
                 {tab.label}

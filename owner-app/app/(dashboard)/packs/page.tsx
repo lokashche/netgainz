@@ -370,7 +370,7 @@ export default function PacksPage() {
 
       {/* Products */}
       <div className="bg-[#111A2E] rounded-xl border border-[#1E2D45] overflow-hidden">
-        <div className="px-4 py-3 border-b border-[#1E2D45] flex items-center justify-between">
+        <div className="px-4 py-3 border-b border-[#1E2D45] flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
           <h2 className="text-sm font-semibold text-[#E6EDF7]">Pack products</h2>
           <button
             type="button"
