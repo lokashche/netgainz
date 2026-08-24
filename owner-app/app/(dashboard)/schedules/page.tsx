@@ -88,7 +88,7 @@ export default async function SchedulesPage({
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 mb-2">
         <h1 className="text-2xl font-bold text-[#E6EDF7]">{singular} Schedules</h1>
         <a
           href="/schedules/new"

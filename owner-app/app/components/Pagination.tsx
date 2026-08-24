@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { PAGE_SIZES, buildHref, type SearchParamsObj } from "@/lib/pagination";
 
-const NAV = "px-2.5 py-1.5 text-xs font-medium rounded-md border border-[#1E2D45] bg-[#1A2540] text-[#E6EDF7] hover:bg-[#22D38C] hover:text-[#0B1220] transition-colors";
-const NAV_OFF = "px-2.5 py-1.5 text-xs font-medium rounded-md border border-[#1E2D45] bg-[#141E33] text-[#4C5A73] cursor-not-allowed";
+const NAV = "inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium rounded-md border border-[#1E2D45] bg-[#1A2540] text-[#E6EDF7] hover:bg-[#22D38C] hover:text-[#0B1220] transition-colors";
+const NAV_OFF = "inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium rounded-md border border-[#1E2D45] bg-[#141E33] text-[#4C5A73] cursor-not-allowed";
 
 export default function Pagination({
   basePath,
@@ -51,8 +51,8 @@ export default function Pagination({
                 href={buildHref(basePath, searchParams, { size, page: undefined })}
                 className={
                   size === pageSize
-                    ? "px-2 py-0.5 text-xs font-semibold rounded bg-[#22D38C] text-[#0B1220]"
-                    : "px-2 py-0.5 text-xs font-medium rounded text-[#8A97B2] hover:text-[#E6EDF7] transition-colors"
+                    ? "inline-flex items-center justify-center min-w-[2rem] px-2 py-1 text-xs font-semibold rounded bg-[#22D38C] text-[#0B1220]"
+                    : "inline-flex items-center justify-center min-w-[2rem] px-2 py-1 text-xs font-medium rounded text-[#8A97B2] hover:text-[#E6EDF7] transition-colors"
                 }
               >
                 {size}

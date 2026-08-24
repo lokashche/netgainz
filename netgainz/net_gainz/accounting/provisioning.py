@@ -382,3 +382,42 @@ def provision_all_masters(company=None) -> dict:
 		"items_skipped": len(plans) - items,
 		"subscription_plans": subscription_plans,
 	}
+
+
+# --------------------------------------------------------------------------- #
+# renaming a plan
+# --------------------------------------------------------------------------- #
+@frappe.whitelist()
+def rename_plan(name: str, new_name: str) -> str:
+	"""Owner/BFF: rename a Membership Plan everywhere it appears.
+
+	A plan's name IS its document ID (autoname ``field:plan_name``), and
+	``provision_item`` deliberately reuses it as the Item code -- so a rename has
+	to move both together or the invariant "Item code == plan name" silently
+	breaks and the next provisioning pass mints a second Item for the same plan.
+
+	``frappe.rename_doc`` repoints every Link (Memberships, Members, Offer Plans,
+	the plan's own ``item`` link) and rewrites the autoname field, so nothing else
+	needs touching. The Item leg runs with ``ignore_permissions`` because Items
+	are engine-side masters the owner's role has no rights on -- same rule as the
+	rest of this module.
+	"""
+	from frappe.model.rename_doc import rename_doc
+
+	from netgainz.net_gainz import permissions
+
+	permissions.require_role(permissions.GYM_OWNER)
+
+	new_name = (new_name or "").strip()
+	if not new_name:
+		frappe.throw("The plan needs a name.")
+	if new_name == name:
+		return name
+	if frappe.db.exists("Membership Plan", new_name):
+		frappe.throw(f'A plan called "{new_name}" already exists.')
+
+	frappe.rename_doc("Membership Plan", name, new_name)
+	if frappe.db.exists("Item", name):
+		rename_doc("Item", name, new_name, ignore_permissions=True)
+		frappe.db.set_value("Item", new_name, "item_name", new_name, update_modified=False)
+	return new_name

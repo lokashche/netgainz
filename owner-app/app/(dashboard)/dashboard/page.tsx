@@ -307,7 +307,7 @@ export default async function DashboardPage({
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           {/* Month selector — shift the whole dashboard to a past month */}
-          <div className="flex gap-1 bg-[#111A2E] p-1 rounded-lg">
+          <div className="flex gap-1 bg-[#111A2E] p-1 rounded-lg overflow-x-auto ng-noscrollbar">
             {[
               { label: "This month", value: 0 },
               { label: "Last month", value: -1 },
@@ -318,8 +318,8 @@ export default async function DashboardPage({
                 href={tab.value ? `/dashboard?month=${tab.value}` : "/dashboard"}
                 className={
                   monthOffset === tab.value
-                    ? "px-3 py-1.5 text-sm font-semibold rounded-md bg-[#22D38C] text-[#0B1220]"
-                    : "px-3 py-1.5 text-sm font-medium rounded-md text-[#8A97B2] hover:text-[#E6EDF7]"
+                    ? "px-3 py-2.5 sm:py-1.5 text-sm font-semibold rounded-md whitespace-nowrap shrink-0 flex items-center bg-[#22D38C] text-[#0B1220]"
+                    : "px-3 py-2.5 sm:py-1.5 text-sm font-medium rounded-md whitespace-nowrap shrink-0 flex items-center text-[#8A97B2] hover:text-[#E6EDF7]"
                 }
               >
                 {tab.label}
@@ -342,7 +342,7 @@ export default async function DashboardPage({
           <p className="text-[#8A97B2] text-xs uppercase tracking-wider mb-1">
             Active Members
           </p>
-          <p className="text-[#E6EDF7] text-3xl font-bold">{activeMembersCount}</p>
+          <p className="text-[#E6EDF7] text-2xl sm:text-3xl font-bold">{activeMembersCount}</p>
           <p className="text-[#8A97B2] text-xs mt-1">registered</p>
         </div>
 
@@ -351,7 +351,7 @@ export default async function DashboardPage({
           <p className="text-[#8A97B2] text-xs uppercase tracking-wider mb-1">
             Income This Month
           </p>
-          <p className="text-[#22D38C] text-3xl font-bold">₹{fmt(totalIncome)}</p>
+          <p className="text-[#22D38C] text-2xl sm:text-3xl font-bold">₹{fmt(totalIncome)}</p>
           <p className="text-[#8A97B2] text-xs mt-1">
             {isCashBasis ? "received in " : "earned for "}
             {currentMonthName}
@@ -363,7 +363,7 @@ export default async function DashboardPage({
           <p className="text-[#8A97B2] text-xs uppercase tracking-wider mb-1">
             Expenses This Month
           </p>
-          <p className="text-[#F87171] text-3xl font-bold">₹{fmt(totalExpenses)}</p>
+          <p className="text-[#F87171] text-2xl sm:text-3xl font-bold">₹{fmt(totalExpenses)}</p>
           <p className="text-[#8A97B2] text-xs mt-1">{currentMonthName} expenses</p>
         </div>
 
@@ -372,7 +372,7 @@ export default async function DashboardPage({
           <p className="text-[#8A97B2] text-xs uppercase tracking-wider mb-1">
             Net Cash Position
           </p>
-          <p className={`${netColor} text-3xl font-bold`}>{netFormatted}</p>
+          <p className={`${netColor} text-2xl sm:text-3xl font-bold`}>{netFormatted}</p>
           <p className="text-[#8A97B2] text-xs mt-1">income − expenses</p>
         </div>
       </div>
@@ -385,7 +385,7 @@ export default async function DashboardPage({
               <p className="text-[#8A97B2] text-xs uppercase tracking-wider mb-1">
                 Given Away in Discounts
               </p>
-              <p className="text-[#F87171] text-3xl font-bold">₹{fmt(discountsGiven.given)}</p>
+              <p className="text-[#F87171] text-2xl sm:text-3xl font-bold">₹{fmt(discountsGiven.given)}</p>
               <p className="text-[#8A97B2] text-xs mt-1">
                 {discountsGiven.given_percent}% of {currentMonthName} fees, across{" "}
                 {discountsGiven.members} {discountsGiven.members === 1 ? "member" : "members"}
@@ -487,7 +487,7 @@ export default async function DashboardPage({
       {/* ── Renewals Due ── */}
       {showRenewals && (
         <div className="bg-[rgba(94,234,212,0.05)] border border-[rgba(94,234,212,0.3)] rounded-xl p-5 mb-6">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-3">
             <p className="text-[#5EEAD4] font-semibold text-sm uppercase tracking-wider">
               ⟳ Renewals Due
             </p>
@@ -529,7 +529,7 @@ export default async function DashboardPage({
       {/* ── Enquiry follow-ups (OP-2) ── */}
       {showFollowups && (
         <div className="bg-[rgba(94,234,212,0.05)] border border-[rgba(94,234,212,0.3)] rounded-xl p-5 mb-6">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-3">
             <p className="text-[#5EEAD4] font-semibold text-sm uppercase tracking-wider">
               ☎ Enquiry Follow-ups
             </p>
@@ -567,7 +567,7 @@ export default async function DashboardPage({
       {/* ── Churn Risk (OP-1) ── */}
       {showChurn && (
         <div className="bg-[rgba(251,191,36,0.05)] border border-[rgba(251,191,36,0.3)] rounded-xl p-5 mb-6">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-3">
             <p className="text-[#FBBF24] font-semibold text-sm uppercase tracking-wider">
               ⚠ Churn Risk
             </p>
@@ -603,7 +603,7 @@ export default async function DashboardPage({
       {/* ── Assessments Overdue (OP-5) ── */}
       {showAssessments && (
         <div className="bg-[rgba(94,234,212,0.05)] border border-[rgba(94,234,212,0.3)] rounded-xl p-5 mb-6">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-3">
             <p className="text-[#5EEAD4] font-semibold text-sm uppercase tracking-wider">
               ◑ Assessments Overdue
             </p>
@@ -639,7 +639,7 @@ export default async function DashboardPage({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Recent Subscriptions */}
         <div className="bg-[#111A2E] border border-[#1E2D45] rounded-xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-[#1E2D45] flex items-center justify-between">
+          <div className="px-5 py-4 border-b border-[#1E2D45] flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
             <span className="text-[#E6EDF7] font-semibold text-sm">
               Recent Subscriptions
             </span>
@@ -684,7 +684,7 @@ export default async function DashboardPage({
 
         {/* Recent Expenses */}
         <div className="bg-[#111A2E] border border-[#1E2D45] rounded-xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-[#1E2D45] flex items-center justify-between">
+          <div className="px-5 py-4 border-b border-[#1E2D45] flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
             <span className="text-[#E6EDF7] font-semibold text-sm">Recent Expenses</span>
             <Link href="/expenses" className="text-[#22D38C] text-xs hover:underline">
               View all →

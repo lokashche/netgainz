@@ -4,6 +4,7 @@ import { useState, SyntheticEvent } from "react";
 import { extractFrappeError } from "@/lib/frappe";
 import { useRouter } from "next/navigation";
 import { GAP_UNITS } from "@/app/components/PaymentTermsFields";
+import { PLAN_TYPE_DAYS } from "@/lib/plans";
 
 const inputClass =
   "w-full px-3 py-2.5 rounded-lg text-sm focus:outline-none focus:ring-2 focus:border-transparent bg-[#1A2540] border border-[#1E2D45] text-[#E6EDF7] placeholder:text-[#8A97B2] focus:ring-[#22D38C] appearance-none";
@@ -219,15 +220,16 @@ export default function NewPlanPage() {
             <input
               type="number"
               min="1"
-              value={duration_in_days}
+              value={
+                plan_type !== "Custom"
+                  ? String(PLAN_TYPE_DAYS[plan_type] ?? "")
+                  : duration_in_days
+              }
               onChange={(e) => setDuration(e.target.value)}
               placeholder="e.g. 30"
               disabled={plan_type !== "Custom"}
-              className={`${inputClass} disabled:opacity-50`}
+              className={`${inputClass} disabled:opacity-75`}
             />
-            {plan_type !== "Custom" && (
-              <p className="mt-1 text-xs text-[#8FA3BF]">Set by the plan type.</p>
-            )}
           </div>
           <div>
             <label className={labelClass}>Amount</label>

@@ -28,6 +28,7 @@ export default function NewMemberPage() {
   const [date_of_joining, setDateOfJoining] = useState("");
   const [category, setCategory] = useState("");
   const [source_of_reference, setSource] = useState("");
+  const [referred_by, setReferredBy] = useState("");
   const [status, setStatus] = useState<MemberStatus>("Active");
   const [inactive_reason, setInactiveReason] = useState("");
 
@@ -49,6 +50,7 @@ export default function NewMemberPage() {
     if (date_of_joining) payload.date_of_joining = date_of_joining;
     if (category) payload.category = category;
     if (source_of_reference) payload.source_of_reference = source_of_reference;
+    if (source_of_reference === "Referral" && referred_by) payload.referred_by = referred_by;
     if (status === "Inactive" && inactive_reason) payload.inactive_reason = inactive_reason;
 
     try {
@@ -216,6 +218,20 @@ export default function NewMemberPage() {
             ))}
           </select>
         </div>
+
+        {/* Referred By — shown only when the source is a referral */}
+        {source_of_reference === "Referral" && (
+          <div>
+            <label className={labelClass}>Referred By</label>
+            <input
+              type="text"
+              value={referred_by}
+              onChange={(e) => setReferredBy(e.target.value)}
+              placeholder="Who referred them?"
+              className={inputClass}
+            />
+          </div>
+        )}
 
         {/* Status */}
         <div>

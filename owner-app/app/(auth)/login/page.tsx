@@ -35,7 +35,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#0B1220] px-4">
-      <div className="w-full max-w-sm bg-[#111A2E] rounded-2xl border border-[#1E2D45] shadow-xl p-8">
+      <div className="w-full max-w-sm bg-[#111A2E] rounded-2xl border border-[#1E2D45] shadow-xl p-6 sm:p-8">
         {/* Logo */}
         <div className="mb-6">
           <h1 className="font-bold text-2xl tracking-widest">
@@ -61,6 +61,9 @@ export default function LoginPage() {
               type="text"
               required
               autoComplete="username"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               placeholder="Administrator"
               className="w-full px-3 py-2.5 rounded-lg text-sm focus:outline-none focus:ring-2 focus:border-transparent bg-[#1A2540] border border-[#1E2D45] text-[#E6EDF7] placeholder:text-[#8A97B2] focus:ring-[#22D38C]"
             />

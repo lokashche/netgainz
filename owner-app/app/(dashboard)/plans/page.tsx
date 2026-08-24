@@ -45,7 +45,7 @@ export default async function PlansPage({
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h1 className="text-2xl font-bold text-[#E6EDF7]">Membership Plans</h1>
         <a
           href="/plans/new"

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -15,6 +15,15 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "NetGainz",
   description: "Gym owner operations app",
+};
+
+// Phones and tablets: render at the device's real width, let the owner
+// pinch-zoom if they want to, and paint the app colour behind the notch.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#0B1220",
 };
 
 export default function RootLayout({

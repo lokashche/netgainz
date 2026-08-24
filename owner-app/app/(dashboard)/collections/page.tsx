@@ -150,7 +150,9 @@ function Bucket({
             <tr className="text-[#8A97B2] text-xs uppercase tracking-wider border-b border-[#1E2D45]">
               <th className="text-left font-medium px-4 py-3">Member</th>
               <th className="text-left font-medium px-4 py-3">Due</th>
-              {showLate && <th className="text-left font-medium px-4 py-3">Late by</th>}
+              {showLate && (
+                <th className="hidden sm:table-cell text-left font-medium px-4 py-3">Late by</th>
+              )}
               <th className="text-right font-medium px-4 py-3">Owed</th>
               <th className="text-right font-medium px-4 py-3">Take payment</th>
             </tr>
@@ -176,7 +178,10 @@ function Bucket({
                   {fmtDate(r.due_date)}
                 </td>
                 {showLate && (
-                  <td className="px-4 py-3 whitespace-nowrap" style={{ color: accent }}>
+                  <td
+                    className="hidden sm:table-cell px-4 py-3 whitespace-nowrap"
+                    style={{ color: accent }}
+                  >
                     {r.days_late} days
                   </td>
                 )}

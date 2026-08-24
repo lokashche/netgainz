@@ -5,6 +5,7 @@ import { decodeId, extractFrappeError } from "@/lib/frappe";
 import { useRouter } from "next/navigation";
 import type { MembershipPlan } from "@/lib/types";
 import { GAP_UNITS } from "@/app/components/PaymentTermsFields";
+import { PLAN_TYPE_DAYS } from "@/lib/plans";
 
 type Params = Promise<{ id: string }>;
 
@@ -99,6 +100,15 @@ export default function PlanDetailPage({ params }: { params: Params }) {
         const body = await res.json().catch(() => ({}));
         setError(extractFrappeError(body) ?? `Error ${res.status}`);
       } else {
+        const body = (await res.json().catch(() => ({}))) as {
+          data?: { name?: string };
+        };
+        const newName = body?.data?.name;
+        if (newName && newName !== id) {
+          // The plan was renamed, so this page's address changed with it.
+          router.replace(`/plans/${encodeURIComponent(newName)}`);
+          return;
+        }
         setSuccess(true);
         setTimeout(() => setSuccess(false), 3000);
       }
@@ -166,13 +176,19 @@ export default function PlanDetailPage({ params }: { params: Params }) {
           </div>
         )}
 
-        {/* Plan Name — read-only heading, it IS the document ID */}
+        {/* Plan Name — it IS the document ID; saving a new one renames the plan
+            everywhere (memberships, billing) via the rename endpoint. */}
         <div>
-          <label className={labelClass}>Plan Name</label>
-          <p className="text-sm text-[#E6EDF7] bg-[#1A2540] border border-[#1E2D45] rounded-lg px-3 py-2.5">
-            {plan_name || id}
-          </p>
-          <p className="text-xs text-[#8A97B2] mt-1">Plan name is the document ID and cannot be changed.</p>
+          <label className={labelClass}>
+            Plan Name <span className="text-[#F87171]">*</span>
+          </label>
+          <input
+            type="text"
+            required
+            value={plan_name}
+            onChange={(e) => setPlanName(e.target.value)}
+            className={inputClass}
+          />
         </div>
 
         {/* Cadence + Billing mode (WP-10) */}
@@ -291,10 +307,15 @@ export default function PlanDetailPage({ params }: { params: Params }) {
             <input
               type="number"
               min="1"
-              value={duration_in_days}
+              value={
+                plan_type !== "Custom"
+                  ? String(PLAN_TYPE_DAYS[plan_type] ?? "")
+                  : duration_in_days
+              }
               onChange={(e) => setDuration(e.target.value)}
               placeholder="e.g. 30"
-              className={inputClass}
+              disabled={plan_type !== "Custom"}
+              className={`${inputClass} disabled:opacity-75`}
             />
           </div>
           <div>

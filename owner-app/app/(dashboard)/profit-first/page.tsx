@@ -194,7 +194,7 @@ export default async function ProfitFirstPage({
               Real Revenue
             </p>
             <p
-              className={`text-3xl font-bold ${
+              className={`text-2xl sm:text-3xl font-bold ${
                 (a.real_revenue ?? 0) < 0 ? "text-[#F87171]" : "text-[#E6EDF7]"
               }`}
             >
