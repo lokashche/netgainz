@@ -33,6 +33,16 @@ Behind the scenes, every invoice and payment is a real ERPNext accounting entry 
 through India Compliance). **The gym owner never sees ERPNext.** They use the NetGainz owner
 app, a simple web app that works on a phone.
 
+## Screenshots
+
+All screenshots use the made-up demo gym. No real member appears in them.
+
+| Money to collect | Discounts, and what they cost |
+| --- | --- |
+| ![Money to collect: late payments, oldest first, with a Collect button on each](docs/screenshots/collections.png) | ![Discounts: what the gym gave away this month, by offer and by reason, and what it cost each Profit First bucket](docs/screenshots/discounts.png) |
+| **Profit First** | **Front-desk check-in** |
+| ![Profit First: this month's real revenue split into Profit, Owner's Pay, Tax and Operating Expenses against targets](docs/screenshots/profit-first.png) | ![Check-in desk: search by name, code or phone, with today's visits listed](docs/screenshots/check-in.png) |
+
 ## How it is built
 
 ```
@@ -97,6 +107,10 @@ npm run dev                           # http://localhost:3005
 ```
 
 Sign in as `Administrator` with the admin password you chose for the site.
+
+> **More than one site on your bench?** `bench start` serves only the bench's default site,
+> whatever address you type. To be sure you are looking at the demo, run it on its own port:
+> `bench --site demo.localhost serve --port 8001`, and set `FRAPPE_URL=http://127.0.0.1:8001`.
 
 > Use a separate site for the demo. Dashboards read the whole site, so demo data mixed into
 > a real gym's site would show up in its numbers.
