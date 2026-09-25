@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { buildHref, fetchListPage, readPageParams } from "@/lib/pagination";
 import Pagination from "@/app/components/Pagination";
 import RepeatingExpensesBanner from "@/app/components/RepeatingExpensesBanner";
+import ExpensesBooksBanner from "@/app/components/ExpensesBooksBanner";
 import type { GymExpense, ExpenseCategory } from "@/lib/types";
 
 type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
@@ -115,6 +116,7 @@ export default async function ExpensesPage({
       </div>
 
       {/* Repeating expenses the app is behind on, raised as drafts */}
+      <ExpensesBooksBanner />
       <RepeatingExpensesBanner />
 
       {/* Summary stat cards */}
