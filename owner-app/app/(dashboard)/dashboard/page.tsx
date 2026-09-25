@@ -5,7 +5,7 @@ import Link from "next/link";
 import type {
   AssessmentsDue,
   ChurnRisk,
-  DiscountsThisMonth, FollowupsDue, Member, Subscription, SubscriptionStatus, GymExpense, RenewalsDue } from "@/lib/types";
+  DiscountsThisMonth, FollowupsDue, IncomeForPeriod, Member, Subscription, SubscriptionStatus, GymExpense, RenewalsDue } from "@/lib/types";
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 
@@ -64,13 +64,6 @@ export default async function DashboardPage({
 
   const settings = await getGymSettings(session.frappeCookies);
 
-  // DS-6: what has been given away in discounts so far this month. Owner-only on the
-  // backend, so a staff session simply gets nothing back and the line is not shown.
-  const discountsRes = await frappeRequest<{ message: DiscountsThisMonth }>(
-    "api/method/netgainz.net_gainz.accounting.discount_report.discounts_this_month",
-    { sessionCookie: session.frappeCookies }
-  );
-  const discountsGiven = discountsRes.data?.message;
   const isCashBasis = settings.accounting_method === "Cash";
 
   // Period helpers — default to the current calendar month; ?month=<offset> shifts it
@@ -88,6 +81,14 @@ export default async function DashboardPage({
   const lastDay = new Date(year, monthIdx + 1, 0).getDate();
   const monthEnd = `${year}-${mm}-${String(lastDay).padStart(2, "0")}`;
 
+  // DS-6: what has been given away in discounts in the month being shown. Owner-only
+  // on the backend, so a staff session simply gets nothing back and the line is not shown.
+  const discountsRes = await frappeRequest<{ message: DiscountsThisMonth }>(
+    `api/method/netgainz.net_gainz.accounting.discount_report.discounts_this_month?start=${monthStart}&end=${monthEnd}`,
+    { sessionCookie: session.frappeCookies }
+  );
+  const discountsGiven = discountsRes.data?.message;
+
   // ── Build query paths ────────────────────────────────────────────────────
 
   // 1. Active members
@@ -97,18 +98,12 @@ export default async function DashboardPage({
     JSON.stringify([["status", "=", "Active"]])
   )}&limit=500`;
 
-  // 2. Income this month (subscriptions)
-  //    - Cash basis: subscriptions paid this month → sum fee_collected
-  //    - Accrual basis: subscriptions FOR this month → sum tariff (earned, not necessarily received)
-  const incomeFilters = isCashBasis
-    ? [["paid_date", "between", [monthStart, monthEnd]]]
-    : [["month", "=", currentMonthName]];
-  const incomeFields = isCashBasis
-    ? ["name", "fee_collected", "status"]
-    : ["name", "tariff", "status"];
-  const incomeSubsPath = `api/resource/Membership?fields=${encodeURIComponent(
-    JSON.stringify(incomeFields)
-  )}&filters=${encodeURIComponent(JSON.stringify(incomeFilters))}&limit=500`;
+  // 2. Income this month — read from the books (Payment Entries / Sales Invoices) by
+  //    the backend, never summed here from Membership.fee_collected / tariff: those are
+  //    deprecated fields nothing writes, so real payments used to show as ₹0.
+  //    - Cash basis: money received this month (the same figure Profit First uses)
+  //    - Accrual basis: membership fees billed this month
+  const incomePath = `api/method/netgainz.net_gainz.accounting.income_report.get_income?start=${monthStart}&end=${monthEnd}`;
 
   // 3. Expenses this month
   const expensesMonthPath = `api/resource/Expense?fields=${encodeURIComponent(
@@ -138,7 +133,7 @@ export default async function DashboardPage({
       "member_name",
       "membership_plan",
       "month",
-      "fee_collected",
+      "balance_due",
       "status",
     ])
   )}&order_by=${encodeURIComponent("creation desc")}&limit=5`;
@@ -152,7 +147,7 @@ export default async function DashboardPage({
 
   const [
     membersRes,
-    incomeSubsRes,
+    incomeRes,
     expensesMonthRes,
     overdueSubsRes,
     partialSubsRes,
@@ -166,11 +161,9 @@ export default async function DashboardPage({
     frappeRequest<{ data: Pick<Member, "name">[] }>(membersPath, {
       sessionCookie: session.frappeCookies,
     }),
-    frappeRequest<{
-      data: Array<
-        { name: string; status: SubscriptionStatus; fee_collected?: number; tariff?: number }
-      >;
-    }>(incomeSubsPath, { sessionCookie: session.frappeCookies }),
+    frappeRequest<{ message: IncomeForPeriod }>(incomePath, {
+      sessionCookie: session.frappeCookies,
+    }),
     frappeRequest<{ data: Pick<GymExpense, "name" | "amount" | "date">[] }>(
       expensesMonthPath,
       { sessionCookie: session.frappeCookies }
@@ -190,7 +183,7 @@ export default async function DashboardPage({
     frappeRequest<{
       data: Pick<
         Subscription,
-        "name" | "member_name" | "membership_plan" | "month" | "fee_collected" | "status"
+        "name" | "member_name" | "membership_plan" | "month" | "balance_due" | "status"
       >[];
     }>(recentSubsPath, { sessionCookie: session.frappeCookies }),
     frappeRequest<{ data: Pick<GymExpense, "name" | "date" | "category" | "amount" | "vendor">[] }>(
@@ -218,7 +211,7 @@ export default async function DashboardPage({
   // ── Extract arrays ────────────────────────────────────────────────────────
 
   const members = membersRes.data?.data ?? [];
-  const incomeSubsList = incomeSubsRes.data?.data ?? [];
+  const income = incomeRes.data?.message;
   const expensesMonthList = expensesMonthRes.data?.data ?? [];
   const overdue = overdueSubsRes.data?.data ?? [];
   const partial = partialSubsRes.data?.data ?? [];
@@ -252,11 +245,7 @@ export default async function DashboardPage({
 
   const activeMembersCount: number = members.length;
 
-  const totalIncome: number = incomeSubsList.reduce(
-    (sum, s) =>
-      sum + (Number(isCashBasis ? s.fee_collected : s.tariff) || 0),
-    0
-  );
+  const totalIncome: number = Number(income?.income) || 0;
 
   const totalExpenses: number = expensesMonthList.reduce(
     (sum, e) => sum + (Number(e.amount) || 0),
@@ -353,7 +342,7 @@ export default async function DashboardPage({
           </p>
           <p className="text-[#22D38C] text-2xl sm:text-3xl font-bold">₹{fmt(totalIncome)}</p>
           <p className="text-[#8A97B2] text-xs mt-1">
-            {isCashBasis ? "received in " : "earned for "}
+            {isCashBasis ? "received in " : "billed in "}
             {currentMonthName}
           </p>
         </div>
@@ -671,9 +660,11 @@ export default async function DashboardPage({
                     </p>
                   </a>
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-[#E6EDF7] text-sm font-medium">
-                      ₹{fmt(Number(sub.fee_collected) || 0)}
-                    </span>
+                    {Number(sub.balance_due) > 0 && (
+                      <span className="text-[#F87171] text-sm font-medium">
+                        ₹{fmt(Number(sub.balance_due))} due
+                      </span>
+                    )}
                     <span className={statusBadge(sub.status)}>{sub.status}</span>
                   </div>
                 </li>

@@ -182,6 +182,17 @@ class TestDiscountReport(FrappeTestCase):
 		self.assertEqual(summary["start"], str(get_first_day(today())))
 		self.assertEqual(summary["end"], str(get_last_day(today())))
 
+	def test_the_month_summary_reports_the_month_asked_for(self):
+		"""The dashboard's "Last month" tab passes last month's dates; it must get last
+		month's figure, not this month's under last month's name."""
+		self._discounted("DS6 Other Month", amount=2000.0, percent=10)
+		last_month = add_days(get_first_day(today()), -1)
+		summary = discount_report.discounts_this_month(
+			start=get_first_day(last_month), end=get_last_day(last_month)
+		)
+		self.assertEqual(flt(summary["given"]), 0.0)
+		self.assertEqual(summary["start"], str(get_first_day(last_month)))
+
 	# ---- whose report is it ------------------------------------------------- #
 	def test_the_front_desk_cannot_read_the_leak_report(self):
 		self._discounted("DS6 Private", amount=1000.0, percent=10)

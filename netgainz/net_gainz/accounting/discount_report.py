@@ -142,9 +142,11 @@ def discounts_given(start=None, end=None, branch=None, top=10) -> dict:
 
 
 @frappe.whitelist()
-def discounts_this_month(branch=None) -> dict:
-	"""The dashboard's one-liner: what has been given away so far this month."""
-	report = discounts_given(branch=branch)
+def discounts_this_month(branch=None, start=None, end=None) -> dict:
+	"""The dashboard's one-liner: what has been given away in a month (default: this
+	one). The dashboard passes the month it is showing, so "Last month" is last month's
+	figure and not this month's under last month's name."""
+	report = discounts_given(start=start, end=end, branch=branch)
 	return {
 		"start": report["start"],
 		"end": report["end"],
