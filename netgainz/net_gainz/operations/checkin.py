@@ -27,6 +27,7 @@ import frappe
 from frappe.utils import add_days, get_datetime, getdate, today
 
 from netgainz.net_gainz import permissions
+from netgainz.net_gainz.accounting import branch as branch_mod
 
 DEFAULT_ABSENCE_DAYS = 14
 
@@ -82,12 +83,18 @@ def membership_alert(member: str) -> dict | None:
 
 
 @frappe.whitelist()
-def record_check_in(member: str, source: str = "Front Desk", notes: str | None = None) -> dict:
+def record_check_in(
+	member: str, source: str = "Front Desk", notes: str | None = None, branch: str | None = None
+) -> dict:
 	"""One desk tap: record the visit, return the row + the soft-prompt payload.
 
 	A repeat check-in the same day is allowed (a member can leave and return) —
 	``previous_today`` carries the earlier stamp so the desk can say
 	"already checked in at HH:MM" instead of blocking.
+
+	``branch`` is the desk's own branch (Stage 10.2): a member visiting another
+	location is recorded where they trained. Left empty, the visit falls back to the
+	member's home branch.
 	"""
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
 
@@ -98,7 +105,9 @@ def record_check_in(member: str, source: str = "Front Desk", notes: str | None =
 		order_by="timestamp desc",
 	)
 
-	doc = frappe.get_doc({"doctype": "Member Check-in", "member": member, "source": source, "notes": notes})
+	doc = frappe.get_doc(
+		{"doctype": "Member Check-in", "member": member, "source": source, "notes": notes, "branch": branch}
+	)
 	doc.insert()
 
 	return {
@@ -155,16 +164,18 @@ def find_members(q: str) -> list[dict]:
 
 
 @frappe.whitelist()
-def todays_visits() -> dict:
+def todays_visits(branch=None) -> dict:
 	"""The desk's own list: floor check-ins recorded today, newest first.
 
 	Class attendance is deliberately not mixed in — class rosters have their own
-	screen; this list is what the desk itself has done."""
+	screen; this list is what the desk itself has done. ``branch`` narrows it to one
+	location (Stage 10.3)."""
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branches = branch_mod.scope(branch)
 
 	rows = frappe.get_all(
 		"Member Check-in",
-		filters={"timestamp": [">=", today()]},
+		filters=branch_mod.filter_by_branch({"timestamp": [">=", today()]}, branches),
 		fields=["name", "member", "member_name", "timestamp", "source", "branch"],
 		order_by="timestamp desc",
 		limit_page_length=0,
@@ -218,7 +229,7 @@ def _tracking_started():
 	return min(firsts) if firsts else None
 
 
-def get_absences(threshold_days=None) -> dict:
+def get_absences(threshold_days=None, branches=None) -> dict:
 	"""Active members not seen at the gym within the absence window.
 
 	Absence only exists once the gym is recording visits, so everyone is measured
@@ -227,6 +238,9 @@ def get_absences(threshold_days=None) -> dict:
 	before the first ever visit the list is simply empty. A member with no visit
 	of their own is flagged ``never_visited`` and measured from that start (or
 	their creation date, if they joined later).
+
+	``branches`` limits the list to members homed there (Stage 10.3); a visit at any
+	branch still counts as being seen.
 	"""
 	threshold = int(threshold_days) if threshold_days else _absence_days()
 	td = getdate(today())
@@ -245,7 +259,7 @@ def get_absences(threshold_days=None) -> dict:
 	absent = []
 	for m in frappe.get_all(
 		"Member",
-		filters={"status": "Active"},
+		filters=branch_mod.filter_by_branch({"status": "Active"}, branches),
 		fields=["name", "full_name", "phone", "branch", "creation"],
 		limit_page_length=0,
 	):
@@ -276,10 +290,10 @@ def get_absences(threshold_days=None) -> dict:
 
 
 @frappe.whitelist()
-def get_churn_risk(threshold_days=None) -> dict:
+def get_churn_risk(threshold_days=None, branch=None) -> dict:
 	"""Whitelisted read-model for the churn-risk list + dashboard card."""
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
-	return get_absences(threshold_days)
+	return get_absences(threshold_days, branches=branch_mod.scope(branch))
 
 
 def notify_absences():

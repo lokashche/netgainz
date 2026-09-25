@@ -26,6 +26,7 @@ import frappe
 from frappe.utils import getdate, today
 
 from netgainz.net_gainz import permissions
+from netgainz.net_gainz.accounting import branch as branch_mod
 
 OPEN_STATUSES = ("New", "Contacted", "Trial Scheduled")
 CLOSED_STATUSES = ("Joined", "Lost")
@@ -54,6 +55,7 @@ def convert_to_member(enquiry: str) -> dict:
 	on the membership screen the desk lands on next.
 	"""
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.assert_can_see("Enquiry", enquiry)
 
 	doc = frappe.get_doc("Enquiry", enquiry)
 	if doc.member and frappe.db.exists("Member", doc.member):
@@ -99,17 +101,21 @@ def convert_to_member(enquiry: str) -> dict:
 # --------------------------------------------------------------------------- #
 # follow-ups (renewals pattern)
 # --------------------------------------------------------------------------- #
-def get_followups() -> dict:
-	"""Open enquiries whose follow-up date has arrived: due today vs overdue."""
+def get_followups(branches=None) -> dict:
+	"""Open enquiries whose follow-up date has arrived: due today vs overdue.
+	``branches`` narrows it to those locations (Stage 10.3)."""
 	td = getdate(today())
 	due_today, overdue = [], []
 	for e in frappe.get_all(
 		"Enquiry",
-		filters=[
-			["status", "in", list(OPEN_STATUSES)],
-			["next_follow_up", "is", "set"],
-			["next_follow_up", "<=", str(td)],
-		],
+		filters=branch_mod.filter_by_branch(
+			[
+				["status", "in", list(OPEN_STATUSES)],
+				["next_follow_up", "is", "set"],
+				["next_follow_up", "<=", str(td)],
+			],
+			branches,
+		),
 		fields=[
 			"name",
 			"full_name",
@@ -145,10 +151,10 @@ def get_followups() -> dict:
 
 
 @frappe.whitelist()
-def get_followups_due() -> dict:
+def get_followups_due(branch=None) -> dict:
 	"""Whitelisted read-model for the Enquiries page + dashboard card."""
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
-	return get_followups()
+	return get_followups(branches=branch_mod.scope(branch))
 
 
 def notify_followups():
@@ -196,14 +202,19 @@ def notify_followups():
 # conversion by source (feeds Stage 10)
 # --------------------------------------------------------------------------- #
 @frappe.whitelist()
-def conversion_by_source() -> dict:
+def conversion_by_source(branch=None) -> dict:
 	"""Per source: how many asked, how many joined, how many were lost (and why
 	it matters: this is the gym's marketing report, from data the desk already
 	keys in). Conversion % is joined / closed — open enquiries are still in play
 	and should not drag the rate down."""
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
 
-	rows = frappe.get_all("Enquiry", fields=["source", "status", "count(*) as n"], group_by="source, status")
+	rows = frappe.get_all(
+		"Enquiry",
+		filters=branch_mod.filter_by_branch({}, branch_mod.scope(branch)),
+		fields=["source", "status", "count(*) as n"],
+		group_by="source, status",
+	)
 	by_source = {}
 	for r in rows:
 		s = by_source.setdefault(

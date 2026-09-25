@@ -31,6 +31,8 @@ Two things ERPNext enforces that shape the code:
 import frappe
 from frappe.utils import add_days, add_months, flt, getdate
 
+from netgainz.net_gainz import permissions
+from netgainz.net_gainz.accounting import branch as branch_mod
 from netgainz.net_gainz.profit_first import calc
 
 # --------------------------------------------------------------------------- #
@@ -403,9 +405,9 @@ def describe(
 @frappe.whitelist()
 def get_membership_terms(membership) -> dict:
 	"""Owner/BFF: this member's payment terms, and the plan default behind them."""
-	from netgainz.net_gainz import permissions
 
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.assert_can_see("Membership", membership)
 	ms = frappe.get_doc("Membership", membership)
 	policy = resolve_policy(ms)
 
@@ -442,7 +444,6 @@ def set_membership_terms(
 	restated -- and rightly so, because money may already be allocated against
 	those rows. Pass no values to clear the override and follow the plan again.
 	"""
-	from netgainz.net_gainz import permissions
 
 	permissions.require_role(permissions.GYM_OWNER)
 	ms = frappe.get_doc("Membership", membership)

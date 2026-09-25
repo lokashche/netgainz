@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { frappeRequest } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
+import { currentBranch } from "@/lib/branchScope";
 import type { RenewalsDue } from "@/lib/types";
 
 const RENEWALS = "netgainz.net_gainz.operations.renewals.get_renewals_due";
@@ -15,6 +16,8 @@ export async function GET(req: NextRequest) {
   const within = searchParams.get("within_days");
   const qs = new URLSearchParams();
   if (within) qs.set("within_days", within);
+  const branch = await currentBranch();
+  if (branch) qs.set("branch", branch);
 
   const { data, status } = await frappeRequest<{ message: RenewalsDue }>(
     `api/method/${RENEWALS}?${qs.toString()}`,

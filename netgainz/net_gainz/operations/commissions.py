@@ -22,7 +22,9 @@ owner action on the Coach Commission Run.
 import frappe
 from frappe.utils import flt, get_first_day, get_last_day, getdate, today
 
+from netgainz.net_gainz import permissions
 from netgainz.net_gainz.accounting import billing
+from netgainz.net_gainz.accounting import branch as branch_mod
 from netgainz.net_gainz.profit_first.calc import round_half_away, to_paise, to_rupees
 
 DEFAULT_PERCENTAGE_BASIS = "Assigned Member Revenue"
@@ -152,6 +154,8 @@ def compute_commissions(period_start=None, period_end=None) -> dict:
 @frappe.whitelist()
 def preview_commissions(period_start=None, period_end=None) -> dict:
 	"""Read-only preview of commission lines for a period — persists nothing."""
+	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.require_all_branches("The commission preview")
 	return compute_commissions(period_start, period_end)
 
 

@@ -15,6 +15,8 @@ export type Member = {
   referred_by?: string;
   status: MemberStatus;
   inactive_reason?: string;
+  /** Stage 10.2: the location this belongs to. */
+  branch?: string;
 };
 
 export type PlanType = 'Monthly' | 'Quarterly' | 'Half-Yearly' | 'Yearly' | 'Custom';
@@ -402,6 +404,8 @@ export type GymSettings = {
   member_id_prefix: string;
   commission_percentage_basis?: CommissionPercentageBasis;
   commission_post_to_ledger?: 0 | 1;
+  /** Stage 10.6: Profit First follows the branch switcher. */
+  pf_per_branch?: 0 | 1;
   commission_expense_account?: string;
   commission_payable_account?: string;
   /** DS-5: the discount policy. */
@@ -435,6 +439,18 @@ export type PFBucket =
   | "Owner's Pay"
   | 'Tax'
   | 'Pass-Through';
+
+/** Stage 10.4: a gym login, as the Staff screen lists it. */
+export type StaffLogin = {
+  user: string;
+  full_name: string;
+  enabled: 0 | 1;
+  role: "Gym Owner" | "Gym Staff";
+  /** Branches this login is limited to; empty = every branch. */
+  branches: string[];
+  last_login: string | null;
+  is_me: boolean;
+};
 
 /** Stage 10.1: a gym location (Business Branch), as the Branches screen lists it. */
 export type Branch = {
@@ -555,6 +571,8 @@ export type GymExpense = {
   is_recurring: 0 | 1;
   frequency?: ExpenseFrequency | '';
   notes?: string;
+  /** Stage 10.2: the location this belongs to. */
+  branch?: string;
 };
 
 // ── Operations Depth — Stage 6 (Coaches, Programs, Classes, Commissions) ─────
@@ -596,6 +614,8 @@ export type ClassSession = {
   class_schedule?: string; // Link to Class Schedule (set when auto-generated)
   notes?: string;
   booked_count?: number; // augmented by the BFF, not stored on the doc
+  /** Stage 10.2: the location this belongs to. */
+  branch?: string;
 };
 
 export type ClassSchedule = {
@@ -615,6 +635,8 @@ export type ClassSchedule = {
   on_sunday: 0 | 1;
   is_active: 0 | 1;
   notes?: string;
+  /** Stage 10.2: the location this belongs to. */
+  branch?: string;
 };
 
 export type ClassBookingStatus = 'Booked' | 'Attended' | 'No Show' | 'Cancelled';

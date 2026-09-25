@@ -28,6 +28,7 @@ import frappe
 from frappe.utils import add_days, flt, getdate, today
 
 from netgainz.net_gainz import permissions
+from netgainz.net_gainz.accounting import branch as branch_mod
 from netgainz.net_gainz.doctype.member_metric_target.member_metric_target import target_direction
 from netgainz.net_gainz.operations import renewals
 
@@ -176,6 +177,7 @@ def get_metrics(member: str | None = None, include_inactive: int = 0) -> list[di
 	fields on the form.
 	"""
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.assert_can_see("Member", member)
 
 	filters = {"is_builtin": 0}
 	if not int(include_inactive or 0):
@@ -218,6 +220,7 @@ def record_assessment(
 	and BMI are handled by the doctype — do not pass them as rows.
 	"""
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.assert_can_see("Member", member)
 
 	rows = frappe.parse_json(measurements) if isinstance(measurements, str) else (measurements or [])
 
@@ -335,6 +338,7 @@ def get_progress(member: str) -> dict:
 	are heading and how far along they are.
 	"""
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.assert_can_see("Member", member)
 
 	rows = _readings(member)
 
@@ -484,6 +488,7 @@ def set_target(
 	place, keeping the original starting point so the progress bar does not reset
 	every time the coach adjusts the goal."""
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.assert_can_see("Member", member)
 
 	name = frappe.db.get_value(
 		"Member Metric Target", {"member": member, "metric": metric, "is_active": 1}, "name"
@@ -524,6 +529,7 @@ def set_target(
 def clear_target(target: str) -> dict:
 	"""Retire a target without deleting the history behind it."""
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.assert_can_see("Member Metric Target", target)
 
 	doc = frappe.get_doc("Member Metric Target", target)
 	doc.is_active = 0
@@ -534,13 +540,14 @@ def clear_target(target: str) -> dict:
 # --------------------------------------------------------------------------- #
 # who is due
 # --------------------------------------------------------------------------- #
-def get_due(within_days=None) -> dict:
+def get_due(within_days=None, branches=None) -> dict:
 	"""Active members whose re-assessment is due soon or already overdue.
 
 	Only each member's LATEST assessment counts, so a member re-measured
 	yesterday never lingers on the overdue list because of an older visit. A
 	member who has never been assessed is not chased here — there is no due date
 	to miss; they appear in ``never_assessed`` so the gym can start them.
+	``branches`` narrows it to members homed there (Stage 10.3).
 	"""
 	within = int(within_days) if within_days else _due_soon_days()
 	td = getdate(today())
@@ -548,7 +555,7 @@ def get_due(within_days=None) -> dict:
 
 	actives = frappe.get_all(
 		"Member",
-		filters={"status": "Active"},
+		filters=branch_mod.filter_by_branch({"status": "Active"}, branches),
 		fields=["name", "full_name", "phone", "coach", "category", "sport_goal", "branch"],
 		limit_page_length=0,
 	)
@@ -627,10 +634,10 @@ def get_due(within_days=None) -> dict:
 
 
 @frappe.whitelist()
-def get_assessments_due(within_days=None) -> dict:
+def get_assessments_due(within_days=None, branch=None) -> dict:
 	"""Whitelisted read-model for the Assessments page + dashboard card."""
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
-	return get_due(within_days)
+	return get_due(within_days, branches=branch_mod.scope(branch))
 
 
 def notify_assessments_due():

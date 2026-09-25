@@ -4,6 +4,7 @@ import { useState, SyntheticEvent } from "react";
 import { useRouter } from "next/navigation";
 import type { MemberStatus } from "@/lib/types";
 import { extractFrappeError, toIntlPhone } from "@/lib/frappe";
+import BranchSelect from "@/app/components/BranchSelect";
 
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"];
 const CATEGORIES = ["Sport", "General"];
@@ -30,6 +31,7 @@ export default function NewMemberPage() {
   const [source_of_reference, setSource] = useState("");
   const [referred_by, setReferredBy] = useState("");
   const [status, setStatus] = useState<MemberStatus>("Active");
+  const [branch, setBranch] = useState("");
   const [inactive_reason, setInactiveReason] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
@@ -49,6 +51,7 @@ export default function NewMemberPage() {
     if (emergency_contact) payload.emergency_contact = toIntlPhone(emergency_contact);
     if (date_of_joining) payload.date_of_joining = date_of_joining;
     if (category) payload.category = category;
+    if (branch) payload.branch = branch;
     if (source_of_reference) payload.source_of_reference = source_of_reference;
     if (source_of_reference === "Referral" && referred_by) payload.referred_by = referred_by;
     if (status === "Inactive" && inactive_reason) payload.inactive_reason = inactive_reason;
@@ -177,6 +180,14 @@ export default function NewMemberPage() {
             className={inputClass}
           />
         </div>
+
+        {/* Home branch — only shown when the gym has more than one (Stage 10.2) */}
+        <BranchSelect
+          value={branch}
+          onChange={setBranch}
+          label="Home Branch"
+          hint="Where this member usually trains."
+        />
 
         {/* Date of Joining + Category */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -1,5 +1,6 @@
 import { frappeRequest } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
+import { branchParam, currentBranch } from "@/lib/branchScope";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { RenewalsDue, RenewalRow, TrialsEnding, TrialRow } from "@/lib/types";
@@ -20,7 +21,7 @@ export default async function RenewalsPage() {
   if (!session.frappeCookies) redirect("/login");
 
   const res = await frappeRequest<{ message: RenewalsDue }>(
-    `api/method/netgainz.net_gainz.operations.renewals.get_renewals_due`,
+    `api/method/netgainz.net_gainz.operations.renewals.get_renewals_due${branchParam(await currentBranch(), "?")}`,
     { sessionCookie: session.frappeCookies }
   );
   const data = res.data?.message;

@@ -5,6 +5,8 @@
 
 import { useState, useEffect } from "react";
 import { extractFrappeError } from "@/lib/frappe";
+import BranchSelect from "@/app/components/BranchSelect";
+import { useDeskBranch } from "@/lib/useBranches";
 import type { DayPassSaleResult, GymSettings, TodaysDayPasses } from "@/lib/types";
 
 const PAYMENT_MODES = ["Cash", "UPI", "Card", "Bank Transfer", "Online"];
@@ -29,6 +31,8 @@ export default function DayPassPage() {
   const [phone, setPhone] = useState("");
   const [amount, setAmount] = useState("");
   const [mode, setMode] = useState("Cash");
+  // Stage 10.2: the walk-in pays at this desk's branch; the money is filed there.
+  const [desk, setDeskBranch] = useDeskBranch();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -64,6 +68,7 @@ export default function DayPassPage() {
           phone: phone || null,
           amount: Number(amount),
           payment_mode: mode,
+          ...(desk ? { branch_name: desk } : {}),
         }),
       });
       const body = (await res.json().catch(() => null)) as DayPassSaleResult | null;
@@ -101,6 +106,15 @@ export default function DayPassPage() {
           {notice}
         </div>
       )}
+
+      <div className="mb-4">
+        <BranchSelect
+          value={desk}
+          onChange={setDeskBranch}
+          label="This desk is at"
+          hint="The day pass money is filed under this branch. This device remembers it."
+        />
+      </div>
 
       <div className="bg-[#111A2E] rounded-xl border border-[#1E2D45] p-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

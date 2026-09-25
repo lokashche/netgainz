@@ -81,14 +81,28 @@ def branch_cost_center(branch=None, company=None) -> str | None:
 
 
 def resolve_default_branch(doc) -> str | None:
-	"""The branch to stamp on ``doc`` when it has none: any member-bearing doc
-	(Membership, Member Check-in, later OP doctypes) inherits its member's home
-	branch when set; everything else uses (and seeds) the default branch."""
+	"""The branch to stamp on ``doc`` when it has none.
+
+	A class takes its timetable's branch and a booking its class's (Stage 10.2) — a
+	member booking a class at another branch is still at THAT branch. Any other
+	member-bearing doc (Membership, Member Check-in, OP doctypes) inherits its
+	member's home branch; everything else uses (and seeds) the default branch."""
+	for link, doctype in (("class_session", "Session"), ("class_schedule", "Session Schedule")):
+		if doc.get(link):
+			linked_branch = frappe.db.get_value(doctype, doc.get(link), "branch")
+			if linked_branch:
+				return linked_branch
 	if doc.get("member"):
 		member_branch = frappe.db.get_value("Member", doc.member, "branch")
 		if member_branch:
 			return member_branch
-	return ensure_default_branch(doc.get("company"))
+	default = ensure_default_branch(doc.get("company"))
+	# Stage 10.4: a branch manager's new records land in THEIR branch — the gym's
+	# default may be one they cannot even see.
+	allowed = allowed_branches()
+	if allowed and default not in allowed:
+		return allowed[0]
+	return default
 
 
 def stamp_default_branch(doc, method=None):
@@ -99,6 +113,86 @@ def stamp_default_branch(doc, method=None):
 		branch = resolve_default_branch(doc)
 		if branch:
 			doc.branch = branch
+
+
+# --------------------------------------------------------------------------- #
+# Stage 10.3: the one branch-scoping seam every read goes through
+# --------------------------------------------------------------------------- #
+def allowed_branches(user=None) -> list[str] | None:
+	"""The branches ``user`` may see: ``None`` means every branch (no restriction).
+
+	A branch manager is limited by Frappe's own User Permission on Business Branch
+	(Stage 10.4 sets it from the owner-app); owner and admin have none."""
+	user = user or frappe.session.user
+	if user == "Administrator":
+		return None
+	rows = frappe.get_all(
+		"User Permission", filters={"user": user, "allow": "Business Branch"}, pluck="for_value"
+	)
+	return rows or None
+
+
+def scope(requested=None) -> list[str] | None:
+	"""Which branches a read should cover: the branch picked in the owner-app switcher
+	(``requested``), limited to what the user may see. ``None`` = all branches.
+
+	Every custom whitelisted read calls this: ``frappe.get_all`` and raw SQL ignore
+	User Permissions, so without it a branch-limited user would see every branch."""
+	allowed = allowed_branches()
+	if requested:
+		if allowed is not None and requested not in allowed:
+			frappe.throw(f"You do not have access to the {requested} branch.", frappe.PermissionError)
+		return [requested]
+	return allowed
+
+
+def is_branch_limited(user=None) -> bool:
+	"""True for a login the owner has limited to some branches (Stage 10.4)."""
+	return allowed_branches(user) is not None
+
+
+def require_all_branches(what="This screen") -> None:
+	"""For gym-wide reads (Profit First, commissions, go-live lists) that cannot be
+	cut by branch: a branch-limited login is refused rather than shown every
+	branch's money."""
+	if is_branch_limited():
+		frappe.throw(
+			f"{what} covers every branch, and your login is limited to your own branch.",
+			frappe.PermissionError,
+		)
+
+
+def assert_can_see(doctype, name) -> None:
+	"""A branch-limited login may only open records of its own branches (Stage 10.4).
+
+	Single-record reads and actions (a membership's payments, refund context,
+	assessments …) take a name from the request; without this a branch manager
+	could open another branch's member by editing a link. Frappe's own
+	``has_permission`` applies the User Permission on Business Branch."""
+	if not name or not is_branch_limited():
+		return
+	if not frappe.has_permission(doctype, "read", doc=name):
+		frappe.throw(f"This {doctype.lower()} belongs to another branch.", frappe.PermissionError)
+
+
+def filter_by_branch(filters, branches, field="branch"):
+	"""Add ``field IN branches`` to a get_all ``filters`` (dict or list form).
+	``branches`` of ``None`` leaves the filters untouched."""
+	if branches is None:
+		return filters
+	if filters is None:
+		return {field: ["in", branches]}
+	if isinstance(filters, dict):
+		return {**filters, field: ["in", branches]}
+	return [*filters, [field, "in", branches]]
+
+
+def scope_cost_centers(branches) -> list[str] | None:
+	"""The cost centers of ``branches`` — for reads over invoices and payments,
+	which carry a cost center rather than a branch. ``None`` = all."""
+	if branches is None:
+		return None
+	return [cc for b in branches if (cc := branch_cost_center(b))]
 
 
 @frappe.whitelist()

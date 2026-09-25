@@ -22,6 +22,7 @@ export default function SettingsPage() {
   const [commission_percentage_basis, setCommissionBasis] =
     useState<CommissionPercentageBasis>("Assigned Member Revenue");
   const [commission_post_to_ledger, setCommissionPost] = useState(false);
+  const [pf_per_branch, setPfPerBranch] = useState(false);
   const [renewal_reminder_days, setRenewalDays] = useState("7");
   // DS-5: what the front desk may give away without the owner, and the PIN that lets
   // the owner approve more at the desk. The PIN is write-only — it is never sent back.
@@ -80,6 +81,7 @@ export default function SettingsPage() {
           if (s.commission_percentage_basis)
             setCommissionBasis(s.commission_percentage_basis);
           setCommissionPost(s.commission_post_to_ledger === 1);
+          setPfPerBranch(s.pf_per_branch === 1);
           setRenewalDays(String(s.renewal_reminder_days ?? 7));
           setMaxDiscount(String(s.max_discount_percent ?? 10));
           setCompOwnerOnly((s.complimentary_requires_owner ?? 1) === 1);
@@ -136,6 +138,7 @@ export default function SettingsPage() {
           member_id_prefix,
           commission_percentage_basis,
           commission_post_to_ledger: commission_post_to_ledger ? 1 : 0,
+          pf_per_branch: pf_per_branch ? 1 : 0,
           max_discount_percent: Number(max_discount_percent) || 0,
           complimentary_requires_owner: complimentary_requires_owner ? 1 : 0,
           ...(owner_approval_pin ? { owner_approval_pin } : {}),
@@ -308,6 +311,32 @@ export default function SettingsPage() {
             When on, approving a commission run posts a balanced Journal Entry (debit Coach
             Commission Expense, credit Coach Commissions Payable). When off, runs are
             recorded for reference only. Provision the accounts from the Commissions page.
+          </p>
+        </section>
+
+        <hr className="border-[#1E2D45]" />
+
+        {/* Profit First per branch — Stage 10.6 */}
+        <section>
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-[#22D38C] mb-3">
+            Profit First
+          </h2>
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="pf_per_branch"
+              checked={pf_per_branch}
+              onChange={(e) => setPfPerBranch(e.target.checked)}
+              className="w-4 h-4 rounded accent-[#22D38C] cursor-pointer"
+            />
+            <label htmlFor="pf_per_branch" className="text-sm text-[#E6EDF7]">
+              Show Profit First per branch
+            </label>
+          </div>
+          <p className="mt-2 text-xs text-[#8A97B2] leading-relaxed">
+            Off: one Profit First picture for the whole gym. On: it follows the branch picked at
+            the top, and branch managers see their own branch&apos;s. Setting money aside (sweeps)
+            stays whole-gym either way.
           </p>
         </section>
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { frappeRequest } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
+import { branchParam, currentBranch } from "@/lib/branchScope";
 import type { ConversionBySource } from "@/lib/types";
 
 const CONVERSION = "netgainz.net_gainz.operations.enquiries.conversion_by_source";
@@ -11,7 +12,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { data, status } = await frappeRequest<{ message: ConversionBySource }>(
-    `api/method/${CONVERSION}`,
+    `api/method/${CONVERSION}${branchParam(await currentBranch(), "?")}`,
     { sessionCookie: session.frappeCookies }
   );
   return NextResponse.json(data?.message ?? null, { status });

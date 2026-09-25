@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { frappeRequest } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
+import { currentBranch } from "@/lib/branchScope";
 import type { Collections } from "@/lib/types";
 
 const READ = "netgainz.net_gainz.accounting.collections.get_collections";
@@ -12,10 +13,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const within = req.nextUrl.searchParams.get("within_days");
-  const qs = within ? `?within_days=${encodeURIComponent(within)}` : "";
+  const qs = new URLSearchParams();
+  if (within) qs.set("within_days", within);
+  const branch = await currentBranch();
+  if (branch) qs.set("branch", branch);
 
   const { data, status } = await frappeRequest<{ message: Collections }>(
-    `api/method/${READ}${qs}`,
+    `api/method/${READ}?${qs.toString()}`,
     { sessionCookie: session.frappeCookies }
   );
   return NextResponse.json(data?.message ?? null, { status });

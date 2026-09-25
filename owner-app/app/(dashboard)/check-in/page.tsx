@@ -7,6 +7,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { extractFrappeError } from "@/lib/frappe";
+import BranchSelect from "@/app/components/BranchSelect";
+import { useDeskBranch } from "@/lib/useBranches";
 import type {
   CheckinAlert,
   CheckinResult,
@@ -62,6 +64,9 @@ type Banner = {
 };
 
 export default function CheckInPage() {
+  // Stage 10.2: the branch this desk is at; visits are recorded there.
+  const [desk, setDeskBranch] = useDeskBranch();
+
   const [q, setQ] = useState("");
   const [results, setResults] = useState<CheckinSearchRow[]>([]);
   const [searching, setSearching] = useState(false);
@@ -125,7 +130,9 @@ export default function CheckInPage() {
       const res = await fetch("/api/check-in", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ member: row.name }),
+        // The visit is recorded where it happened — this desk's branch — not the
+        // member's home branch.
+        body: JSON.stringify(desk ? { member: row.name, branch: desk } : { member: row.name }),
       });
       const body = (await res.json().catch(() => null)) as CheckinResult | null;
       if (!res.ok || !body?.check_in) {
@@ -155,6 +162,15 @@ export default function CheckInPage() {
         <p className="text-sm text-[#8A97B2] mt-1">
           Search by name, member code or phone — one tap records the visit.
         </p>
+      </div>
+
+      <div className="mb-4">
+        <BranchSelect
+          value={desk}
+          onChange={setDeskBranch}
+          label="This desk is at"
+          hint="Visits are recorded at this branch. This device remembers it."
+        />
       </div>
 
       {error && (

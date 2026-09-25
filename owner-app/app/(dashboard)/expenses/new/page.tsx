@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { ExpenseCategory, ExpenseFrequency } from "@/lib/types";
 import { extractFrappeError } from "@/lib/frappe";
 import LinkFieldPicker, { type LinkFieldOption } from "@/app/components/LinkFieldPicker";
+import BranchSelect from "@/app/components/BranchSelect";
 
 async function fetchCategories(q: string): Promise<LinkFieldOption[]> {
   const url = q
@@ -39,6 +40,7 @@ export default function NewExpensePage() {
   const [is_recurring, setIsRecurring] = useState(false);
   const [frequency, setFrequency] = useState<ExpenseFrequency>("Monthly");
   const [notes, setNotes] = useState("");
+  const [branch, setBranch] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,6 +58,7 @@ export default function NewExpensePage() {
     if (vendor) payload.vendor = vendor;
     if (is_recurring) payload.frequency = frequency;
     if (notes) payload.notes = notes;
+    if (branch) payload.branch = branch;
 
     try {
       const res = await fetch("/api/expenses", {
@@ -125,6 +128,9 @@ export default function NewExpensePage() {
             />
           </div>
         </div>
+
+        {/* Branch — which location spent this (Stage 10.2) */}
+        <BranchSelect value={branch} onChange={setBranch} hint="Which location this expense belongs to." />
 
         {/* Amount + Vendor */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -1,4 +1,5 @@
 import { getSession } from "@/lib/session";
+import { branchFilters, currentBranch } from "@/lib/branchScope";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { frappeRequest } from "@/lib/frappe";
@@ -105,6 +106,8 @@ export default async function SubscriptionsPage({
   const filters: string[][] = [];
   if (statusFilter) filters.push(["status", "=", statusFilter]);
   if (memberFilter) filters.push(["member", "=", memberFilter]);
+  // Stage 10.3: follow the branch switcher — except on one member's own list.
+  if (!memberFilter) filters.push(...branchFilters(await currentBranch()));
 
   const requested = readPageParams(sp);
   const {

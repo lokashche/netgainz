@@ -31,6 +31,9 @@ from netgainz.net_gainz.accounting import (
 	payment_modes,
 	period_lock,
 )
+
+# The same module, for functions whose ``branch`` argument shadows the name above.
+from netgainz.net_gainz.accounting import branch as branch_mod
 from netgainz.net_gainz.accounting.provisioning import (
 	_ROOT_ITEM_GROUP,
 	DEFAULT_CUSTOMER_TYPE,
@@ -187,6 +190,7 @@ def sell_pack(member, session_pack, payment_mode="Cash", price=None, notes=None)
 	``price`` overrides the pack's list price for THIS sale (gyms negotiate —
 	same philosophy as per-member membership pricing)."""
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.assert_can_see("Member", member)
 
 	company = _company()
 	if not company:
@@ -266,6 +270,7 @@ def _refresh_status(purchase) -> str:
 def use_session(pack_purchase, note=None) -> dict:
 	"""Burn one session off a pack — a PT booking or a desk tap."""
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.assert_can_see("Pack Purchase", pack_purchase)
 
 	purchase = frappe.get_doc("Pack Purchase", pack_purchase)
 	status = _refresh_status(purchase)
@@ -297,16 +302,18 @@ def use_session(pack_purchase, note=None) -> dict:
 
 
 @frappe.whitelist()
-def pack_balances(member=None) -> dict:
+def pack_balances(member=None, branch=None) -> dict:
 	"""Live pack balances — the member card and the packs page read this.
 
 	Status is re-derived per row (expiry is a calendar fact; nothing recomputes
-	it at midnight), so a pack that lapsed yesterday reads Expired today."""
+	it at midnight), so a pack that lapsed yesterday reads Expired today.
+	``branch`` narrows it to packs sold there (Stage 10.3)."""
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
 
 	filters = {}
 	if member:
 		filters["member"] = member
+	filters = branch_mod.filter_by_branch(filters, branch_mod.scope(branch))
 	rows = []
 	td = getdate(today())
 	for name in frappe.get_all("Pack Purchase", filters=filters, pluck="name", limit_page_length=0):
@@ -334,12 +341,13 @@ def pack_balances(member=None) -> dict:
 	return {"active": active, "closed": closed[:20], "active_count": len(active)}
 
 
-def get_pack_alerts() -> dict:
-	"""Active packs about to expire or nearly used up — worth a word at the desk."""
+def get_pack_alerts(branches=None) -> dict:
+	"""Active packs about to expire or nearly used up — worth a word at the desk.
+	``branches`` narrows it to packs sold there (Stage 10.3)."""
 	within = _expiry_alert_days()
 	horizon = add_days(getdate(today()), within)
 	alerts = []
-	for row in pack_balances_unchecked():
+	for row in pack_balances_unchecked(branches):
 		if row["status"] != "Active":
 			continue
 		expiring = getdate(row["expires_on"]) <= horizon
@@ -350,11 +358,16 @@ def get_pack_alerts() -> dict:
 	return {"within_days": within, "alerts": alerts, "alert_count": len(alerts)}
 
 
-def pack_balances_unchecked() -> list[dict]:
+def pack_balances_unchecked(branches=None) -> list[dict]:
 	"""pack_balances' rows without the role gate — for the scheduler."""
 	td = getdate(today())
 	rows = []
-	for name in frappe.get_all("Pack Purchase", pluck="name", limit_page_length=0):
+	for name in frappe.get_all(
+		"Pack Purchase",
+		filters=branch_mod.filter_by_branch({}, branches),
+		pluck="name",
+		limit_page_length=0,
+	):
 		purchase = frappe.get_doc("Pack Purchase", name)
 		status = _refresh_status(purchase)
 		rows.append(
@@ -373,10 +386,10 @@ def pack_balances_unchecked() -> list[dict]:
 
 
 @frappe.whitelist()
-def get_pack_alerts_due() -> dict:
+def get_pack_alerts_due(branch=None) -> dict:
 	"""Whitelisted read-model for the packs page."""
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
-	return get_pack_alerts()
+	return get_pack_alerts(branches=branch_mod.scope(branch))
 
 
 def notify_pack_alerts():
@@ -487,13 +500,14 @@ def sell_day_pass(guest_name, amount, phone=None, payment_mode="Cash", notes=Non
 
 
 @frappe.whitelist()
-def todays_day_passes() -> dict:
-	"""The desk's list: passes sold today, newest first, with the day's total."""
+def todays_day_passes(branch=None) -> dict:
+	"""The desk's list: passes sold today, newest first, with the day's total.
+	``branch`` narrows it to one location (Stage 10.3)."""
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
 
 	rows = frappe.get_all(
 		"Day Pass",
-		filters={"visited_on": today()},
+		filters=branch_mod.filter_by_branch({"visited_on": today()}, branch_mod.scope(branch)),
 		fields=["name", "guest_name", "phone", "amount", "payment_mode", "creation"],
 		order_by="creation desc",
 		limit_page_length=0,

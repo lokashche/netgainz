@@ -43,6 +43,8 @@ branch is only offerable to memberships at that branch.
 import frappe
 from frappe.utils import flt, getdate, today
 
+from netgainz.net_gainz import permissions
+from netgainz.net_gainz.accounting import branch as branch_mod
 from netgainz.net_gainz.accounting import discounts
 
 # An offer's own duration wording. The first two map straight onto the DS-1 grant;
@@ -282,6 +284,8 @@ def redeem_code(code, membership_plan=None, branch=None, member=None) -> dict:
 @frappe.whitelist()
 def offer_usage(offer) -> dict:
 	"""How an offer is doing: given out, left, and to whom."""
+	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.require_all_branches("Offer usage")
 	doc = frappe.get_doc("Offer", offer)
 	doc.check_permission("read")
 	memberships = frappe.get_all(

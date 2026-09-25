@@ -1,4 +1,5 @@
 import { getSession } from "@/lib/session";
+import { branchFilters, currentBranch } from "@/lib/branchScope";
 import { redirect } from "next/navigation";
 import { buildHref, fetchListPage, readPageParams } from "@/lib/pagination";
 import Pagination from "@/app/components/Pagination";
@@ -42,6 +43,8 @@ export default async function MembersPage({
   const q = typeof sp.q === "string" ? sp.q : "";
 
   const filters: string[][] = [];
+  // Stage 10.3: follow the branch switcher.
+  filters.push(...branchFilters(await currentBranch()));
   if (status) filters.push(["status", "=", status]);
   // A query with a digit in it is a member ID (KE1105, or just 1105); anything
   // else is a name. IDs always carry digits and people's names never do.

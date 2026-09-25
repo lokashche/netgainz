@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import LogoutButton from "./LogoutButton";
 import NavIcon from "@/app/components/NavIcon";
+import BranchSwitcher from "@/app/components/BranchSwitcher";
 
 type NavItem = { href: string; label: string };
 
@@ -17,6 +18,8 @@ const SETUP_ITEMS: NavItem[] = [
   { href: "/expense-categories", label: "Categories" },
   // Stage 10.1: the gym's locations.
   { href: "/branches", label: "Branches" },
+  // Stage 10.4: logins, and which branches they may see.
+  { href: "/staff", label: "Staff" },
 ];
 
 const CASHFLOW_ITEMS: NavItem[] = [
@@ -25,6 +28,8 @@ const CASHFLOW_ITEMS: NavItem[] = [
   { href: "/collections", label: "Money to Collect" },
   { href: "/expenses", label: "Expenses" },
   { href: "/discounts", label: "Discounts" },
+  // Stage 10.5: earned, spent and profit per branch.
+  { href: "/branch-profit", label: "Profit by Branch" },
   // Go-live: members loaded from the gym's own records are not billed until the
   // owner switches them on here.
   { href: "/billing", label: "Start Billing" },
@@ -342,8 +347,11 @@ export default function NavBar({
           </div>
         </div>
 
-        {/* Right: settings + who is signed in, and the phone menu button */}
+        {/* Right: branch switcher, settings + who is signed in, and the phone menu button */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          {/* Stage 10.3: "All branches" or one — every list and figure follows it.
+              Renders nothing for a one-branch gym. */}
+          <BranchSwitcher />
           <Link
             href="/settings"
             aria-label="Settings"

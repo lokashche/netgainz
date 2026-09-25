@@ -32,6 +32,7 @@ import frappe
 from frappe.model.document import Document
 from frappe.utils import add_days, flt, getdate, today
 
+from netgainz.net_gainz import permissions
 from netgainz.net_gainz.accounting import (
 	billing_intervals,
 	branch,
@@ -42,6 +43,7 @@ from netgainz.net_gainz.accounting import (
 	provisioning,
 	trials,
 )
+from netgainz.net_gainz.accounting import branch as branch_mod
 from netgainz.net_gainz.profit_first import accounts as pf_accounts
 from netgainz.net_gainz.profit_first import calc
 
@@ -913,7 +915,7 @@ def _members_to_customers(members):
 	return [c for m in members if (c := frappe.db.get_value("Member", m, "customer"))]
 
 
-def collected_paise(start, end, customers=None) -> int:
+def collected_paise(start, end, customers=None, cost_centers=None) -> int:
 	"""Membership revenue **net of refunds** collected in [start, end], in integer
 	paise, read from Payment Entries.
 
@@ -942,14 +944,22 @@ def collected_paise(start, end, customers=None) -> int:
 	via the reference row's own ``exchange_rate`` (Payment Entry Reference has no
 	stored base amount), so a foreign-currency document can never be summed into
 	the base-currency total at face value.
+
+	``cost_centers`` limits the total to invoices booked to those branches (Stage
+	10.3) — the invoice's cost center, i.e. the member's branch when billed.
 	"""
 	if customers is not None and not customers:
+		return 0
+	if cost_centers is not None and not cost_centers:
 		return 0
 	params = {"start": getdate(start), "end": getdate(end)}
 	party_clause = ""
 	if customers is not None:
 		party_clause = "AND pe.party IN %(customers)s"
 		params["customers"] = tuple(customers)
+	if cost_centers is not None:
+		party_clause += " AND si.cost_center IN %(cost_centers)s"
+		params["cost_centers"] = tuple(cost_centers)
 	rows = frappe.db.sql(
 		f"""
 		SELECT per.allocated_amount
@@ -972,7 +982,7 @@ def collected_paise(start, end, customers=None) -> int:
 	return sum(calc.to_paise(r.amt) for r in rows)
 
 
-def membership_collected_paise(start, end, members=None) -> int:
+def membership_collected_paise(start, end, members=None, cost_centers=None) -> int:
 	"""THE shared cash read for Profit First + commissions (integer paise).
 
 	WP-11: a single Payment-Entry read. Every membership bills through ERPNext, so
@@ -981,7 +991,7 @@ def membership_collected_paise(start, end, members=None) -> int:
 	``Membership.fee_collected``, which is a deprecated display field feeding no
 	calculation. ``members`` (Member names) optionally scopes the total, translated
 	to the members' Customers."""
-	return collected_paise(start, end, _members_to_customers(members))
+	return collected_paise(start, end, _members_to_customers(members), cost_centers)
 
 
 # --------------------------------------------------------------------------- #
@@ -1000,6 +1010,7 @@ def record_membership_payment(
 	from netgainz.net_gainz.accounting import advances
 
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.assert_can_see("Membership", membership)
 	pe = record_payment(
 		membership,
 		amount,
@@ -1023,6 +1034,7 @@ def generate_membership_invoice(membership, posting_date=None) -> dict:
 	from netgainz.net_gainz import permissions
 
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.assert_can_see("Membership", membership)
 	company = _company()
 	ensure_subscription(membership, company)
 	# DS-4: refuse to bill a member whose free trial is still running. ERPNext decides
@@ -1046,6 +1058,8 @@ def get_membership_obligations(membership) -> dict:
 
 	Serialised straight from :func:`open_obligations`, so the owner app shows the
 	same rows the backend bills and allocates against, in either billing mode."""
+	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.assert_can_see("Membership", membership)
 	from netgainz.net_gainz.accounting import advances, refunds, writeoff
 
 	rows = open_obligations(membership)
@@ -1087,6 +1101,8 @@ def unbillable_memberships() -> dict:
 		fields=["name", "member", "member_name", "membership_plan", "tariff", "subscription"],
 		limit_page_length=0,
 	):
+		permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+		branch_mod.require_all_branches("This list")
 		if is_billable(ms.name):
 			continue
 		plan_amount = (

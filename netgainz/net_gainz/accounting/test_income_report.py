@@ -95,3 +95,40 @@ class TestIncomeReport(FrappeTestCase):
 		frappe.set_user(OUTSIDER_USER)
 		with self.assertRaises(frappe.PermissionError):
 			income_report.get_income()
+
+	def test_profit_per_branch_comes_from_the_ledger(self):
+		from netgainz.net_gainz.accounting import branch
+
+		other = branch.create_branch(f"INC Branch {frappe.generate_hash(length=5)}")["name"]
+		plan = fx.make_plan(f"INC PnL Plan {frappe.generate_hash(length=4)}", amount=1200.0)
+		member = frappe.get_doc(
+			{
+				"doctype": "Member",
+				"full_name": "INC PnL Member",
+				"membership_plan": plan.name,
+				"branch": other,
+			}
+		).insert(ignore_permissions=True)
+		frappe.get_doc({"doctype": "Membership", "member": member.name, "membership_plan": plan.name}).insert(
+			ignore_permissions=True
+		)
+		# Its own category: CI's fresh site has none to borrow.
+		cat = "INC PnL Category"
+		if not frappe.db.exists("Expense Category", cat):
+			frappe.get_doc({"doctype": "Expense Category", "category_name": cat}).insert(
+				ignore_permissions=True
+			)
+		frappe.get_doc(
+			{
+				"doctype": "Expense",
+				"date": frappe.utils.today(),
+				"category": cat,
+				"amount": 200,
+				"branch": other,
+			}
+		).insert(ignore_permissions=True)
+		rows = {r["branch"]: r for r in income_report.get_branch_profit()["branches"]}
+		self.assertEqual(rows[other]["earned"], 1200.0)
+		self.assertEqual(rows[other]["spent"], 200.0)
+		self.assertEqual(rows[other]["profit"], 1000.0)
+		self.assertIn(branch.ensure_default_branch(), rows)

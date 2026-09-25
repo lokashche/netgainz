@@ -1,5 +1,6 @@
-import { frappeRequest } from "@/lib/frappe";
+import { extractFrappeError, frappeRequest } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
+import { branchParam, currentBranch } from "@/lib/branchScope";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { AssessmentRow, InstantAssessment, PFDashboard } from "@/lib/types";
@@ -63,7 +64,7 @@ export default async function ProfitFirstPage({
 
   const [res, dashRes] = await Promise.all([
     frappeRequest<{ message: InstantAssessment }>(
-      `api/method/netgainz.net_gainz.profit_first.instant_assessment.get_instant_assessment${qs}`,
+      `api/method/netgainz.net_gainz.profit_first.instant_assessment.get_instant_assessment${qs}${branchParam(await currentBranch(), qs ? "&" : "?")}`,
       { sessionCookie: session.frappeCookies }
     ),
     frappeRequest<{ message: PFDashboard }>(
@@ -135,6 +136,23 @@ export default async function ProfitFirstPage({
       </Link>
     </div>
   );
+
+  // Refused (Stage 10.4: a login limited to one branch cannot see whole-gym
+  // Profit First) — say why, rather than claim it is not set up.
+  if (res.status === 403) {
+    return (
+      <div>
+        {header}
+        <div className="bg-[#111A2E] border border-[#1E2D45] rounded-xl p-8 text-center">
+          <p className="text-[#E6EDF7] text-lg font-medium">Only the owner sees Profit First here</p>
+          <p className="text-[#8A97B2] text-sm mt-2 max-w-md mx-auto">
+            {extractFrappeError(res.data) ??
+              "It covers the whole gym, and your login is limited to your own branch."}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // Not configured / disabled.
   if (!a || !a.enabled) {

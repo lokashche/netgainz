@@ -48,7 +48,9 @@ import frappe
 from frappe import _
 from frappe.utils import flt, getdate, nowtime, today
 
+from netgainz.net_gainz import permissions
 from netgainz.net_gainz.accounting import branch, currency, payment_modes, period_lock
+from netgainz.net_gainz.accounting import branch as branch_mod
 from netgainz.net_gainz.profit_first import accounts as pf_accounts
 
 CREDIT_NOTE_REASONS = (
@@ -376,7 +378,6 @@ def refund_membership_payment(
 	membership, amount=None, reason=None, posting_date=None, payment_mode=None, return_cash=1
 ) -> dict:
 	"""Owner/BFF: refund (or waive) part of a membership charge."""
-	from netgainz.net_gainz import permissions
 
 	permissions.require_role(permissions.GYM_OWNER)
 	return refund_membership(
@@ -392,6 +393,7 @@ def refund_membership_payment(
 @frappe.whitelist()
 def get_refund_context(membership) -> dict:
 	"""Owner/BFF: what this membership can be refunded, and what already was."""
+	branch_mod.assert_can_see("Membership", membership)
 	from netgainz.net_gainz.accounting import billing
 
 	si_name = billing.current_invoice(membership)

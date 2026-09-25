@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { frappeRequest } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
+import { branchFilters, currentBranch } from "@/lib/branchScope";
 
 // The register as a spreadsheet. The columns are the ones the Load Records
 // screen understands (member_code is the key there), so a corrected file can go
@@ -46,6 +47,8 @@ export async function GET(req: NextRequest) {
   const q = searchParams.get("q");
 
   const filters: string[][] = [];
+  // Stage 10.3: follow the branch switcher.
+  filters.push(...branchFilters(await currentBranch()));
   if (status) filters.push(["status", "=", status]);
   // Same rule as the Members screen: a query with a digit is an ID search.
   if (q) {

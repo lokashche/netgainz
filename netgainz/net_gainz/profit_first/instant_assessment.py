@@ -15,7 +15,9 @@ money, posts no ledger entries.
 import frappe
 from frappe.utils import add_months, get_first_day, get_last_day, getdate, today
 
+from netgainz.net_gainz import permissions
 from netgainz.net_gainz.accounting import billing
+from netgainz.net_gainz.accounting import branch as branch_mod
 from netgainz.net_gainz.profit_first import calc
 
 EXPENSE_CATEGORY = "Expense Category"
@@ -23,12 +25,19 @@ DEFAULT_BUCKET = calc.OPEX
 
 
 @frappe.whitelist()
-def get_instant_assessment(window: str | None = None):
+def get_instant_assessment(window: str | None = None, branch: str | None = None):
 	"""Return the read-only Instant Assessment payload for the current gym.
 
 	``window`` optionally overrides the configured Assessment Window
-	("Trailing 12 Months" or "This Month").
+	("Trailing 12 Months" or "This Month"). ``branch`` narrows it to one branch's
+	cash and expenses — only when the owner has switched Profit First to per-branch
+	(Stage 10.6); pooled, it is always the whole gym.
 	"""
+	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	per_branch = frappe.db.get_single_value("Business Settings", "pf_per_branch")
+	branches = branch_mod.scope(branch) if per_branch else None
+	if not branches:
+		branch_mod.require_all_branches("Profit First")
 	settings = frappe.get_single("Profit First Settings")
 	if not settings.pf_enabled:
 		return {"enabled": False}
@@ -36,9 +45,11 @@ def get_instant_assessment(window: str | None = None):
 	window = window or settings.assessment_window or "Trailing 12 Months"
 	start, end, period_label = _period(window)
 
-	topline_paise = _cash_topline_paise(start, end)
+	topline_paise = billing.membership_collected_paise(
+		start, end, cost_centers=branch_mod.scope_cost_centers(branches)
+	)
 	has_field = frappe.get_meta(EXPENSE_CATEGORY).has_field("pf_bucket")
-	buckets_paise, passthrough_breakdown = _expense_buckets_paise(start, end, has_field)
+	buckets_paise, passthrough_breakdown = _expense_buckets_paise(start, end, has_field, branches)
 	tier_bands = _tier_bands(settings)
 
 	result = calc.build_assessment(
@@ -57,6 +68,7 @@ def get_instant_assessment(window: str | None = None):
 	)
 	result["enabled"] = True
 	result["passthrough_breakdown"] = passthrough_breakdown
+	result["branches"] = branches
 	return result
 
 
@@ -143,7 +155,7 @@ def _cash_topline_paise(start, end) -> int:
 # --------------------------------------------------------------------------- #
 # expenses -> PF buckets                                                       #
 # --------------------------------------------------------------------------- #
-def _expense_buckets_paise(start, end, has_field: bool):
+def _expense_buckets_paise(start, end, has_field: bool, branches=None):
 	"""Aggregate period expenses into PF buckets (in paise), resolving each
 	Gym Expense to its category's pf_bucket. Returns (buckets, breakdown)."""
 	buckets = {b: 0 for b in calc.EXPENSE_BUCKETS}
@@ -158,7 +170,9 @@ def _expense_buckets_paise(start, end, has_field: bool):
 		# docstatus < 2 counts drafts + submitted but excludes cancelled/amended-away
 		# rows: since WP-5 an Expense is submittable and amends via cancel + new, so
 		# without this filter the cancelled original would double-count.
-		filters=[["date", "between", [start, end]], ["docstatus", "<", 2]],
+		filters=branch_mod.filter_by_branch(
+			[["date", "between", [start, end]], ["docstatus", "<", 2]], branches
+		),
 		fields=["amount", "category"],
 		limit_page_length=0,
 	)

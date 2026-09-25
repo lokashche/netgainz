@@ -46,6 +46,7 @@ from __future__ import annotations
 import frappe
 from frappe.utils import flt, get_first_day, get_last_day, getdate, today
 
+from netgainz.net_gainz import permissions
 from netgainz.net_gainz.accounting import (
 	billing,
 	billing_intervals,
@@ -53,6 +54,7 @@ from netgainz.net_gainz.accounting import (
 	currency,
 	provisioning,
 )
+from netgainz.net_gainz.accounting import branch as branch_mod
 from netgainz.net_gainz.profit_first import accounts as pf_accounts
 
 NEXT_PERIOD = "Next period"
@@ -172,6 +174,8 @@ def billing_readiness() -> dict:
 
 	Read-only. This is the screen the owner works through before switching on.
 	"""
+	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.require_all_branches("Start Billing")
 	rows = [assess(name) for name in frappe.get_all("Membership", pluck="name")]
 	ready = [r for r in rows if r["ready"]]
 	blocked = [r for r in rows if not r["ready"] and not r["already_billing"]]

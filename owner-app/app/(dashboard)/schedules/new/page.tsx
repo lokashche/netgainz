@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { extractFrappeError } from "@/lib/frappe";
 import { useClassTerm } from "@/lib/useClassTerm";
 import LinkFieldPicker, { type LinkFieldOption } from "@/app/components/LinkFieldPicker";
+import BranchSelect from "@/app/components/BranchSelect";
 import type { Coach, Program } from "@/lib/types";
 
 async function fetchPrograms(q: string): Promise<LinkFieldOption[]> {
@@ -66,6 +67,7 @@ export default function NewSchedulePage() {
   });
   const [is_active, setIsActive] = useState(true);
   const [notes, setNotes] = useState("");
+  const [branch, setBranch] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -94,6 +96,7 @@ export default function NewSchedulePage() {
     if (program) payload.program = program;
     if (coach) payload.coach = coach;
     if (notes) payload.notes = notes;
+    if (branch) payload.branch = branch;
     for (const d of DAY_DEFS) payload[d.field] = days[d.key] ? 1 : 0;
 
     try {
@@ -212,6 +215,9 @@ export default function NewSchedulePage() {
             ))}
           </div>
         </div>
+
+        {/* Branch — where this timetable runs (Stage 10.2) */}
+        <BranchSelect value={branch} onChange={setBranch} hint="Every class this timetable creates runs here." />
 
         <div>
           <label className={labelClass}>Notes</label>

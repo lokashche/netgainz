@@ -39,7 +39,9 @@ from __future__ import annotations
 import frappe
 from frappe.utils import flt, getdate, today
 
+from netgainz.net_gainz import permissions
 from netgainz.net_gainz.accounting import branch, currency, payment_modes, period_lock
+from netgainz.net_gainz.accounting import branch as branch_mod
 from netgainz.net_gainz.profit_first import accounts as pf_accounts
 
 
@@ -322,6 +324,7 @@ def record_member_advance(member, amount, payment_mode=None, posting_date=None, 
 	from netgainz.net_gainz import permissions
 
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.assert_can_see("Member", member)
 	pe = record_advance(
 		member,
 		amount,
@@ -338,6 +341,7 @@ def apply_member_advances(member) -> dict:
 	from netgainz.net_gainz import permissions
 
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.assert_can_see("Member", member)
 	result = apply_advances(member)
 	result["advance_balance"] = advance_balance(member)
 	return result
@@ -346,4 +350,6 @@ def apply_member_advances(member) -> dict:
 @frappe.whitelist()
 def get_advance_context(member) -> dict:
 	"""Owner/BFF: what this member has on account and where it came from."""
+	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.assert_can_see("Member", member)
 	return {"balance": advance_balance(member), "advances": open_advances(member)}
