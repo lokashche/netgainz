@@ -37,7 +37,7 @@ from frappe.utils import add_days, add_years, flt, getdate, today
 from frappe.utils.background_jobs import is_job_enqueued
 
 from netgainz.net_gainz import permissions
-from netgainz.net_gainz.accounting import billing, branch, period_lock, provisioning
+from netgainz.net_gainz.accounting import billing, branch, currency, period_lock, provisioning
 from netgainz.net_gainz.accounting.billing import _as_engine
 from netgainz.net_gainz.profit_first import accounts as pf_accounts
 
@@ -328,6 +328,9 @@ def post_row(row, company) -> str:
 	si.cost_center = branch.branch_cost_center(row.branch, company)
 	si.append("items", {"item_code": item, "qty": 1, "rate": flt(row.tariff)})
 	si.set_missing_values()
+	# ERPNext seeds "Standard Selling" in USD; only the setup wizard re-denominates it.
+	# Pin AFTER set_missing_values, which is what fills currency in (see packs._sell).
+	currency.pin_to_company_currency(si, company)
 	# The sheet says what the member was charged, full stop. Where GST applies (the
 	# same rules as live billing decide), it is inside that figure, not on top of it.
 	for tax in si.get("taxes") or []:

@@ -68,7 +68,8 @@ class TestHistoryBooks(FrappeTestCase):
 		self.assertEqual(before["pending"], 1)
 		self.assertFalse(self._month(before)["matches"])
 
-		self.assertEqual(history_books._post_all()["posted"], 1)
+		result = history_books._post_all()
+		self.assertEqual(result["posted"], 1, result["failed"])
 		si = frappe.get_all(
 			"Sales Invoice",
 			filters={"membership": row.name, "docstatus": 1},
@@ -89,7 +90,8 @@ class TestHistoryBooks(FrappeTestCase):
 
 	def test_history_cash_counts_as_membership_income(self):
 		row = _history_row("cash", tariff=1000, paid=1000)
-		history_books._post_all()
+		result = history_books._post_all()
+		self.assertEqual(result["posted"], 1, result["failed"])
 		collected = billing.membership_collected_paise(get_first_day(today()), get_last_day(today()))
 		# Ex-GST, like all membership income (GST collected is not revenue).
 		net = frappe.db.get_value("Sales Invoice", {"membership": row.name}, "net_total")
