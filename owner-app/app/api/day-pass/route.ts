@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { frappeRequest } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
+import { branchParam, currentBranch } from "@/lib/branchScope";
 import type { DayPassSaleResult, TodaysDayPasses } from "@/lib/types";
 
 const TODAYS = "netgainz.net_gainz.operations.packs.todays_day_passes";
@@ -12,7 +13,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { data, status } = await frappeRequest<{ message: TodaysDayPasses }>(
-    `api/method/${TODAYS}`,
+    `api/method/${TODAYS}${branchParam(await currentBranch(), "?")}`,
     { sessionCookie: session.frappeCookies }
   );
   return NextResponse.json(data?.message ?? null, { status });

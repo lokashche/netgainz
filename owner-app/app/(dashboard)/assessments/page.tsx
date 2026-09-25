@@ -1,5 +1,6 @@
 import { frappeRequest } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
+import { branchParam, currentBranch } from "@/lib/branchScope";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { AssessmentsDue, AssessmentDueRow, AssessmentNeverRow } from "@/lib/types";
@@ -101,7 +102,7 @@ export default async function AssessmentsPage({
   const qs = within ? `?within_days=${encodeURIComponent(within)}` : "";
 
   const res = await frappeRequest<{ message: AssessmentsDue }>(
-    `api/method/netgainz.net_gainz.operations.assessments.get_assessments_due${qs}`,
+    `api/method/netgainz.net_gainz.operations.assessments.get_assessments_due${qs}${branchParam(await currentBranch(), qs ? "&" : "?")}`,
     { sessionCookie: session.frappeCookies }
   );
   const data = res.data?.message;

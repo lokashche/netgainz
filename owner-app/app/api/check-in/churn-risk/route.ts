@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { frappeRequest } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
+import { currentBranch } from "@/lib/branchScope";
 import type { ChurnRisk } from "@/lib/types";
 
 const CHURN_RISK = "netgainz.net_gainz.operations.checkin.get_churn_risk";
@@ -14,6 +15,8 @@ export async function GET(req: NextRequest) {
   const threshold = req.nextUrl.searchParams.get("threshold_days");
   const qs = new URLSearchParams();
   if (threshold) qs.set("threshold_days", threshold);
+  const branch = await currentBranch();
+  if (branch) qs.set("branch", branch);
 
   const { data, status } = await frappeRequest<{ message: ChurnRisk }>(
     `api/method/${CHURN_RISK}?${qs.toString()}`,

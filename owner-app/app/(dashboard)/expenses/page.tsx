@@ -1,5 +1,6 @@
 import { frappeRequest } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
+import { branchFilters, currentBranch } from "@/lib/branchScope";
 import { redirect } from "next/navigation";
 import { buildHref, fetchListPage, readPageParams } from "@/lib/pagination";
 import Pagination from "@/app/components/Pagination";
@@ -43,6 +44,8 @@ export default async function ExpensesPage({
 
   const filters: string[][] = [];
   if (categoryFilter) filters.push(["category", "=", categoryFilter]);
+  // Stage 10.3: follow the branch switcher.
+  filters.push(...branchFilters(await currentBranch()));
   if (recurringFilter === "1") filters.push(["is_recurring", "=", "1"]);
   else if (recurringFilter === "0") filters.push(["is_recurring", "=", "0"]);
 

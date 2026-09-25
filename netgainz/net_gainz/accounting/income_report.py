@@ -24,6 +24,7 @@ from frappe.utils import get_first_day, get_last_day, getdate, today
 
 from netgainz.net_gainz import permissions
 from netgainz.net_gainz.accounting import billing, deferred
+from netgainz.net_gainz.accounting import branch as branch_mod
 from netgainz.net_gainz.profit_first import calc
 
 
@@ -35,29 +36,39 @@ def _period(start=None, end=None):
 	return get_first_day(now), get_last_day(now)
 
 
-def billed_paise(start, end) -> int:
+def billed_paise(start, end, cost_centers=None) -> int:
 	"""Ex-GST value of submitted membership invoices posted in [start, end], in
 	integer paise. A credit note's totals are negative, so a refund billed back
-	reduces the figure without special-casing — the same shape as the cash read."""
+	reduces the figure without special-casing — the same shape as the cash read.
+	``cost_centers`` limits it to those branches (Stage 10.3)."""
+	if cost_centers is not None and not cost_centers:
+		return 0
+	params = {"start": getdate(start), "end": getdate(end)}
+	cc_clause = ""
+	if cost_centers is not None:
+		cc_clause = "AND si.cost_center IN %(cost_centers)s"
+		params["cost_centers"] = tuple(cost_centers)
 	rows = frappe.db.sql(
-		"""
+		f"""
 		SELECT si.base_net_total AS amt
 		FROM `tabSales Invoice` si
 		WHERE si.docstatus = 1
 		  AND si.posting_date BETWEEN %(start)s AND %(end)s
 		  AND si.subscription IS NOT NULL AND si.subscription != ''
+		  {cc_clause}
 		""",
-		{"start": getdate(start), "end": getdate(end)},
+		params,
 		as_dict=True,
 	)
 	return sum(calc.to_paise(r.amt) for r in rows)
 
 
-def income_for_period(start=None, end=None) -> dict:
+def income_for_period(start=None, end=None, branches=None) -> dict:
 	start, end = _period(start, end)
 	basis = deferred.accounting_method()
-	collected = calc.to_rupees(billing.membership_collected_paise(start, end))
-	billed = calc.to_rupees(billed_paise(start, end))
+	ccs = branch_mod.scope_cost_centers(branches)
+	collected = calc.to_rupees(billing.membership_collected_paise(start, end, cost_centers=ccs))
+	billed = calc.to_rupees(billed_paise(start, end, ccs))
 	return {
 		"start": str(start),
 		"end": str(end),
@@ -69,10 +80,10 @@ def income_for_period(start=None, end=None) -> dict:
 
 
 @frappe.whitelist()
-def get_income(start=None, end=None) -> dict:
+def get_income(start=None, end=None, branch=None) -> dict:
 	"""Owner/BFF: the dashboard's income figure for a month (default: this month).
 
 	Open to the front desk as well as the owner — the dashboard showed staff this
 	figure before, and this only corrects where it is read from."""
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
-	return income_for_period(start, end)
+	return income_for_period(start, end, branches=branch_mod.scope(branch))

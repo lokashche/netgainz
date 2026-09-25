@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { frappeRequest } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
+import { currentBranch } from "@/lib/branchScope";
 import type { PackBalances } from "@/lib/types";
 
 const BALANCES = "netgainz.net_gainz.operations.packs.pack_balances";
@@ -13,6 +14,10 @@ export async function GET(req: NextRequest) {
   const member = req.nextUrl.searchParams.get("member");
   const qs = new URLSearchParams();
   if (member) qs.set("member", member);
+  // A member's own card shows their packs from every branch; the packs page follows
+  // the switcher.
+  const branch = member ? "" : await currentBranch();
+  if (branch) qs.set("branch", branch);
 
   const { data, status } = await frappeRequest<{ message: PackBalances }>(
     `api/method/${BALANCES}?${qs.toString()}`,

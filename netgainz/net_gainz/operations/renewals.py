@@ -16,6 +16,8 @@ overdue list because of an older, superseded subscription.
 import frappe
 from frappe.utils import add_days, getdate, today
 
+from netgainz.net_gainz import permissions
+from netgainz.net_gainz.accounting import branch as branch_mod
 from netgainz.net_gainz.accounting import trials
 
 DEFAULT_REMINDER_DAYS = 7
@@ -30,10 +32,11 @@ def _reminder_days() -> int:
 	return days if days > 0 else DEFAULT_REMINDER_DAYS
 
 
-def get_renewals(within_days=None) -> dict:
+def get_renewals(within_days=None, branches=None) -> dict:
 	"""Return memberships due soon and already overdue for renewal.
 
-	``within_days`` overrides the configured reminder window for "due soon".
+	``within_days`` overrides the configured reminder window for "due soon";
+	``branches`` narrows it to those locations (Stage 10.3).
 	"""
 	within = int(within_days) if within_days else _reminder_days()
 	td = getdate(today())
@@ -45,7 +48,10 @@ def get_renewals(within_days=None) -> dict:
 		# is not "due for renewal" — nothing has been sold to them yet. They get their own
 		# "trials ending" list; showing them here would read as a lapsing membership.
 		# OP-3: a cancelled membership never renews and never nags.
-		filters=[["next_renewal", "is", "set"], ["status", "not in", [trials.TRIAL_STATUS, "Cancelled"]]],
+		filters=branch_mod.filter_by_branch(
+			[["next_renewal", "is", "set"], ["status", "not in", [trials.TRIAL_STATUS, "Cancelled"]]],
+			branches,
+		),
 		fields=["name", "member", "member_name", "membership_plan", "next_renewal", "status"],
 		order_by="next_renewal asc",
 		limit_page_length=0,
@@ -97,9 +103,13 @@ def get_renewals(within_days=None) -> dict:
 
 
 @frappe.whitelist()
-def get_renewals_due(within_days=None) -> dict:
-	"""Whitelisted read-model for the Renewals page + dashboard widget."""
-	return get_renewals(within_days)
+def get_renewals_due(within_days=None, branch=None) -> dict:
+	"""Whitelisted read-model for the Renewals page + dashboard widget.
+
+	Had no role check before Stage 10.3 — any signed-in user could read the list,
+	phone numbers included."""
+	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	return get_renewals(within_days, branches=branch_mod.scope(branch))
 
 
 def notify_due_renewals():

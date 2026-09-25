@@ -28,6 +28,7 @@ import frappe
 from frappe.utils import add_days, flt, getdate, today
 
 from netgainz.net_gainz import permissions
+from netgainz.net_gainz.accounting import branch as branch_mod
 from netgainz.net_gainz.doctype.member_metric_target.member_metric_target import target_direction
 from netgainz.net_gainz.operations import renewals
 
@@ -534,13 +535,14 @@ def clear_target(target: str) -> dict:
 # --------------------------------------------------------------------------- #
 # who is due
 # --------------------------------------------------------------------------- #
-def get_due(within_days=None) -> dict:
+def get_due(within_days=None, branches=None) -> dict:
 	"""Active members whose re-assessment is due soon or already overdue.
 
 	Only each member's LATEST assessment counts, so a member re-measured
 	yesterday never lingers on the overdue list because of an older visit. A
 	member who has never been assessed is not chased here — there is no due date
 	to miss; they appear in ``never_assessed`` so the gym can start them.
+	``branches`` narrows it to members homed there (Stage 10.3).
 	"""
 	within = int(within_days) if within_days else _due_soon_days()
 	td = getdate(today())
@@ -548,7 +550,7 @@ def get_due(within_days=None) -> dict:
 
 	actives = frappe.get_all(
 		"Member",
-		filters={"status": "Active"},
+		filters=branch_mod.filter_by_branch({"status": "Active"}, branches),
 		fields=["name", "full_name", "phone", "coach", "category", "sport_goal", "branch"],
 		limit_page_length=0,
 	)
@@ -627,10 +629,10 @@ def get_due(within_days=None) -> dict:
 
 
 @frappe.whitelist()
-def get_assessments_due(within_days=None) -> dict:
+def get_assessments_due(within_days=None, branch=None) -> dict:
 	"""Whitelisted read-model for the Assessments page + dashboard card."""
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
-	return get_due(within_days)
+	return get_due(within_days, branches=branch_mod.scope(branch))
 
 
 def notify_assessments_due():

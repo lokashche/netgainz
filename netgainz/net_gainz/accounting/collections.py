@@ -30,6 +30,7 @@ from frappe.utils import flt, getdate, today
 
 from netgainz.net_gainz import permissions
 from netgainz.net_gainz.accounting import billing
+from netgainz.net_gainz.accounting import branch as branch_mod
 from netgainz.net_gainz.operations.renewals import _owner_users
 
 #: A part is "due soon" this many days ahead unless the tenant says otherwise.
@@ -46,11 +47,12 @@ def _due_soon_days() -> int:
 	return int(raw or 0) or DEFAULT_DUE_SOON_DAYS
 
 
-def get_dues(within_days: int | None = None) -> dict:
+def get_dues(within_days: int | None = None, branches=None) -> dict:
 	"""Every unpaid part across the gym, split into late / due now / due soon.
 
 	Read-only. One row per *part*, not per member, because that is the thing that
-	gets chased and the thing a payment settles.
+	gets chased and the thing a payment settles. ``branches`` narrows it to those
+	locations (Stage 10.3).
 	"""
 	horizon = int(within_days) if within_days is not None else _due_soon_days()
 	td = getdate(today())
@@ -61,7 +63,7 @@ def get_dues(within_days: int | None = None) -> dict:
 
 	memberships = frappe.get_all(
 		"Membership",
-		filters={"status": ["in", CHASEABLE]},
+		filters=branch_mod.filter_by_branch({"status": ["in", CHASEABLE]}, branches),
 		fields=["name", "member", "member_name", "membership_plan", "branch"],
 	)
 	for ms in memberships:
@@ -113,10 +115,10 @@ def get_dues(within_days: int | None = None) -> dict:
 
 
 @frappe.whitelist()
-def get_collections(within_days=None) -> dict:
+def get_collections(within_days=None, branch=None) -> dict:
 	"""Owner/BFF: the collections list — who owes what, and how late."""
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
-	return get_dues(within_days)
+	return get_dues(within_days, branches=branch_mod.scope(branch))
 
 
 def notify_dues():

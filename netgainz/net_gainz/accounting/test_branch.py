@@ -308,3 +308,149 @@ class TestBranchOnForms(FrappeTestCase):
 			{"doctype": "Session", "title": "B102 Plain Class", "start_time": f"{today()} 08:00:00"}
 		).insert(ignore_permissions=True)
 		self.assertEqual(session.branch, self.default)
+
+
+# --------------------------------------------------------------------------- #
+# Stage 10.3: every read follows the branch switcher
+# --------------------------------------------------------------------------- #
+RESTRICTED_USER = "branch-manager-103@example.com"
+OUTSIDER_USER = "branch-outsider-103@example.com"
+
+
+class TestBranchScoping(FrappeTestCase):
+	def setUp(self):
+		from netgainz.net_gainz import permissions
+		from netgainz.net_gainz.accounting import billing_fixtures as fx
+
+		fx.clear_billing_data()
+		fx.ensure_cash_account()
+		self.company = pf_accounts.default_company()
+		self.home = branch.ensure_default_branch(self.company)
+		self.other = branch.create_branch(f"B103 Other {frappe.generate_hash(length=5)}")["name"]
+		self.addCleanup(frappe.set_user, "Administrator")
+		permissions.ensure_roles()
+		for email, roles in ((RESTRICTED_USER, [permissions.GYM_STAFF]), (OUTSIDER_USER, [])):
+			if not frappe.db.exists("User", email):
+				frappe.get_doc(
+					{
+						"doctype": "User",
+						"email": email,
+						"first_name": email.split("@")[0],
+						"send_welcome_email": 0,
+						"roles": [{"role": r} for r in roles],
+					}
+				).insert(ignore_permissions=True)
+		frappe.db.delete("User Permission", {"user": RESTRICTED_USER})
+		frappe.get_doc(
+			{
+				"doctype": "User Permission",
+				"user": RESTRICTED_USER,
+				"allow": "Business Branch",
+				"for_value": self.other,
+			}
+		).insert(ignore_permissions=True)
+
+	def _enrol_at(self, at_branch, tag, amount, pay=True):
+		from netgainz.net_gainz.accounting import billing_fixtures as fx
+
+		plan = fx.make_plan(f"{tag} Plan {frappe.generate_hash(length=4)}", amount=amount)
+		member = frappe.get_doc(
+			{
+				"doctype": "Member",
+				"full_name": f"{tag} Member",
+				"membership_plan": plan.name,
+				"branch": at_branch,
+			}
+		).insert(ignore_permissions=True)
+		ms = frappe.get_doc(
+			{"doctype": "Membership", "member": member.name, "membership_plan": plan.name}
+		).insert(ignore_permissions=True)
+		ms.reload()
+		if pay:
+			fx.collect(ms)
+		return member, ms
+
+	# ---- the seam ----------------------------------------------------------- #
+	def test_the_owner_sees_everything_until_a_branch_is_picked(self):
+		self.assertIsNone(branch.scope())
+		self.assertEqual(branch.scope(self.other), [self.other])
+
+	def test_a_branch_limited_user_is_held_to_their_branch(self):
+		frappe.set_user(RESTRICTED_USER)
+		self.assertEqual(branch.scope(), [self.other])
+		with self.assertRaises(frappe.PermissionError):
+			branch.scope(self.home)
+
+	# ---- the figures and lists ---------------------------------------------- #
+	def test_income_follows_the_branch(self):
+		from netgainz.net_gainz.accounting import income_report
+
+		self._enrol_at(self.other, "B103 Income Other", 1000.0)
+		self._enrol_at(self.home, "B103 Income Home", 500.0)
+		self.assertEqual(income_report.get_income(branch=self.other)["collected"], 1000.0)
+		self.assertEqual(income_report.get_income(branch=self.home)["collected"], 500.0)
+		self.assertEqual(income_report.get_income()["collected"], 1500.0)
+
+	def test_money_to_collect_follows_the_branch(self):
+		from netgainz.net_gainz.accounting import collections
+
+		_, owed_other = self._enrol_at(self.other, "B103 Owes Other", 800.0, pay=False)
+		_, owed_home = self._enrol_at(self.home, "B103 Owes Home", 700.0, pay=False)
+		data = collections.get_collections(within_days=400, branch=self.other)
+		names = {r["membership"] for key in ("late", "due_today", "due_soon") for r in data.get(key, [])}
+		self.assertIn(owed_other.name, names)
+		self.assertNotIn(owed_home.name, names)
+
+	def test_todays_visits_follow_the_branch(self):
+		from netgainz.net_gainz.operations import checkin
+
+		member = frappe.get_doc({"doctype": "Member", "full_name": "B103 Visitor"}).insert(
+			ignore_permissions=True
+		)
+		checkin.record_check_in(member.name, branch=self.other)
+		self.assertEqual(
+			{v["branch"] for v in checkin.todays_visits(branch=self.other)["visits"]}, {self.other}
+		)
+		self.assertNotIn(
+			member.name, [v["member"] for v in checkin.todays_visits(branch=self.home)["visits"]]
+		)
+
+	def test_follow_ups_follow_the_branch(self):
+		from netgainz.net_gainz.operations import enquiries
+
+		e = frappe.get_doc(
+			{
+				"doctype": "Enquiry",
+				"full_name": "B103 Prospect",
+				"source": "Walk-in",
+				"next_follow_up": today(),
+				"branch": self.other,
+			}
+		).insert(ignore_permissions=True)
+		due_other = enquiries.get_followups_due(branch=self.other)["due_today"]
+		due_home = enquiries.get_followups_due(branch=self.home)["due_today"]
+		self.assertIn(e.name, [r["enquiry"] for r in due_other])
+		self.assertNotIn(e.name, [r["enquiry"] for r in due_home])
+
+	# ---- the leak (trace finding F6) ------------------------------------------ #
+	def test_a_branch_limited_user_never_sees_another_branchs_money(self):
+		from netgainz.net_gainz.accounting import income_report
+		from netgainz.net_gainz.operations import checkin
+
+		self._enrol_at(self.other, "B103 Leak Other", 1000.0)
+		self._enrol_at(self.home, "B103 Leak Home", 5000.0)
+		home_member = frappe.get_doc({"doctype": "Member", "full_name": "B103 Home Visitor"}).insert(
+			ignore_permissions=True
+		)
+		checkin.record_check_in(home_member.name)
+
+		frappe.set_user(RESTRICTED_USER)
+		self.assertEqual(income_report.get_income()["collected"], 1000.0)
+		self.assertNotIn(home_member.name, [v["member"] for v in checkin.todays_visits()["visits"]])
+
+	def test_renewals_now_need_a_gym_role(self):
+		from netgainz.net_gainz.operations import renewals
+
+		frappe.set_user(OUTSIDER_USER)
+		with self.assertRaises(frappe.PermissionError):
+			renewals.get_renewals_due()

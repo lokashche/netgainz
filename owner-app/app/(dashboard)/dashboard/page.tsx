@@ -1,5 +1,6 @@
 import { frappeRequest, getGymSettings } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
+import { branchFilters, branchParam, currentBranch } from "@/lib/branchScope";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import type {
@@ -62,6 +63,12 @@ export default async function DashboardPage({
   const session = await getSession();
   if (!session.frappeCookies) redirect("/login");
 
+  // Stage 10.3: the branch chosen in the switcher ("" = all). Every figure below
+  // follows it — method calls get ?branch=, record lists a branch filter.
+  const branch = await currentBranch();
+  const bq = branchParam(branch);
+  const bf = branchFilters(branch);
+
   const settings = await getGymSettings(session.frappeCookies);
 
   const isCashBasis = settings.accounting_method === "Cash";
@@ -84,7 +91,7 @@ export default async function DashboardPage({
   // DS-6: what has been given away in discounts in the month being shown. Owner-only
   // on the backend, so a staff session simply gets nothing back and the line is not shown.
   const discountsRes = await frappeRequest<{ message: DiscountsThisMonth }>(
-    `api/method/netgainz.net_gainz.accounting.discount_report.discounts_this_month?start=${monthStart}&end=${monthEnd}`,
+    `api/method/netgainz.net_gainz.accounting.discount_report.discounts_this_month?start=${monthStart}&end=${monthEnd}${bq}`,
     { sessionCookie: session.frappeCookies }
   );
   const discountsGiven = discountsRes.data?.message;
@@ -95,7 +102,7 @@ export default async function DashboardPage({
   const membersPath = `api/resource/Member?fields=${encodeURIComponent(
     JSON.stringify(["name"])
   )}&filters=${encodeURIComponent(
-    JSON.stringify([["status", "=", "Active"]])
+    JSON.stringify([["status", "=", "Active"], ...bf])
   )}&limit=500`;
 
   // 2. Income this month — read from the books (Payment Entries / Sales Invoices) by
@@ -103,27 +110,27 @@ export default async function DashboardPage({
   //    deprecated fields nothing writes, so real payments used to show as ₹0.
   //    - Cash basis: money received this month (the same figure Profit First uses)
   //    - Accrual basis: membership fees billed this month
-  const incomePath = `api/method/netgainz.net_gainz.accounting.income_report.get_income?start=${monthStart}&end=${monthEnd}`;
+  const incomePath = `api/method/netgainz.net_gainz.accounting.income_report.get_income?start=${monthStart}&end=${monthEnd}${bq}`;
 
   // 3. Expenses this month
   const expensesMonthPath = `api/resource/Expense?fields=${encodeURIComponent(
     JSON.stringify(["name", "amount", "date"])
   )}&filters=${encodeURIComponent(
-    JSON.stringify([["date", "between", [monthStart, monthEnd]]])
+    JSON.stringify([["date", "between", [monthStart, monthEnd]], ...bf])
   )}&limit=500`;
 
   // 4. Overdue subscriptions
   const overdueSubsPath = `api/resource/Membership?fields=${encodeURIComponent(
     JSON.stringify(["name", "member_name", "balance_due", "month", "membership_plan"])
   )}&filters=${encodeURIComponent(
-    JSON.stringify([["status", "=", "Overdue"]])
+    JSON.stringify([["status", "=", "Overdue"], ...bf])
   )}&order_by=${encodeURIComponent("due_date asc")}&limit=500`;
 
   // 5. Partial subscriptions
   const partialSubsPath = `api/resource/Membership?fields=${encodeURIComponent(
     JSON.stringify(["name", "member_name", "balance_due", "month", "membership_plan"])
   )}&filters=${encodeURIComponent(
-    JSON.stringify([["status", "=", "Partial"]])
+    JSON.stringify([["status", "=", "Partial"], ...bf])
   )}&order_by=${encodeURIComponent("due_date asc")}&limit=500`;
 
   // 6. Recent subscriptions (last 5)
@@ -136,12 +143,12 @@ export default async function DashboardPage({
       "balance_due",
       "status",
     ])
-  )}&order_by=${encodeURIComponent("creation desc")}&limit=5`;
+  )}&filters=${encodeURIComponent(JSON.stringify(bf))}&order_by=${encodeURIComponent("creation desc")}&limit=5`;
 
   // 7. Recent expenses (last 5)
   const recentExpensesPath = `api/resource/Expense?fields=${encodeURIComponent(
     JSON.stringify(["name", "date", "category", "amount", "vendor"])
-  )}&order_by=${encodeURIComponent("date desc")}&limit=5`;
+  )}&filters=${encodeURIComponent(JSON.stringify(bf))}&order_by=${encodeURIComponent("date desc")}&limit=5`;
 
   // ── Parallel fetch ────────────────────────────────────────────────────────
 
@@ -191,19 +198,19 @@ export default async function DashboardPage({
       { sessionCookie: session.frappeCookies }
     ),
     frappeRequest<{ message: RenewalsDue }>(
-      `api/method/netgainz.net_gainz.operations.renewals.get_renewals_due`,
+      `api/method/netgainz.net_gainz.operations.renewals.get_renewals_due${branchParam(branch, "?")}`,
       { sessionCookie: session.frappeCookies }
     ),
     frappeRequest<{ message: ChurnRisk }>(
-      `api/method/netgainz.net_gainz.operations.checkin.get_churn_risk`,
+      `api/method/netgainz.net_gainz.operations.checkin.get_churn_risk${branchParam(branch, "?")}`,
       { sessionCookie: session.frappeCookies }
     ),
     frappeRequest<{ message: FollowupsDue }>(
-      `api/method/netgainz.net_gainz.operations.enquiries.get_followups_due`,
+      `api/method/netgainz.net_gainz.operations.enquiries.get_followups_due${branchParam(branch, "?")}`,
       { sessionCookie: session.frappeCookies }
     ),
     frappeRequest<{ message: AssessmentsDue }>(
-      `api/method/netgainz.net_gainz.operations.assessments.get_assessments_due`,
+      `api/method/netgainz.net_gainz.operations.assessments.get_assessments_due${branchParam(branch, "?")}`,
       { sessionCookie: session.frappeCookies }
     ),
   ]);
@@ -292,6 +299,7 @@ export default async function DashboardPage({
           <h1 className="text-2xl font-bold text-[#E6EDF7]">Dashboard</h1>
           <p className="text-sm text-[#8A97B2] mt-1">
             {isCashBasis ? "Cash basis" : "Accrual basis"} · {currentMonthName} {year}
+            {branch ? ` · ${branch} only` : ""}
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">

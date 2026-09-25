@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { frappeRequest } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
+import { branchParam, currentBranch } from "@/lib/branchScope";
 import type { CheckinResult, TodaysVisits } from "@/lib/types";
 
 const TODAYS_VISITS = "netgainz.net_gainz.operations.checkin.todays_visits";
@@ -13,7 +14,7 @@ export async function GET() {
   }
 
   const { data, status } = await frappeRequest<{ message: TodaysVisits }>(
-    `api/method/${TODAYS_VISITS}`,
+    `api/method/${TODAYS_VISITS}${branchParam(await currentBranch(), "?")}`,
     { sessionCookie: session.frappeCookies }
   );
   return NextResponse.json(data?.message ?? null, { status });

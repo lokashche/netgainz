@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { frappeRequest } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
+import { branchFilters, currentBranch } from "@/lib/branchScope";
 import type { Enquiry } from "@/lib/types";
 
 export async function GET(req: NextRequest) {
@@ -32,6 +33,8 @@ export async function GET(req: NextRequest) {
     filters.push(["status", "=", status]);
   }
   if (q) filters.push(["full_name", "like", `%${q}%`]);
+  // Stage 10.3: follow the branch switcher.
+  filters.push(...branchFilters(await currentBranch()));
 
   let path = `api/resource/Enquiry?fields=${encodeURIComponent(fields)}&limit=100&order_by=${encodeURIComponent("modified desc")}`;
   if (filters.length > 0) {

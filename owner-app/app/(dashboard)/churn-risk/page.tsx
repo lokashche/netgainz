@@ -1,5 +1,6 @@
 import { frappeRequest } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
+import { branchParam, currentBranch } from "@/lib/branchScope";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { ChurnRisk, ChurnRiskRow } from "@/lib/types";
@@ -24,7 +25,7 @@ export default async function ChurnRiskPage() {
   if (!session.frappeCookies) redirect("/login");
 
   const res = await frappeRequest<{ message: ChurnRisk }>(
-    `api/method/netgainz.net_gainz.operations.checkin.get_churn_risk`,
+    `api/method/netgainz.net_gainz.operations.checkin.get_churn_risk${branchParam(await currentBranch(), "?")}`,
     { sessionCookie: session.frappeCookies }
   );
   const data = res.data?.message;

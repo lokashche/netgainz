@@ -1,5 +1,6 @@
 import { frappeRequest } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
+import { branchParam, currentBranch } from "@/lib/branchScope";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { DiscountGroup, DiscountsGiven } from "@/lib/types";
@@ -62,7 +63,7 @@ export default async function DiscountsPage({ searchParams }: { searchParams: Se
   const period = monthRange(offset);
 
   const res = await frappeRequest<{ message: DiscountsGiven }>(
-    `api/method/netgainz.net_gainz.accounting.discount_report.discounts_given?start=${period.start}&end=${period.end}`,
+    `api/method/netgainz.net_gainz.accounting.discount_report.discounts_given?start=${period.start}&end=${period.end}${branchParam(await currentBranch())}`,
     { sessionCookie: session.frappeCookies }
   );
   const report = res.data?.message;

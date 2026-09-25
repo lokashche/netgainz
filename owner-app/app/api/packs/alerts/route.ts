@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { frappeRequest } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
+import { branchParam, currentBranch } from "@/lib/branchScope";
 import type { PackAlerts } from "@/lib/types";
 
 const ALERTS = "netgainz.net_gainz.operations.packs.get_pack_alerts_due";
@@ -11,7 +12,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { data, status } = await frappeRequest<{ message: PackAlerts }>(
-    `api/method/${ALERTS}`,
+    `api/method/${ALERTS}${branchParam(await currentBranch(), "?")}`,
     { sessionCookie: session.frappeCookies }
   );
   return NextResponse.json(data?.message ?? null, { status });

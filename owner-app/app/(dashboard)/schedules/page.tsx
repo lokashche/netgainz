@@ -1,5 +1,6 @@
 import { getGymSettings } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
+import { branchFilters, currentBranch } from "@/lib/branchScope";
 import { redirect } from "next/navigation";
 import { fetchListPage, readPageParams } from "@/lib/pagination";
 import Pagination from "@/app/components/Pagination";
@@ -54,6 +55,8 @@ export default async function SchedulesPage({
   const singular = settings.class_term_singular ?? "Class";
 
   const filters: string[][] = [];
+  // Stage 10.3: follow the branch switcher.
+  filters.push(...branchFilters(await currentBranch()));
   if (q) filters.push(["title", "like", `%${q}%`]);
 
   const requested = readPageParams(sp);

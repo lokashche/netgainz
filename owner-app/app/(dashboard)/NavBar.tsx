@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import LogoutButton from "./LogoutButton";
 import NavIcon from "@/app/components/NavIcon";
+import BranchSwitcher from "@/app/components/BranchSwitcher";
 
 type NavItem = { href: string; label: string };
 
@@ -342,8 +343,11 @@ export default function NavBar({
           </div>
         </div>
 
-        {/* Right: settings + who is signed in, and the phone menu button */}
+        {/* Right: branch switcher, settings + who is signed in, and the phone menu button */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          {/* Stage 10.3: "All branches" or one — every list and figure follows it.
+              Renders nothing for a one-branch gym. */}
+          <BranchSwitcher />
           <Link
             href="/settings"
             aria-label="Settings"

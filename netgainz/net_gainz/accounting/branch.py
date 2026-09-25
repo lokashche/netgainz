@@ -109,6 +109,57 @@ def stamp_default_branch(doc, method=None):
 			doc.branch = branch
 
 
+# --------------------------------------------------------------------------- #
+# Stage 10.3: the one branch-scoping seam every read goes through
+# --------------------------------------------------------------------------- #
+def allowed_branches(user=None) -> list[str] | None:
+	"""The branches ``user`` may see: ``None`` means every branch (no restriction).
+
+	A branch manager is limited by Frappe's own User Permission on Business Branch
+	(Stage 10.4 sets it from the owner-app); owner and admin have none."""
+	user = user or frappe.session.user
+	if user == "Administrator":
+		return None
+	rows = frappe.get_all(
+		"User Permission", filters={"user": user, "allow": "Business Branch"}, pluck="for_value"
+	)
+	return rows or None
+
+
+def scope(requested=None) -> list[str] | None:
+	"""Which branches a read should cover: the branch picked in the owner-app switcher
+	(``requested``), limited to what the user may see. ``None`` = all branches.
+
+	Every custom whitelisted read calls this: ``frappe.get_all`` and raw SQL ignore
+	User Permissions, so without it a branch-limited user would see every branch."""
+	allowed = allowed_branches()
+	if requested:
+		if allowed is not None and requested not in allowed:
+			frappe.throw(f"You do not have access to the {requested} branch.", frappe.PermissionError)
+		return [requested]
+	return allowed
+
+
+def filter_by_branch(filters, branches, field="branch"):
+	"""Add ``field IN branches`` to a get_all ``filters`` (dict or list form).
+	``branches`` of ``None`` leaves the filters untouched."""
+	if branches is None:
+		return filters
+	if filters is None:
+		return {field: ["in", branches]}
+	if isinstance(filters, dict):
+		return {**filters, field: ["in", branches]}
+	return [*filters, [field, "in", branches]]
+
+
+def scope_cost_centers(branches) -> list[str] | None:
+	"""The cost centers of ``branches`` — for reads over invoices and payments,
+	which carry a cost center rather than a branch. ``None`` = all."""
+	if branches is None:
+		return None
+	return [cc for b in branches if (cc := branch_cost_center(b))]
+
+
 @frappe.whitelist()
 def setup_branches(company=None) -> dict:
 	"""Owner-triggered: ensure the default branch exists. Mirrors the other

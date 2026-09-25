@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { frappeRequest } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
+import { currentBranch } from "@/lib/branchScope";
 import type { AssessmentsDue } from "@/lib/types";
 
 const DUE = "netgainz.net_gainz.operations.assessments.get_assessments_due";
@@ -13,6 +14,8 @@ export async function GET(req: NextRequest) {
   const withinDays = req.nextUrl.searchParams.get("within_days");
   const qs = new URLSearchParams();
   if (withinDays) qs.set("within_days", withinDays);
+  const branch = await currentBranch();
+  if (branch) qs.set("branch", branch);
 
   const { data, status } = await frappeRequest<{ message: AssessmentsDue }>(
     `api/method/${DUE}?${qs.toString()}`,

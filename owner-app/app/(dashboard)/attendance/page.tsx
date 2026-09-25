@@ -1,4 +1,5 @@
 import { getSession } from "@/lib/session";
+import { branchFilters, currentBranch } from "@/lib/branchScope";
 import { redirect } from "next/navigation";
 import { buildHref, fetchListPage, readPageParams } from "@/lib/pagination";
 import Pagination from "@/app/components/Pagination";
@@ -53,6 +54,8 @@ export default async function AttendancePage({
   const q = typeof sp.q === "string" ? sp.q : "";
 
   const filters: string[][] = [];
+  // Stage 10.3: follow the branch switcher.
+  filters.push(...branchFilters(await currentBranch()));
   if (status) filters.push(["status", "=", status]);
   if (q) filters.push(["member_name", "like", `%${q}%`]);
 
