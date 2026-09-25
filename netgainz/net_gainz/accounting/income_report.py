@@ -36,17 +36,18 @@ def _period(start=None, end=None):
 	return get_first_day(now), get_last_day(now)
 
 
-def billed_paise(start, end, cost_centers=None) -> int:
-	"""Ex-GST value of submitted membership invoices posted in [start, end], in
+def billed_paise(start, end, cost_centers=None, membership_only=True) -> int:
+	"""Ex-GST value of submitted membership invoices (every invoice when
+	``membership_only`` is off: packs and day passes too) posted in [start, end], in
 	integer paise. A credit note's totals are negative, so a refund billed back
 	reduces the figure without special-casing — the same shape as the cash read.
 	``cost_centers`` limits it to those branches (Stage 10.3)."""
 	if cost_centers is not None and not cost_centers:
 		return 0
 	params = {"start": getdate(start), "end": getdate(end)}
-	cc_clause = ""
+	cc_clause = f"AND {billing.MEMBERSHIP_INVOICE}" if membership_only else ""
 	if cost_centers is not None:
-		cc_clause = "AND si.cost_center IN %(cost_centers)s"
+		cc_clause += " AND si.cost_center IN %(cost_centers)s"
 		params["cost_centers"] = tuple(cost_centers)
 	rows = frappe.db.sql(
 		f"""
@@ -54,7 +55,6 @@ def billed_paise(start, end, cost_centers=None) -> int:
 		FROM `tabSales Invoice` si
 		WHERE si.docstatus = 1
 		  AND si.posting_date BETWEEN %(start)s AND %(end)s
-		  AND {billing.MEMBERSHIP_INVOICE}
 		  {cc_clause}
 		""",
 		params,
@@ -67,8 +67,9 @@ def income_for_period(start=None, end=None, branches=None) -> dict:
 	start, end = _period(start, end)
 	basis = deferred.accounting_method()
 	ccs = branch_mod.scope_cost_centers(branches)
-	collected = calc.to_rupees(billing.membership_collected_paise(start, end, cost_centers=ccs))
-	billed = calc.to_rupees(billed_paise(start, end, ccs))
+	# All gym income — memberships, packs, day passes.
+	collected = calc.to_rupees(billing.gym_collected_paise(start, end, cost_centers=ccs))
+	billed = calc.to_rupees(billed_paise(start, end, ccs, membership_only=False))
 	return {
 		"start": str(start),
 		"end": str(end),

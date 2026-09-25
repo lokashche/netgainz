@@ -206,6 +206,27 @@ class TestPacks(FrappeTestCase):
 		self.assertIn(result["day_pass"], {p.name for p in listing["passes"]})
 		self.assertGreaterEqual(listing["total"], 300.0)
 
+	def test_day_pass_cash_is_real_revenue_but_not_member_revenue(self):
+		"""The OP-4 promise ("lands in Profit First like a membership payment") was
+		never true: every cash read filtered to subscription invoices. Pinned now:
+		Profit First and the dashboard count it; coach commissions do not."""
+		from netgainz.net_gainz.accounting import billing, income_report
+		from netgainz.net_gainz.profit_first import instant_assessment
+
+		def reads():
+			return (
+				instant_assessment._cash_topline_paise(today(), today()),
+				income_report.income_for_period(today(), today())["collected"],
+				billing.membership_collected_paise(today(), today()),
+			)
+
+		pf, dash, members = reads()
+		packs.sell_day_pass("OP4 Revenue Guest", 300.0)
+		pf2, dash2, members2 = reads()
+		self.assertEqual(pf2 - pf, 30000)
+		self.assertEqual(dash2 - dash, 300.0)
+		self.assertEqual(members2, members)
+
 	def test_day_pass_requires_name_and_amount(self):
 		with self.assertRaises(frappe.ValidationError):
 			packs.sell_day_pass("", 300.0)
