@@ -24,7 +24,7 @@ this module creates, by those same names and the ``IF####`` member code.
 import frappe
 from frappe.utils import add_days, add_months, flt, get_first_day, getdate, today
 
-from netgainz.net_gainz.accounting import billing, branch, discounts, offers, provisioning
+from netgainz.net_gainz.accounting import billing, branch, discounts, offers, payment_modes, provisioning
 from netgainz.net_gainz.profit_first import accounts as pf_accounts
 from netgainz.net_gainz.profit_first.seed import seed_profit_first_defaults
 
@@ -252,6 +252,9 @@ def _settings(company):
 
 	branch.ensure_main_branch(company)
 	billing_cash_account(company)
+	# A fresh site has no UPI / Card / Bank Transfer Mode of Payment until this runs;
+	# the first digital payment would fail link validation without it.
+	payment_modes.setup_payment_modes(company)
 
 
 def billing_cash_account(company):
