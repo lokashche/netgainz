@@ -1216,3 +1216,20 @@ export type RepeatingExpenses = {
   due_now: number;
   max_catch_up: number;
 };
+
+// Stage 12.1: onboarding checklist.
+export interface SetupStep {
+  key: string;
+  label: string;
+  done: boolean;
+  href: string;
+}
+
+export interface SetupStatus {
+  company: string | null;
+  running: boolean;
+  error: string | null;
+  constitution: string | null;
+  gst_registered: 0 | 1;
+  steps: SetupStep[];
+}

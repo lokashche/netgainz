@@ -5,6 +5,8 @@
  "engine": "InnoDB",
  "field_order": [
   "accounting_section",
+  "constitution",
+  "gst_registered",
   "accounting_method",
   "days_until_due",
   "default_hsn_sac",
@@ -72,6 +74,21 @@
    "fieldname": "accounting_section",
    "fieldtype": "Section Break",
    "label": "Accounting"
+  },
+  {
+   "default": "Proprietorship",
+   "description": "How the business is legally set up. Decides where the owner's money sits in the books and which tax the Tax bucket saves for (Stage 12.3).",
+   "fieldname": "constitution",
+   "fieldtype": "Select",
+   "label": "Business Type",
+   "options": "Proprietorship\nPartnership\nLLP\nPrivate Limited"
+  },
+  {
+   "default": "0",
+   "description": "Tick once the business has a GSTIN. Not registered = no GST on invoices.",
+   "fieldname": "gst_registered",
+   "fieldtype": "Check",
+   "label": "GST Registered"
   },
   {
    "default": "Cash",
@@ -458,7 +475,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-09-25 09:47:44.070696",
+ "modified": "2026-09-25 18:00:00.000000",
  "modified_by": "Administrator",
  "module": "Net Gainz",
  "name": "Business Settings",
