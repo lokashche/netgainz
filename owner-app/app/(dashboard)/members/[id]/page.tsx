@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { Member, MemberStatus } from "@/lib/types";
 import { decodeId, extractFrappeError, toIntlPhone } from "@/lib/frappe";
 import ProgressPanel from "@/app/components/ProgressPanel";
+import BranchSelect from "@/app/components/BranchSelect";
 
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"];
 const CATEGORIES = ["Sport", "General"];
@@ -42,6 +43,7 @@ export default function MemberDetailPage({ params }: { params: Params }) {
   const [referred_by, setReferredBy] = useState("");
   const [status, setStatus] = useState<MemberStatus>("Active");
   const [inactive_reason, setInactiveReason] = useState("");
+  const [branch, setBranch] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -64,6 +66,7 @@ export default function MemberDetailPage({ params }: { params: Params }) {
         setReferredBy(m.referred_by ?? "");
         setStatus(m.status ?? "Active");
         setInactiveReason(m.inactive_reason ?? "");
+        setBranch(m.branch ?? "");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load member");
       } finally {
@@ -88,6 +91,7 @@ export default function MemberDetailPage({ params }: { params: Params }) {
     payload.emergency_contact = emergency_contact ? toIntlPhone(emergency_contact) : "";
     payload.date_of_joining = date_of_joining;
     payload.category = category;
+    if (branch) payload.branch = branch;
     payload.source_of_reference = source_of_reference;
     payload.referred_by = source_of_reference === "Referral" ? referred_by : "";
     payload.inactive_reason = status === "Inactive" ? inactive_reason : "";
@@ -256,6 +260,14 @@ export default function MemberDetailPage({ params }: { params: Params }) {
             className={inputClass}
           />
         </div>
+
+        {/* Home branch — only shown when the gym has more than one (Stage 10.2) */}
+        <BranchSelect
+          value={branch}
+          onChange={setBranch}
+          label="Home Branch"
+          hint="Where this member usually trains. Changing it does not move past payments."
+        />
 
         {/* Date of Joining + Category */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -82,12 +82,18 @@ def membership_alert(member: str) -> dict | None:
 
 
 @frappe.whitelist()
-def record_check_in(member: str, source: str = "Front Desk", notes: str | None = None) -> dict:
+def record_check_in(
+	member: str, source: str = "Front Desk", notes: str | None = None, branch: str | None = None
+) -> dict:
 	"""One desk tap: record the visit, return the row + the soft-prompt payload.
 
 	A repeat check-in the same day is allowed (a member can leave and return) —
 	``previous_today`` carries the earlier stamp so the desk can say
 	"already checked in at HH:MM" instead of blocking.
+
+	``branch`` is the desk's own branch (Stage 10.2): a member visiting another
+	location is recorded where they trained. Left empty, the visit falls back to the
+	member's home branch.
 	"""
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
 
@@ -98,7 +104,9 @@ def record_check_in(member: str, source: str = "Front Desk", notes: str | None =
 		order_by="timestamp desc",
 	)
 
-	doc = frappe.get_doc({"doctype": "Member Check-in", "member": member, "source": source, "notes": notes})
+	doc = frappe.get_doc(
+		{"doctype": "Member Check-in", "member": member, "source": source, "notes": notes, "branch": branch}
+	)
 	doc.insert()
 
 	return {

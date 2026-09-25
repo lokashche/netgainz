@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { extractFrappeError } from "@/lib/frappe";
 import LinkFieldPicker, { type LinkFieldOption } from "@/app/components/LinkFieldPicker";
+import BranchSelect from "@/app/components/BranchSelect";
 import type { EnquirySource, Member, Program } from "@/lib/types";
 
 async function fetchPrograms(q: string): Promise<LinkFieldOption[]> {
@@ -48,6 +49,7 @@ export default function NewEnquiryPage() {
   const [programLabel, setProgramLabel] = useState("");
   const [next_follow_up, setFollowUp] = useState("");
   const [notes, setNotes] = useState("");
+  const [branch, setBranch] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +66,7 @@ export default function NewEnquiryPage() {
     if (interested_program) payload.interested_program = interested_program;
     if (next_follow_up) payload.next_follow_up = next_follow_up;
     if (notes) payload.notes = notes;
+    if (branch) payload.branch = branch;
 
     try {
       const res = await fetch("/api/enquiries", {
@@ -204,6 +207,9 @@ export default function NewEnquiryPage() {
             </p>
           </div>
         </div>
+
+        {/* Branch — where the enquiry came in (Stage 10.2) */}
+        <BranchSelect value={branch} onChange={setBranch} hint="Which location this person asked at." />
 
         <div>
           <label className={labelClass}>Notes</label>

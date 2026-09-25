@@ -83,6 +83,7 @@ class SessionSchedule(Document):
 					"capacity": self.capacity,
 					"status": "Scheduled",
 					"class_schedule": self.name,
+					"branch": self.branch,
 					"notes": self.notes,
 				}
 			).insert(ignore_permissions=True)

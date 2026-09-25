@@ -3,6 +3,7 @@
 import { useEffect, useState, SyntheticEvent } from "react";
 import { extractFrappeError } from "@/lib/frappe";
 import type { Branch } from "@/lib/types";
+import { forgetBranches } from "@/lib/useBranches";
 
 const inputClass =
   "w-full px-3 py-2.5 rounded-lg text-sm focus:outline-none focus:ring-2 focus:border-transparent bg-[#1A2540] border border-[#1E2D45] text-[#E6EDF7] placeholder:text-[#8A97B2] focus:ring-[#22D38C] appearance-none";
@@ -36,7 +37,11 @@ export default function BranchesPage() {
 
   // Bumped after every change to fetch the list again.
   const [version, setVersion] = useState(0);
-  const reload = () => setVersion((v) => v + 1);
+  const reload = () => {
+    // Other screens' branch pickers must see the change.
+    forgetBranches();
+    setVersion((v) => v + 1);
+  };
 
   useEffect(() => {
     async function load() {

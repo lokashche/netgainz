@@ -11,6 +11,7 @@
   "title",
   "program",
   "coach",
+  "branch",
   "timing_section",
   "start_time",
   "duration_mins",
@@ -56,6 +57,14 @@
    "in_list_view": 1,
    "label": "Coach",
    "options": "Instructor"
+  },
+  {
+   "fieldname": "branch",
+   "fieldtype": "Link",
+   "label": "Branch",
+   "options": "Business Branch",
+   "in_standard_filter": 1,
+   "description": "Stage 10.2: the location this runs at. Stamped from the timetable / class when left empty."
   },
   {
    "fieldname": "timing_section",
@@ -155,7 +164,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-09 00:00:00.000000",
+ "modified": "2026-09-25 07:30:38.608997",
  "modified_by": "Administrator",
  "module": "Net Gainz",
  "name": "Session Schedule",

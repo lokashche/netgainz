@@ -201,6 +201,17 @@ doc_events = {
 	"Pack Session Use": {
 		"before_insert": "netgainz.net_gainz.accounting.branch.stamp_default_branch",
 	},
+	# Stage 10.2: classes run at a branch; a class takes its timetable's, a booking
+	# its class's.
+	"Session Schedule": {
+		"before_insert": "netgainz.net_gainz.accounting.branch.stamp_default_branch",
+	},
+	"Session": {
+		"before_insert": "netgainz.net_gainz.accounting.branch.stamp_default_branch",
+	},
+	"Session Booking": {
+		"before_insert": "netgainz.net_gainz.accounting.branch.stamp_default_branch",
+	},
 	"Day Pass": {
 		"before_insert": "netgainz.net_gainz.accounting.branch.stamp_default_branch",
 	},

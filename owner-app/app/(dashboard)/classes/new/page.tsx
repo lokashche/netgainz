@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { extractFrappeError } from "@/lib/frappe";
 import { useClassTerm } from "@/lib/useClassTerm";
 import LinkFieldPicker, { type LinkFieldOption } from "@/app/components/LinkFieldPicker";
+import BranchSelect from "@/app/components/BranchSelect";
 import type { Coach, Program, ClassSessionStatus } from "@/lib/types";
 
 async function fetchCoaches(q: string): Promise<LinkFieldOption[]> {
@@ -54,6 +55,7 @@ export default function NewClassPage() {
   const [capacity, setCapacity] = useState("0");
   const [status, setStatus] = useState<ClassSessionStatus>("Scheduled");
   const [notes, setNotes] = useState("");
+  const [branch, setBranch] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,6 +75,7 @@ export default function NewClassPage() {
     if (program) payload.program = program;
     if (coach) payload.coach = coach;
     if (notes) payload.notes = notes;
+    if (branch) payload.branch = branch;
 
     try {
       const res = await fetch("/api/class-sessions", {
@@ -160,6 +163,9 @@ export default function NewClassPage() {
             />
           </div>
         </div>
+
+        {/* Branch — where this class runs (Stage 10.2) */}
+        <BranchSelect value={branch} onChange={setBranch} />
 
         {/* Start Time */}
         <div>

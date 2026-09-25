@@ -15,6 +15,8 @@ export type Member = {
   referred_by?: string;
   status: MemberStatus;
   inactive_reason?: string;
+  /** Stage 10.2: the location this belongs to. */
+  branch?: string;
 };
 
 export type PlanType = 'Monthly' | 'Quarterly' | 'Half-Yearly' | 'Yearly' | 'Custom';
@@ -555,6 +557,8 @@ export type GymExpense = {
   is_recurring: 0 | 1;
   frequency?: ExpenseFrequency | '';
   notes?: string;
+  /** Stage 10.2: the location this belongs to. */
+  branch?: string;
 };
 
 // ── Operations Depth — Stage 6 (Coaches, Programs, Classes, Commissions) ─────
@@ -596,6 +600,8 @@ export type ClassSession = {
   class_schedule?: string; // Link to Class Schedule (set when auto-generated)
   notes?: string;
   booked_count?: number; // augmented by the BFF, not stored on the doc
+  /** Stage 10.2: the location this belongs to. */
+  branch?: string;
 };
 
 export type ClassSchedule = {
@@ -615,6 +621,8 @@ export type ClassSchedule = {
   on_sunday: 0 | 1;
   is_active: 0 | 1;
   notes?: string;
+  /** Stage 10.2: the location this belongs to. */
+  branch?: string;
 };
 
 export type ClassBookingStatus = 'Booked' | 'Attended' | 'No Show' | 'Cancelled';

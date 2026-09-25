@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { decodeId, extractFrappeError } from "@/lib/frappe";
 import { useClassTerm } from "@/lib/useClassTerm";
 import LinkFieldPicker, { type LinkFieldOption } from "@/app/components/LinkFieldPicker";
+import BranchSelect from "@/app/components/BranchSelect";
 import type { Coach, Program, ClassSchedule } from "@/lib/types";
 
 type Params = Promise<{ id: string }>;
@@ -67,6 +68,7 @@ export default function ScheduleDetailPage({ params }: { params: Params }) {
   const [days, setDays] = useState<Record<string, boolean>>({});
   const [is_active, setIsActive] = useState(true);
   const [notes, setNotes] = useState("");
+  const [branch, setBranch] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -84,6 +86,7 @@ export default function ScheduleDetailPage({ params }: { params: Params }) {
         setCapacity(String(s.capacity ?? 0));
         setIsActive(s.is_active !== 0);
         setNotes(s.notes ?? "");
+        setBranch(s.branch ?? "");
         const d: Record<string, boolean> = {};
         for (const def of DAY_DEFS) d[def.key] = s[def.field] === 1;
         setDays(d);
@@ -121,6 +124,7 @@ export default function ScheduleDetailPage({ params }: { params: Params }) {
       is_active: is_active ? 1 : 0,
       notes,
     };
+    if (branch) payload.branch = branch;
     for (const d of DAY_DEFS) payload[d.field] = days[d.key] ? 1 : 0;
 
     try {
@@ -266,6 +270,13 @@ export default function ScheduleDetailPage({ params }: { params: Params }) {
             ))}
           </div>
         </div>
+
+        {/* Branch — where this timetable runs (Stage 10.2) */}
+        <BranchSelect
+          value={branch}
+          onChange={setBranch}
+          hint="New classes from this timetable run here. Classes already created keep their branch."
+        />
 
         <div>
           <label className={labelClass}>Notes</label>

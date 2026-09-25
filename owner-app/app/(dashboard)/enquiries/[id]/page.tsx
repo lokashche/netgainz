@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { extractFrappeError } from "@/lib/frappe";
 import LinkFieldPicker, { type LinkFieldOption } from "@/app/components/LinkFieldPicker";
+import BranchSelect from "@/app/components/BranchSelect";
 import type {
   ConvertResult,
   Enquiry,
@@ -73,6 +74,7 @@ export default function EnquiryDetailPage({ params }: { params: Params }) {
   const [next_follow_up, setFollowUp] = useState("");
   const [lost_reason, setLostReason] = useState("");
   const [notes, setNotes] = useState("");
+  const [branch, setBranch] = useState("");
   const [member, setMember] = useState<string | null>(null);
   const [joined_on, setJoinedOn] = useState<string | null>(null);
 
@@ -96,6 +98,7 @@ export default function EnquiryDetailPage({ params }: { params: Params }) {
         setFollowUp(e.next_follow_up ?? "");
         setLostReason(e.lost_reason ?? "");
         setNotes(e.notes ?? "");
+        setBranch(e.branch ?? "");
         setMember(e.member ?? null);
         setJoinedOn(e.joined_on ?? null);
       } catch (err) {
@@ -127,6 +130,7 @@ export default function EnquiryDetailPage({ params }: { params: Params }) {
       lost_reason: status === "Lost" ? lost_reason : null,
       notes,
     };
+    if (branch) payload.branch = branch;
 
     try {
       const res = await fetch(`/api/enquiries/${encodeURIComponent(id)}`, {
@@ -375,6 +379,9 @@ export default function EnquiryDetailPage({ params }: { params: Params }) {
             )}
           </div>
         )}
+
+        {/* Branch — where the enquiry came in (Stage 10.2) */}
+        <BranchSelect value={branch} onChange={setBranch} hint="Which location this person asked at." />
 
         <div>
           <label className={labelClass}>Notes</label>

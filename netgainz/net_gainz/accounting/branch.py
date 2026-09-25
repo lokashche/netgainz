@@ -81,9 +81,17 @@ def branch_cost_center(branch=None, company=None) -> str | None:
 
 
 def resolve_default_branch(doc) -> str | None:
-	"""The branch to stamp on ``doc`` when it has none: any member-bearing doc
-	(Membership, Member Check-in, later OP doctypes) inherits its member's home
-	branch when set; everything else uses (and seeds) the default branch."""
+	"""The branch to stamp on ``doc`` when it has none.
+
+	A class takes its timetable's branch and a booking its class's (Stage 10.2) — a
+	member booking a class at another branch is still at THAT branch. Any other
+	member-bearing doc (Membership, Member Check-in, OP doctypes) inherits its
+	member's home branch; everything else uses (and seeds) the default branch."""
+	for link, doctype in (("class_session", "Session"), ("class_schedule", "Session Schedule")):
+		if doc.get(link):
+			linked_branch = frappe.db.get_value(doctype, doc.get(link), "branch")
+			if linked_branch:
+				return linked_branch
 	if doc.get("member"):
 		member_branch = frappe.db.get_value("Member", doc.member, "branch")
 		if member_branch:
