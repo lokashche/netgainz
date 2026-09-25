@@ -242,6 +242,8 @@ export default function NavBar({
     { href: "/members-report", label: "Members Report" },
     // Stage 11.2: each coach's month.
     { href: "/coach-report", label: "Coach Report" },
+    // Stage 11.3: are pack buyers using what they paid for?
+    { href: "/pack-report", label: "Pack Usage" },
     { href: "/assessments", label: "Assessments" },
     { href: "/commissions", label: "Commissions" },
     { href: "/renewals", label: "Renewals" },

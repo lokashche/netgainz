@@ -22,7 +22,7 @@ Profit First — exactly like a membership payment (R9: no PF code changes).
 """
 
 import frappe
-from frappe.utils import add_days, flt, getdate, today
+from frappe.utils import add_days, add_months, flt, get_first_day, getdate, today
 
 from netgainz.net_gainz import permissions
 from netgainz.net_gainz.accounting import (
@@ -515,3 +515,60 @@ def todays_day_passes(branch=None) -> dict:
 	for r in rows:
 		r["creation"] = str(r.creation)
 	return {"passes": rows, "count": len(rows), "total": sum(flt(r.amount) for r in rows)}
+
+
+@frappe.whitelist()
+def get_pack_report(months=12, branch=None) -> dict:
+	"""Stage 11.3: per pack sold in the last ``months`` months — how many, for how
+	much, sessions used, and packs that EXPIRED with sessions left (money taken for
+	sessions never used). Same used / expired rule as ``_refresh_status``, read-only:
+	sessions used counted from the use log, expiry from the calendar."""
+	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	since = add_months(get_first_day(today()), -(max(1, min(int(months), 36)) - 1))
+	purchases = frappe.get_all(
+		"Pack Purchase",
+		filters=branch_mod.filter_by_branch({"purchased_on": [">=", since]}, branch_mod.scope(branch)),
+		fields=["name", "session_pack", "expires_on", "sessions_total", "amount"],
+	)
+	used = dict(
+		frappe.get_all(
+			"Pack Session Use",
+			filters={"pack_purchase": ["in", [p.name for p in purchases] or [""]]},
+			fields=["pack_purchase", "count(*)"],
+			group_by="pack_purchase",
+			as_list=True,
+		)
+	)
+	td = getdate(today())
+	packs: dict[str, dict] = {}
+	for p in purchases:
+		total, n = p.sessions_total or 0, min(used.get(p.name, 0), p.sessions_total or 0)
+		r = packs.setdefault(
+			p.session_pack,
+			{
+				"pack": p.session_pack,
+				"sold": 0,
+				"amount": 0.0,
+				"sessions": 0,
+				"used": 0,
+				"active": 0,
+				"expired_unused": 0,
+				"sessions_lost": 0,
+				"value_lost": 0.0,
+			},
+		)
+		r["sold"] += 1
+		r["amount"] += flt(p.amount)
+		r["sessions"] += total
+		r["used"] += n
+		if n < total and td > getdate(p.expires_on):
+			r["expired_unused"] += 1
+			r["sessions_lost"] += total - n
+			r["value_lost"] += flt(p.amount) * (total - n) / total
+		elif n < total:
+			r["active"] += 1
+	rows = sorted(packs.values(), key=lambda r: -r["amount"])
+	for r in rows:
+		r["used_pct"] = round(100 * r["used"] / r["sessions"], 1) if r["sessions"] else None
+		r["amount"], r["value_lost"] = flt(r["amount"], 2), flt(r["value_lost"], 2)
+	return {"since": str(since), "rows": rows}

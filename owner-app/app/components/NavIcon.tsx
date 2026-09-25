@@ -91,6 +91,12 @@ const PATHS: Record<string, React.ReactNode> = {
       <path d="M3 20a6 6 0 0 1 12 0M17 20v-6M21 20v-9" />
     </>
   ),
+  "/pack-report": (
+    <>
+      <rect x="4" y="7" width="16" height="13" rx="2" />
+      <path d="M9 7V5a3 3 0 0 1 6 0v2M9 13h6" />
+    </>
+  ),
   "/staff": (
     <>
       <rect x="4" y="3" width="16" height="18" rx="2" />
