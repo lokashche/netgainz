@@ -10,8 +10,10 @@ natively as a ``Mode of Payment`` with a per-company default account, so this
 module just:
 
   (a) declares the mode set (mirrors the Subscription.payment_mode options),
-  (b) provisions the Mode of Payment records + company account mappings
-      (owner-triggered, touches config — mirrors PF / commission account setup),
+  (b) provisions the Mode of Payment records + company account mappings — in
+      bulk via ``setup_payment_modes``, and silently on first use: the first UPI
+      payment on a fresh site creates the UPI mode and, if the company has none, a
+      default bank ledger (no gym owner opens Desk to set these),
   (c) resolves a payment_mode to its paid-to account for the Payment Entry creator.
 
 The paid-to account is the TENANT's own ledger and is owner-configurable: Cash ->
@@ -53,12 +55,60 @@ def _resolve_account(company: str, mode: str, cash_account=None, bank_account=No
 		if not acc:
 			frappe.throw(f"No default Cash account is set for {company}.")
 		return acc
-	acc = bank_account or frappe.get_cached_value("Company", company, "default_bank_account")
+	acc = (
+		bank_account
+		or frappe.get_cached_value("Company", company, "default_bank_account")
+		or _ensure_default_bank_account(company)
+	)
 	if not acc:
 		frappe.throw(
-			f"No default Bank account is set for {company}. Set the company's Default "
-			"Bank Account (or pass bank_account) so digital payment modes can post."
+			f"No bank account could be found or created for {company}, so UPI, card and "
+			"bank-transfer payments have nowhere to post."
 		)
+	return acc
+
+
+def _ensure_default_bank_account(company: str) -> str | None:
+	"""Find or create the ledger digital payments land in, and make it the company's
+	default. Idempotent.
+
+	A fresh ERPNext company has a "Bank Accounts" group but no ledger under it and no
+	Default Bank Account, so the first UPI payment used to stop with an instruction to
+	set one in Desk — a screen no gym owner opens. Prefer a bank ledger the gym already
+	has; otherwise create "Bank Account" under the Bank group."""
+	acc = frappe.db.get_value(
+		"Account",
+		{"company": company, "account_type": "Bank", "is_group": 0, "disabled": 0},
+		"name",
+		order_by="creation asc",
+	)
+	if not acc:
+		parent = frappe.db.get_value(
+			"Account", {"company": company, "account_type": "Bank", "is_group": 1}, "name"
+		) or frappe.db.get_value(
+			"Account", {"company": company, "account_name": "Current Assets", "is_group": 1}, "name"
+		)
+		if not parent:
+			return None
+		acc = (
+			frappe.get_doc(
+				{
+					"doctype": "Account",
+					"account_name": "Bank Account",
+					"parent_account": parent,
+					"company": company,
+					"account_type": "Bank",
+					"is_group": 0,
+					"account_currency": frappe.get_cached_value("Company", company, "default_currency"),
+				}
+			)
+			.insert(ignore_permissions=True)
+			.name
+		)
+	frappe.db.set_value("Company", company, "default_bank_account", acc)
+	# Later reads in this same request go through the cache, which still holds the
+	# pre-update Company.
+	frappe.clear_document_cache("Company", company)
 	return acc
 
 
@@ -110,6 +160,11 @@ def paid_to_account(company: str, payment_mode: str) -> str:
 	Prefers the Mode of Payment's configured company account; falls back to the
 	company default cash/bank account by classification.
 	"""
+	# The member's payment_mode is one of PAYMENT_MODES, but a fresh site has only
+	# ERPNext's stock modes — the Payment Entry would fail its link check on "UPI".
+	# Create it here, on first use, rather than ask the owner to set anything up.
+	if payment_mode in PAYMENT_MODES:
+		_ensure_mode_of_payment(payment_mode)
 	if payment_mode and frappe.db.exists("Mode of Payment", payment_mode):
 		acc = frappe.db.get_value(
 			"Mode of Payment Account",

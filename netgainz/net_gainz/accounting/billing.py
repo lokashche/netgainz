@@ -578,8 +578,14 @@ def record_payment(
 	pe.paid_amount = amount
 	pe.received_amount = amount
 	pe.cost_center = branch.branch_cost_center(membership.get("branch"), company)
-	if reference_no:
-		pe.reference_no = reference_no
+	# ERPNext refuses money into a Bank-type account without a reference number, and
+	# UPI / Card / Bank Transfer / Online all settle into the bank ledger. The payment
+	# screen has no reference box, so a UPI payment failed with "Reference No and
+	# Reference Date is mandatory for Bank transaction". Fall back to the invoice being
+	# paid — traceable, and what the bank statement is reconciled against. Same rule as
+	# refunds.record_refund.
+	paid_into_bank = frappe.db.get_value("Account", pe.get("paid_to"), "account_type") == "Bank"
+	pe.reference_no = reference_no or (si_name if paid_into_bank else pe.get("reference_no"))
 	# Allocate at most what is owed; ERPNext turns the rest into unallocated_amount.
 	_allocate_oldest_first(pe, si_name, min(amount, outstanding))
 	pe.insert(ignore_permissions=True)
