@@ -52,3 +52,10 @@ class TestFinancialReports(FrappeTestCase):
 		frappe.set_user(DESK)
 		with self.assertRaises(frappe.PermissionError):
 			fr.get_financial_report("profit_and_loss", self.start, self.end)
+
+	def test_a_book_with_no_such_account_is_empty_not_the_whole_ledger(self):
+		fx.enrol_and_collect("FR Book", amount=500.0)
+		for acc in frappe.get_all("Account", filters={"account_type": "Bank", "is_group": 0}, pluck="name"):
+			frappe.db.set_value("Account", acc, "account_type", "")
+		data = fr.get_financial_report("bank_book", self.start, self.end)
+		self.assertEqual(data["rows"], [], "no bank account -> an empty Bank Book, not the whole ledger")

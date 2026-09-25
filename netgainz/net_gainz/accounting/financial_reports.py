@@ -169,16 +169,14 @@ def build(report, start, end, periodicity=None, branch=None) -> dict:
 	erp_report, kind, title = REPORTS[report]
 	company = branch_mod._company()
 	ccs = branch_mod.scope_cost_centers(branch_mod.scope(branch))
-	result = run(
-		erp_report, filters=_filters(kind, start, end, periodicity, company, ccs), ignore_prepared_report=True
-	)
+	filters = _filters(kind, start, end, periodicity, company, ccs)
+	result = run(erp_report, filters=filters, ignore_prepared_report=True)
 	columns = _columns(result.get("columns"), kind)
-	return {
-		"report": report,
-		"title": title,
-		"columns": columns,
-		"rows": _rows(result.get("result"), columns),
-	}
+	# ERPNext reads an EMPTY account list as "every account": a gym with no bank
+	# account would get the whole ledger as its Bank Book.
+	no_accounts = kind in ("cash", "bank") and not filters["account"]
+	rows = [] if no_accounts else _rows(result.get("result"), columns)
+	return {"report": report, "title": title, "columns": columns, "rows": rows}
 
 
 @frappe.whitelist()
