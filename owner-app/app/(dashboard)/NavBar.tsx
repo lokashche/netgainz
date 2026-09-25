@@ -15,6 +15,8 @@ const SETUP_ITEMS: NavItem[] = [
   { href: "/plans", label: "Plans" },
   { href: "/offers", label: "Offers" },
   { href: "/expense-categories", label: "Categories" },
+  // Stage 10.1: the gym's locations.
+  { href: "/branches", label: "Branches" },
 ];
 
 const CASHFLOW_ITEMS: NavItem[] = [

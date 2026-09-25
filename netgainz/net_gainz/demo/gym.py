@@ -250,7 +250,7 @@ def _settings(company):
 	pf.assessment_window = "This Month"
 	pf.save(ignore_permissions=True)
 
-	branch.ensure_main_branch(company)
+	branch.ensure_default_branch(company)
 	billing_cash_account(company)
 	# A fresh site has no UPI / Card / Bank Transfer Mode of Payment until this runs;
 	# the first digital payment would fail link validation without it.

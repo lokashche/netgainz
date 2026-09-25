@@ -55,6 +55,14 @@ def _customer(member_or_membership) -> str | None:
 	return frappe.db.get_value("Member", name, "customer") if name else None
 
 
+def _member_branch(member_or_membership) -> str | None:
+	"""The home branch of the member behind a Member or Membership name."""
+	name = member_or_membership
+	if frappe.db.exists("Membership", name):
+		return frappe.db.get_value("Membership", name, "branch")
+	return frappe.db.get_value("Member", name, "branch") if name else None
+
+
 def _receivable_account(customer, company) -> str | None:
 	return frappe.db.get_value(
 		"Party Account", {"parent": customer, "parenttype": "Customer", "company": company}, "account"
@@ -169,9 +177,12 @@ def record_advance(
 		pe.mode_of_payment = payment_mode
 	pe.paid_amount = amount
 	pe.received_amount = amount
-	pe.cost_center = branch.branch_cost_center(None, company)
-	if reference_no:
-		pe.reference_no = reference_no
+	pe.cost_center = branch.branch_cost_center(_member_branch(member_or_membership), company)
+	# ERPNext refuses money into a Bank-type account without a reference, and the
+	# owner-app has no reference box: a UPI advance failed the way UPI payments did.
+	# There is no invoice yet, so the member's customer is the traceable reference.
+	paid_into_bank = frappe.db.get_value("Account", pe.paid_to, "account_type") == "Bank"
+	pe.reference_no = reference_no or (f"Advance {customer}" if paid_into_bank else None)
 	pe.insert(ignore_permissions=True)
 	pe.submit()
 	return pe.name

@@ -11,6 +11,7 @@
   "company",
   "column_break_main",
   "cost_center",
+  "is_default",
   "disabled",
   "description"
  ],
@@ -46,6 +47,13 @@
   },
   {
    "default": "0",
+   "description": "The branch a new member, expense or sale lands in when none is chosen. Exactly one branch is the default.",
+   "fieldname": "is_default",
+   "fieldtype": "Check",
+   "label": "Default Branch"
+  },
+  {
+   "default": "0",
    "fieldname": "disabled",
    "fieldtype": "Check",
    "label": "Disabled"
@@ -59,7 +67,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-09 00:00:00.000000",
+ "modified": "2026-09-25 03:21:32.977245",
  "modified_by": "Administrator",
  "module": "Net Gainz",
  "name": "Business Branch",

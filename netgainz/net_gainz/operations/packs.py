@@ -428,7 +428,7 @@ def notify_pack_alerts():
 # day passes
 # --------------------------------------------------------------------------- #
 @frappe.whitelist()
-def sell_day_pass(guest_name, amount, phone=None, payment_mode="Cash", notes=None) -> dict:
+def sell_day_pass(guest_name, amount, phone=None, payment_mode="Cash", notes=None, branch_name=None) -> dict:
 	"""The walk-in quick sale: name + phone, cash/UPI — invoice + payment + the
 	pass record in one action."""
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
@@ -449,7 +449,9 @@ def sell_day_pass(guest_name, amount, phone=None, payment_mode="Cash", notes=Non
 		frappe.throw("Day passes cannot bill yet — set a default tax code in Settings.")
 	customer = _ensure_walkin_customer(company)
 
-	cost_center = branch.branch_cost_center(None, company)
+	# Stage 10.1: a walk-in pays at a branch; its money belongs to that branch.
+	branch_name = branch_name or branch.ensure_default_branch(company)
+	cost_center = branch.branch_cost_center(branch_name, company)
 	si, pe = _sell(
 		customer=customer,
 		item=item,
@@ -470,6 +472,7 @@ def sell_day_pass(guest_name, amount, phone=None, payment_mode="Cash", notes=Non
 			"sales_invoice": si,
 			"payment_entry": pe,
 			"notes": notes,
+			"branch": branch_name,
 		}
 	)
 	day_pass.insert()
