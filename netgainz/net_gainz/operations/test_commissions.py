@@ -92,3 +92,31 @@ class TestComputeCommissions(FrappeTestCase):
 	def test_total_includes_this_coach(self):
 		result = commissions.compute_commissions("2026-06-01", "2026-06-30")
 		self.assertGreaterEqual(result["total"], 400.0)
+
+	def test_coach_report_counts_members_classes_visits_and_commission(self):
+		session = frappe.get_doc(
+			{
+				"doctype": "Session",
+				"title": "Coach Report Class",
+				"coach": self.coach.name,
+				"start_time": "2026-06-10 07:00:00",
+				"status": "Completed",
+			}
+		).insert(ignore_permissions=True)
+		for member, status in ((self.members[0], "Attended"), (self.members[1], "No Show")):
+			frappe.get_doc(
+				{
+					"doctype": "Session Booking",
+					"class_session": session.name,
+					"member": member.name,
+					"coach": self.coach.name,
+					"start_time": "2026-06-10 07:00:00",
+					"status": status,
+				}
+			).insert(ignore_permissions=True)
+
+		report = commissions.get_coach_report("2026-06-01", "2026-06-30")
+		row = next(r for r in report["rows"] if r["coach"] == self.coach.name)
+		self.assertEqual((row["members"], row["classes"], row["bookings"], row["attended"]), (2, 1, 2, 1))
+		self.assertEqual(row["attendance_pct"], 50.0)
+		self.assertEqual(row["commission"], 400.0)  # the same figure as the Commissions page

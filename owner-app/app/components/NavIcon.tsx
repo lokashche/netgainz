@@ -85,6 +85,12 @@ const PATHS: Record<string, React.ReactNode> = {
       <circle cx="18" cy="6" r="2.5" />
     </>
   ),
+  "/coach-report": (
+    <>
+      <circle cx="9" cy="8" r="3" />
+      <path d="M3 20a6 6 0 0 1 12 0M17 20v-6M21 20v-9" />
+    </>
+  ),
   "/staff": (
     <>
       <rect x="4" y="3" width="16" height="18" rx="2" />

@@ -197,3 +197,78 @@ def setup_coach_commission_accounts(company: str | None = None) -> dict:
 
 	permissions.require_role(permissions.GYM_OWNER)
 	return setup_commission_accounts(company)
+
+
+@frappe.whitelist()
+def get_coach_report(start=None, end=None, branch=None) -> dict:
+	"""Stage 11.2: per coach for a period — active members assigned, classes run,
+	class bookings, attendance %, and commission (the SAME compute_commissions the
+	Commissions page uses). Members, classes and bookings follow the branch;
+	commission is whole-gym, so a branch-limited login does not get it."""
+	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branches = branch_mod.scope(branch)
+	start = getdate(start) if start else get_first_day(today())
+	end = getdate(end) if end else get_last_day(start)
+	period = [f"{start} 00:00:00", f"{end} 23:59:59"]
+
+	members = dict(
+		frappe.get_all(
+			"Member",
+			filters=branch_mod.filter_by_branch({"status": "Active", "coach": ["is", "set"]}, branches),
+			fields=["coach", "count(*)"],
+			group_by="coach",
+			as_list=True,
+		)
+	)
+	classes = dict(
+		frappe.get_all(
+			"Session",
+			filters=branch_mod.filter_by_branch(
+				{"coach": ["is", "set"], "status": ["!=", "Cancelled"], "start_time": ["between", period]},
+				branches,
+			),
+			fields=["coach", "count(*)"],
+			group_by="coach",
+			as_list=True,
+		)
+	)
+	visits: dict[str, dict] = {}
+	for coach, status, n in frappe.get_all(
+		"Session Booking",
+		filters=branch_mod.filter_by_branch(
+			{"coach": ["is", "set"], "status": ["!=", "Cancelled"], "start_time": ["between", period]},
+			branches,
+		),
+		fields=["coach", "status", "count(*)"],
+		group_by="coach, status",
+		as_list=True,
+	):
+		visits.setdefault(coach, {})[status] = n
+
+	commission = None
+	if not branch_mod.is_branch_limited():
+		commission = {l["coach"]: l["commission_amount"] for l in compute_commissions(start, end)["lines"]}
+
+	rows = []
+	for coach in frappe.get_all(
+		"Instructor", filters={"status": "Active"}, pluck="name", order_by="name asc"
+	):
+		v = visits.get(coach, {})
+		booked = sum(v.values())
+		rows.append(
+			{
+				"coach": coach,
+				"members": members.get(coach, 0),
+				"classes": classes.get(coach, 0),
+				"bookings": booked,
+				"attended": v.get("Attended", 0),
+				# Of bookings with a known outcome: bookings still "Booked" were never marked.
+				"attendance_pct": (
+					round(100 * v.get("Attended", 0) / (v.get("Attended", 0) + v.get("No Show", 0)), 1)
+					if v.get("Attended", 0) + v.get("No Show", 0)
+					else None
+				),
+				"commission": commission.get(coach, 0.0) if commission is not None else None,
+			}
+		)
+	return {"start": str(start), "end": str(end), "rows": rows, "commission_shown": commission is not None}
