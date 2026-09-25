@@ -46,7 +46,7 @@ class InstructorCommissionRun(Document):
 
 			self.company = pf_accounts.default_company()
 		# Branch dimension: a company-wide run sits on Main by default.
-		self.branch = self.branch or branch.ensure_main_branch(self.company)
+		self.branch = self.branch or branch.ensure_default_branch(self.company)
 
 		self.set("lines", [])
 		for line in result["lines"]:

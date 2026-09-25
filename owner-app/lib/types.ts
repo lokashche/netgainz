@@ -436,6 +436,17 @@ export type PFBucket =
   | 'Tax'
   | 'Pass-Through';
 
+/** Stage 10.1: a gym location (Business Branch), as the Branches screen lists it. */
+export type Branch = {
+  name: string;
+  branch_name: string;
+  is_default: 0 | 1;
+  disabled: 0 | 1;
+  description?: string;
+  /** Members whose home branch this is. */
+  members: number;
+};
+
 export type ExpenseCategory = {
   name: string;        // same as category_name
   category_name: string;

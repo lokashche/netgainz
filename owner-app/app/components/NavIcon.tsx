@@ -62,6 +62,12 @@ const PATHS: Record<string, React.ReactNode> = {
       <circle cx="8.2" cy="8.2" r="1.3" />
     </>
   ),
+  "/branches": (
+    <>
+      <path d="M12 21s-6-5.2-6-10a6 6 0 0 1 12 0c0 4.8-6 10-6 10z" />
+      <circle cx="12" cy="11" r="2.2" />
+    </>
+  ),
   "/expense-categories": (
     <>
       <path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />

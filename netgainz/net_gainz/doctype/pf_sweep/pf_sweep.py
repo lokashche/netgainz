@@ -41,7 +41,7 @@ class PFSweep(Document):
 		# Branch dimension: a company-wide sweep sits on Main by default; its
 		# cost center drives the posting (Main -> Company default, so unchanged
 		# for a single-branch tenant).
-		self.branch = self.branch or branch.ensure_main_branch(self.company)
+		self.branch = self.branch or branch.ensure_default_branch(self.company)
 
 		res = ia.get_target_allocation(self.assessment_window)
 		self.real_revenue = calc.to_rupees(res["real_revenue_paise"])
