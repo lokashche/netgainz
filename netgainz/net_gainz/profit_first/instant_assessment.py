@@ -56,7 +56,8 @@ def assess(start, end, window, period_label, branches=None, settings=None):
 	month-by-month report (Stage 11.6), so the two can never disagree.
 	Returns (result, passthrough_breakdown)."""
 	settings = settings or frappe.get_single("Profit First Settings")
-	topline_paise = billing.membership_collected_paise(
+	# Real Revenue is ALL gym income: memberships, session packs, day passes.
+	topline_paise = billing.gym_collected_paise(
 		start, end, cost_centers=branch_mod.scope_cost_centers(branches)
 	)
 	has_field = frappe.get_meta(EXPENSE_CATEGORY).has_field("pf_bucket")
@@ -154,10 +155,9 @@ def _period(window: str):
 # income                                                                      #
 # --------------------------------------------------------------------------- #
 def _cash_topline_paise(start, end) -> int:
-	# WP-11: one path — collected cash is always the ex-GST allocation of submitted
-	# Payment Entries against subscription-generated Sales Invoices. Shared with
-	# commissions._collected_between so the two can never diverge.
-	return billing.membership_collected_paise(start, end)
+	# WP-11: one path — collected cash is the ex-GST allocation of submitted Payment
+	# Entries. Unlike commissions, it counts packs and day passes too (all income).
+	return billing.gym_collected_paise(start, end)
 
 
 # --------------------------------------------------------------------------- #

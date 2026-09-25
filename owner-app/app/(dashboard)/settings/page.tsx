@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useEffect, SyntheticEvent } from "react";
 import { extractFrappeError } from "@/lib/frappe";
 import type {
@@ -190,7 +191,12 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-2xl">
-      <h1 className="text-2xl font-bold text-[#E6EDF7] mb-6">Settings</h1>
+      <div className="flex flex-wrap items-baseline justify-between gap-2 mb-6">
+        <h1 className="text-2xl font-bold text-[#E6EDF7]">Settings</h1>
+        <Link href="/setup" className="text-sm text-[#22D38C] hover:underline">
+          Setup checklist →
+        </Link>
+      </div>
 
       <form
         onSubmit={handleSubmit}

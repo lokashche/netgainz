@@ -1216,3 +1216,46 @@ export type RepeatingExpenses = {
   due_now: number;
   max_catch_up: number;
 };
+
+// Stage 12.1: onboarding checklist.
+export interface SetupStep {
+  key: string;
+  label: string;
+  done: boolean;
+  href: string;
+}
+
+export interface SetupStatus {
+  company: string | null;
+  running: boolean;
+  error: string | null;
+  constitution: string | null;
+  gst_registered: 0 | 1;
+  steps: SetupStep[];
+}
+
+// Stage 12.2: loaded billing history against the official books.
+export interface HistoryMonth {
+  month: string; // YYYY-MM
+  rows: number;
+  posted: number;
+  sheet_billed: number;
+  sheet_paid: number;
+  books_billed: number;
+  books_paid: number;
+  matches: boolean;
+}
+
+export interface HistoryBooks {
+  months: HistoryMonth[];
+  pending: number;
+  blocked: { membership: string; member: string; due_date: string; reason: string }[];
+  locked_until: string | null;
+  years_to_add: string[];
+  running: boolean;
+  last_run: {
+    posted: number;
+    failed: { member: string; due_date: string; reason: string }[];
+    finished: string;
+  } | null;
+}

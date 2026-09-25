@@ -915,12 +915,20 @@ def _members_to_customers(members):
 	return [c for m in members if (c := frappe.db.get_value("Member", m, "customer"))]
 
 
-def collected_paise(start, end, customers=None, cost_centers=None) -> int:
+# What counts as membership income, for every cash and billed read: an invoice the
+# member's Subscription raised, or a history invoice the loader posted for a loaded
+# Membership row (Stage 12.2 — history has no Subscription).
+MEMBERSHIP_INVOICE = "(IFNULL(si.subscription, '') != '' OR IFNULL(si.membership, '') != '')"
+
+
+def collected_paise(start, end, customers=None, cost_centers=None, membership_only=True) -> int:
 	"""Membership revenue **net of refunds** collected in [start, end], in integer
 	paise, read from Payment Entries.
 
 	Allocation-anchored: sums each Payment Entry Reference's ``allocated_amount``
-	for submitted Payment Entries against a subscription-generated Sales Invoice.
+	for submitted Payment Entries against a membership invoice
+	(:data:`MEMBERSHIP_INVOICE`), or against any invoice when ``membership_only``
+	is off (see :func:`gym_collected_paise`).
 	Unallocated cash (advances / money on account) is excluded by construction —
 	so are non-membership income, capital injections and transfers — and an advance
 	enters this total on the day it was RECEIVED, once it is applied to a membership
@@ -954,6 +962,7 @@ def collected_paise(start, end, customers=None, cost_centers=None) -> int:
 		return 0
 	params = {"start": getdate(start), "end": getdate(end)}
 	party_clause = ""
+	membership_clause = f"AND {MEMBERSHIP_INVOICE}" if membership_only else ""
 	if customers is not None:
 		party_clause = "AND pe.party IN %(customers)s"
 		params["customers"] = tuple(customers)
@@ -972,7 +981,7 @@ def collected_paise(start, end, customers=None, cost_centers=None) -> int:
 		  AND pe.payment_type IN ('Receive', 'Pay')
 		  AND pe.posting_date BETWEEN %(start)s AND %(end)s
 		  AND per.reference_doctype = 'Sales Invoice'
-		  AND si.subscription IS NOT NULL AND si.subscription != ''
+		  {membership_clause}
 		  AND si.grand_total != 0
 		  {party_clause}
 		""",
@@ -980,6 +989,14 @@ def collected_paise(start, end, customers=None, cost_centers=None) -> int:
 		as_dict=True,
 	)
 	return sum(calc.to_paise(r.amt) for r in rows)
+
+
+def gym_collected_paise(start, end, cost_centers=None) -> int:
+	"""ALL gym income collected — memberships, session packs, day passes — net of
+	refunds, ex-GST. Profit First's Real Revenue and the dashboard read this; coach
+	commissions stay on :func:`membership_collected_paise`. Every Sales Invoice on a
+	tenant is raised by NetGainz (no one invoices from Desk), so no filter is needed."""
+	return collected_paise(start, end, cost_centers=cost_centers, membership_only=False)
 
 
 def membership_collected_paise(start, end, members=None, cost_centers=None) -> int:

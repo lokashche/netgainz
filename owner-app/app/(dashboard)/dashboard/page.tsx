@@ -6,7 +6,7 @@ import Link from "next/link";
 import type {
   AssessmentsDue,
   ChurnRisk,
-  DiscountsThisMonth, FollowupsDue, IncomeForPeriod, Member, Subscription, SubscriptionStatus, GymExpense, RenewalsDue } from "@/lib/types";
+  DiscountsThisMonth, FollowupsDue, IncomeForPeriod, Member, Subscription, SubscriptionStatus, GymExpense, RenewalsDue, SetupStatus } from "@/lib/types";
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 
@@ -62,6 +62,13 @@ export default async function DashboardPage({
 }) {
   const session = await getSession();
   if (!session.frappeCookies) redirect("/login");
+
+  // Stage 12.1: a brand-new site has no business yet — every figure below would fail.
+  const setup = await frappeRequest<{ message: SetupStatus }>(
+    "api/method/netgainz.net_gainz.onboarding.get_setup_status",
+    { sessionCookie: session.frappeCookies }
+  );
+  if (setup.data?.message && !setup.data.message.company) redirect("/setup");
 
   // Stage 10.3: the branch chosen in the switcher ("" = all). Every figure below
   // follows it — method calls get ?branch=, record lists a branch filter.

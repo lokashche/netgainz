@@ -1,0 +1,45 @@
+name: Uptime
+
+# Stage 12.7. Every 15 minutes: is the owner app up, is the backend up, and is the
+# backend healthy (no fresh background errors, scheduled jobs still running)?
+# A failed run makes GitHub email whoever last changed this schedule — that email
+# IS the alert. Nothing to sign up for, nothing to configure on the site.
+#
+# GitHub pauses scheduled workflows after 60 days with no commits to the repo; it
+# emails before it does. Re-enable from the Actions tab if that ever happens.
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+env:
+  OWNER_APP: https://netgainz.vercel.app
+  BACKEND: https://netgainz.frappe.cloud
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Owner app answers
+        run: curl -fsS -m 30 -o /dev/null "$OWNER_APP/login"
+
+      - name: Backend answers
+        run: curl -fsS -m 30 "$BACKEND/api/method/ping" | grep -q pong
+
+      - name: Backend is healthy
+        run: |
+          code=$(curl -sS -m 30 -o health.json -w "%{http_code}" "$BACKEND/api/method/netgainz.net_gainz.health.check?minutes=30")
+          if [ "$code" = "417" ]; then
+            echo "::warning::Health check not deployed on the backend yet (press Deploy on Frappe Cloud)."
+            exit 0
+          fi
+          cat health.json; echo
+          python3 - <<'PY'
+          import json, sys
+          m = json.load(open("health.json"))["message"]
+          for p in m["problems"]:
+              print(f"::error::{p}")
+          sys.exit(0 if m["ok"] else 1)
+          PY

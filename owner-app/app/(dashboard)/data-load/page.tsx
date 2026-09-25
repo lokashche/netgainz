@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import HistoryBooksCard from "./HistoryBooksCard";
 import type {
   DataLoadProblem,
   DataLoadRunResult,
@@ -281,9 +282,12 @@ export default function DataLoadPage() {
       {steps === null && !error ? (
         <p className="text-[#8A97B2] text-sm">Loading…</p>
       ) : (
-        steps?.map((s, i) => (
-          <StepCard key={s.key} step={s} index={i} onLoaded={refresh} />
-        ))
+        <>
+          {steps?.map((s, i) => (
+            <StepCard key={s.key} step={s} index={i} onLoaded={refresh} />
+          ))}
+          {steps && <HistoryBooksCard index={steps.length} />}
+        </>
       )}
     </div>
   );

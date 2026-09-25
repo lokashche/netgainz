@@ -36,7 +36,8 @@ document or touches the ledger, which is why it can be trusted with a plain uplo
 button. Phase 2 begins with Subscriptions: memberships loaded strictly as history
 (``is_backfill`` forced on every row, so nothing starts billing), member codes
 translated to register names, and rows already present dropped before Data Import
-sees the file. Invoices and payments are still to come and need their own guards.
+sees the file. The money in those rows reaches the books through
+:mod:`history_books` (Stage 12.2), which has its own guards.
 """
 
 from __future__ import annotations
