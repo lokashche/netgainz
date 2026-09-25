@@ -167,6 +167,19 @@ export type DiscountsThisMonth = {
   profit_impact: DiscountPreview["profit_impact"];
 };
 
+/** The dashboard's income figure, read from the books (income_report.get_income). */
+export type IncomeForPeriod = {
+  start: string;
+  end: string;
+  basis: "Cash" | "Accrual";
+  /** Money received (ex-GST, net of refunds) — the figure Profit First uses. */
+  collected: number;
+  /** Membership fees billed (ex-GST, net of credit notes). */
+  billed: number;
+  /** `collected` on Cash basis, `billed` on Accrual. */
+  income: number;
+};
+
 /** DS-5: one line of a membership's discount history. */
 export type DiscountLogRow = {
   name: string;
