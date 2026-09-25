@@ -1,0 +1,50 @@
+name: Bug report
+description: Something in NetGainz does not work the way it should.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this. Please do not include real members'
+        names, phone numbers or payment details. Use made-up ones.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you did, step by step, and what you saw.
+      placeholder: |
+        1. Opened Members → Add member
+        2. Entered a phone number with a +44 prefix
+        3. Pressed Save — got "Invalid phone number"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect instead?
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where did it happen?
+      options:
+        - Owner app (the web app gym owners use)
+        - Backend / API
+        - Installation or setup
+        - Tests / CI
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: versions
+    attributes:
+      label: Versions
+      description: Run `bench version` and paste the output. For the owner app, say which browser and device.
+      render: shell
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error message or traceback
+      description: Paste any error text. It is formatted as code automatically.
+      render: shell

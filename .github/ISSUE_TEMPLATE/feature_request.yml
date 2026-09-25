@@ -1,0 +1,35 @@
+name: Feature idea
+description: Suggest something NetGainz should do for gym owners.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before writing code for a large idea, please open this issue first. NetGainz has a
+        few firm design rules (see CONTRIBUTING.md → House rules), and it is kinder to find
+        a mismatch early.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve for a gym?
+      description: Describe the gym owner's, staff member's or member's situation, not the solution yet.
+      placeholder: "When a member pays in cash at the desk, the owner cannot tell at day's end which staff member took it."
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: How do gyms deal with it today?
+      description: A workaround, another tool, a notebook... anything helps.
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Would you like to build it?
+      options:
+        - label: I'd like to work on this myself.
