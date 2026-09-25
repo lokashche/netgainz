@@ -157,7 +157,8 @@ class TestGymExpense(FrappeTestCase):
 		exp = self._make_expense(5000, cat)
 		acc = frappe.db.get_value("Expense Category", cat, "expense_account")
 		self.assertEqual(
-			frappe.db.get_value("Account", acc, ["account_name", "root_type"]), ("Owner's Drawings", "Equity")
+			frappe.db.get_value("Account", acc, ["account_name", "root_type", "account_type"]),
+			("Owner's Drawings", "Equity", "Equity"),
 		)
 		_, debits = self._je_lines(exp)
 		self.assertEqual(debits[acc], 5000.0)

@@ -30,6 +30,8 @@ const CASHFLOW_ITEMS: NavItem[] = [
   { href: "/discounts", label: "Discounts" },
   // Stage 10.5: earned, spent and profit per branch.
   { href: "/branch-profit", label: "Profit by Branch" },
+  // Stage 11.5: the official books (P&L, Balance Sheet, Cash Flow …).
+  { href: "/financial-reports", label: "Financial Reports" },
   // Go-live: members loaded from the gym's own records are not billed until the
   // owner switches them on here.
   { href: "/billing", label: "Start Billing" },

@@ -177,6 +177,10 @@ def _provision_category_account(category, company):
 			.insert(ignore_permissions=True)
 			.name
 		)
+	if root_type == "Equity":
+		# Cash Flow finds equity movements by account type; without it, drawings
+		# vanish from "Cash Flow from Financing" and net change in cash is overstated.
+		frappe.db.set_value("Account", account, "account_type", "Equity")
 	frappe.db.set_value("Expense Category", category, "expense_account", account)
 	return account
 
