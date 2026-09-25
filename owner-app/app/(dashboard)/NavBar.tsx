@@ -28,6 +28,8 @@ const CASHFLOW_ITEMS: NavItem[] = [
   { href: "/collections", label: "Money to Collect" },
   { href: "/expenses", label: "Expenses" },
   { href: "/discounts", label: "Discounts" },
+  // Stage 10.5: earned, spent and profit per branch.
+  { href: "/branch-profit", label: "Profit by Branch" },
   // Go-live: members loaded from the gym's own records are not billed until the
   // owner switches them on here.
   { href: "/billing", label: "Start Billing" },

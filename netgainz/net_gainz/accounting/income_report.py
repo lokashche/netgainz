@@ -20,7 +20,7 @@ does no arithmetic of its own.
 """
 
 import frappe
-from frappe.utils import get_first_day, get_last_day, getdate, today
+from frappe.utils import flt, get_first_day, get_last_day, getdate, today
 
 from netgainz.net_gainz import permissions
 from netgainz.net_gainz.accounting import billing, deferred
@@ -87,3 +87,56 @@ def get_income(start=None, end=None, branch=None) -> dict:
 	figure before, and this only corrects where it is read from."""
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
 	return income_for_period(start, end, branches=branch_mod.scope(branch))
+
+
+@frappe.whitelist()
+def get_branch_profit(start=None, end=None) -> dict:
+	"""Stage 10.5: earned, spent and profit per branch for a period.
+
+	Earned is GL income by cost center, so memberships, packs, day passes, refunds
+	and discounts all count, invoiced (the dashboard shows cash received). Spent is
+	Expense records by branch — the rule the dashboard and Profit First use, since
+	expenses only reach the ledger when the owner switches that on. A branch-limited
+	login gets only its own branches."""
+	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	start, end = _period(start, end)
+	branches = branch_mod.scope()
+	names = branches or frappe.get_all("Business Branch", order_by="is_default desc, name asc", pluck="name")
+	by_cc = {branch_mod.branch_cost_center(b): b for b in names}
+	totals = {b: {"branch": b, "earned": 0.0, "spent": 0.0} for b in names}
+	unassigned = {"branch": None, "earned": 0.0, "spent": 0.0}
+
+	for r in frappe.db.sql(
+		"""
+		SELECT gle.cost_center, SUM(gle.credit - gle.debit) AS net
+		FROM `tabGL Entry` gle
+		INNER JOIN `tabAccount` acc ON acc.name = gle.account
+		WHERE gle.is_cancelled = 0
+		  AND gle.company = %(company)s
+		  AND gle.posting_date BETWEEN %(start)s AND %(end)s
+		  AND acc.root_type = 'Income'
+		GROUP BY gle.cost_center
+		""",
+		{"start": start, "end": end, "company": branch_mod._company()},
+		as_dict=True,
+	):
+		b = by_cc.get(r.cost_center)
+		if b is None and branches is not None:
+			continue  # not a branch this login may see
+		(totals[b] if b else unassigned)["earned"] += flt(r.net)
+
+	for e in frappe.get_all(
+		"Expense",
+		filters=branch_mod.filter_by_branch(
+			{"docstatus": ["<", 2], "date": ["between", [start, end]]}, branches
+		),
+		fields=["branch", "sum(amount) as amount"],
+		group_by="branch",
+	):
+		(totals.get(e.branch) or unassigned)["spent"] += flt(e.amount)
+
+	out = list(totals.values()) + ([unassigned] if unassigned["earned"] or unassigned["spent"] else [])
+	for t in out:
+		t["earned"], t["spent"] = flt(t["earned"], 2), flt(t["spent"], 2)
+		t["profit"] = flt(t["earned"] - t["spent"], 2)
+	return {"start": str(start), "end": str(end), "branches": out}

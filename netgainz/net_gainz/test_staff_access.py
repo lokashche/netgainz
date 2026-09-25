@@ -97,6 +97,9 @@ class TestStaffAccess(FrappeTestCase):
 		frappe.set_user(MANAGER)
 		self.assertEqual(frappe.get_list("Member", pluck="name"), [self.other_member.name])
 		self.assertEqual(frappe.get_list("Membership", pluck="name"), [self.other_ms.name])
+		from netgainz.net_gainz.accounting import income_report
+
+		self.assertEqual([r["branch"] for r in income_report.get_branch_profit()["branches"]], [self.other])
 
 	def test_a_branch_manager_never_sees_another_branchs_invoices_or_payments(self):
 		frappe.set_user(MANAGER)
