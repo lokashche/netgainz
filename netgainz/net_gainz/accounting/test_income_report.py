@@ -115,7 +115,9 @@ class TestIncomeReport(FrappeTestCase):
 		# Its own category: CI's fresh site has none to borrow.
 		cat = "INC PnL Category"
 		if not frappe.db.exists("Expense Category", cat):
-			frappe.get_doc({"doctype": "Expense Category", "category_name": cat}).insert(ignore_permissions=True)
+			frappe.get_doc({"doctype": "Expense Category", "category_name": cat}).insert(
+				ignore_permissions=True
+			)
 		frappe.get_doc(
 			{
 				"doctype": "Expense",
