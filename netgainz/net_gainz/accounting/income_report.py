@@ -54,7 +54,7 @@ def billed_paise(start, end, cost_centers=None) -> int:
 		FROM `tabSales Invoice` si
 		WHERE si.docstatus = 1
 		  AND si.posting_date BETWEEN %(start)s AND %(end)s
-		  AND si.subscription IS NOT NULL AND si.subscription != ''
+		  AND {billing.MEMBERSHIP_INVOICE}
 		  {cc_clause}
 		""",
 		params,

@@ -915,6 +915,12 @@ def _members_to_customers(members):
 	return [c for m in members if (c := frappe.db.get_value("Member", m, "customer"))]
 
 
+# What counts as membership income, for every cash and billed read: an invoice the
+# member's Subscription raised, or a history invoice the loader posted for a loaded
+# Membership row (Stage 12.2 — history has no Subscription).
+MEMBERSHIP_INVOICE = "(IFNULL(si.subscription, '') != '' OR IFNULL(si.membership, '') != '')"
+
+
 def collected_paise(start, end, customers=None, cost_centers=None) -> int:
 	"""Membership revenue **net of refunds** collected in [start, end], in integer
 	paise, read from Payment Entries.
@@ -972,7 +978,7 @@ def collected_paise(start, end, customers=None, cost_centers=None) -> int:
 		  AND pe.payment_type IN ('Receive', 'Pay')
 		  AND pe.posting_date BETWEEN %(start)s AND %(end)s
 		  AND per.reference_doctype = 'Sales Invoice'
-		  AND si.subscription IS NOT NULL AND si.subscription != ''
+		  AND {MEMBERSHIP_INVOICE}
 		  AND si.grand_total != 0
 		  {party_clause}
 		""",

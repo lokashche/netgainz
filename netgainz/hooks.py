@@ -103,6 +103,8 @@ after_install = [
 	# ERPNext's default, two members with the same name collide and the second is
 	# LOST during an import. No tenant should have to know that, let alone set it.
 	"netgainz.net_gainz.accounting.provisioning.after_install",
+	# Stage 12.2: the mark on a loaded-history invoice; every income read names it.
+	"netgainz.net_gainz.loader.history_books.ensure_invoice_mark",
 ]
 
 # Uninstallation
