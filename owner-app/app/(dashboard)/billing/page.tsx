@@ -34,9 +34,12 @@ export default async function StartBillingPage() {
   // identical to "no data" everywhere else in the app.
   const failure = readiness
     ? null
-    : status === 401 || status === 403
-      ? "Your session with the backend has expired. Sign out and sign in again."
-      : (extractFrappeError(data) ?? `The backend returned ${status}.`);
+    : status === 403 && extractFrappeError(data)
+      ? // Stage 10.4: a refusal with a reason (e.g. a branch-limited login) — say it.
+        extractFrappeError(data)
+      : status === 401 || status === 403
+        ? "Your session with the backend has expired. Sign out and sign in again."
+        : (extractFrappeError(data) ?? `The backend returned ${status}.`);
 
   return (
     <div className="max-w-4xl">

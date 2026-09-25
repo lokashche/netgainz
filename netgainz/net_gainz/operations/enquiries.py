@@ -55,6 +55,7 @@ def convert_to_member(enquiry: str) -> dict:
 	on the membership screen the desk lands on next.
 	"""
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.assert_can_see("Enquiry", enquiry)
 
 	doc = frappe.get_doc("Enquiry", enquiry)
 	if doc.member and frappe.db.exists("Member", doc.member):

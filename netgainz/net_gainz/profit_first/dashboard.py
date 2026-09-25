@@ -8,6 +8,8 @@ reserve, when the next sweep is due, and any sweep awaiting approval.
 
 import frappe
 
+from netgainz.net_gainz import permissions
+from netgainz.net_gainz.accounting import branch as branch_mod
 from netgainz.net_gainz.profit_first import calc
 from netgainz.net_gainz.profit_first.schedule import next_sweep_date, parse_allocation_days
 
@@ -26,6 +28,8 @@ def _balance(account: str) -> float:
 
 @frappe.whitelist()
 def get_pf_dashboard() -> dict:
+	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.require_all_branches("Profit First")
 	settings = frappe.get_single("Profit First Settings")
 	if not settings.pf_enabled:
 		return {"enabled": False}

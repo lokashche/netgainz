@@ -177,6 +177,7 @@ def get_metrics(member: str | None = None, include_inactive: int = 0) -> list[di
 	fields on the form.
 	"""
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.assert_can_see("Member", member)
 
 	filters = {"is_builtin": 0}
 	if not int(include_inactive or 0):
@@ -219,6 +220,7 @@ def record_assessment(
 	and BMI are handled by the doctype — do not pass them as rows.
 	"""
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.assert_can_see("Member", member)
 
 	rows = frappe.parse_json(measurements) if isinstance(measurements, str) else (measurements or [])
 
@@ -336,6 +338,7 @@ def get_progress(member: str) -> dict:
 	are heading and how far along they are.
 	"""
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.assert_can_see("Member", member)
 
 	rows = _readings(member)
 
@@ -485,6 +488,7 @@ def set_target(
 	place, keeping the original starting point so the progress bar does not reset
 	every time the coach adjusts the goal."""
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.assert_can_see("Member", member)
 
 	name = frappe.db.get_value(
 		"Member Metric Target", {"member": member, "metric": metric, "is_active": 1}, "name"
@@ -525,6 +529,7 @@ def set_target(
 def clear_target(target: str) -> dict:
 	"""Retire a target without deleting the history behind it."""
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.assert_can_see("Member Metric Target", target)
 
 	doc = frappe.get_doc("Member Metric Target", target)
 	doc.is_active = 0

@@ -36,7 +36,9 @@ from __future__ import annotations
 import frappe
 from frappe.utils import flt, getdate, today
 
+from netgainz.net_gainz import permissions
 from netgainz.net_gainz.accounting import branch, currency, period_lock
+from netgainz.net_gainz.accounting import branch as branch_mod
 from netgainz.net_gainz.profit_first import accounts as pf_accounts
 
 WRITE_OFF_VOUCHER_TYPE = "Write Off Entry"
@@ -227,7 +229,6 @@ def reverse_write_off(journal_entry) -> str:
 @frappe.whitelist()
 def write_off_membership_dues(membership, amount=None, reason=None, posting_date=None) -> dict:
 	"""Owner/BFF: write off uncollectable dues on a membership."""
-	from netgainz.net_gainz import permissions
 
 	permissions.require_role(permissions.GYM_OWNER)
 	return write_off_membership(membership, amount=amount, reason=reason, posting_date=posting_date)
@@ -236,6 +237,7 @@ def write_off_membership_dues(membership, amount=None, reason=None, posting_date
 @frappe.whitelist()
 def get_write_off_context(membership) -> dict:
 	"""Owner/BFF: what could be written off here, and what already was."""
+	branch_mod.assert_can_see("Membership", membership)
 	from netgainz.net_gainz.accounting import billing
 
 	si_name = billing.current_invoice(membership)

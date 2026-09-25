@@ -39,6 +39,7 @@ import frappe
 from frappe.utils import flt, getdate, now_datetime, today
 
 from netgainz.net_gainz import permissions
+from netgainz.net_gainz.accounting import branch as branch_mod
 from netgainz.net_gainz.profit_first import calc
 
 # Discount kinds (stored values; the owner app renders "% off" / "Rs. off").
@@ -309,6 +310,8 @@ def authorise_discount(
 	that only matches THIS member, kind and size, for 15 minutes.
 
 	Chosen over a submittable approval document deliberately (the plan left it open):
+	branch_mod.assert_can_see("Member", member)
+	branch_mod.assert_can_see("Membership", membership)
 	an approval that needs a second screen and a later visit does not fit a front desk
 	with a member standing at it — the owner walks over, types the PIN, and the sign-up
 	continues.
@@ -566,6 +569,7 @@ def preview_discount(membership=None, price=None, discount_type=None, discount_v
 	Called before the grant is saved, so the proposed figures are passed in; an
 	existing ``membership`` supplies the price (and its own grant) when they are not.
 	"""
+	branch_mod.assert_can_see("Membership", membership)
 	doc = frappe.get_doc("Membership", membership) if membership else None
 	if doc:
 		doc.check_permission("read")

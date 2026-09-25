@@ -15,7 +15,9 @@ money, posts no ledger entries.
 import frappe
 from frappe.utils import add_months, get_first_day, get_last_day, getdate, today
 
+from netgainz.net_gainz import permissions
 from netgainz.net_gainz.accounting import billing
+from netgainz.net_gainz.accounting import branch as branch_mod
 from netgainz.net_gainz.profit_first import calc
 
 EXPENSE_CATEGORY = "Expense Category"
@@ -29,6 +31,8 @@ def get_instant_assessment(window: str | None = None):
 	``window`` optionally overrides the configured Assessment Window
 	("Trailing 12 Months" or "This Month").
 	"""
+	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.require_all_branches("Profit First")
 	settings = frappe.get_single("Profit First Settings")
 	if not settings.pf_enabled:
 		return {"enabled": False}

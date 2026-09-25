@@ -30,6 +30,9 @@ import frappe
 from frappe import _
 from frappe.utils import add_months, getdate, today
 
+from netgainz.net_gainz import permissions
+from netgainz.net_gainz.accounting import branch as branch_mod
+
 #: How many missed periods a single run will raise before giving up on the backlog.
 MAX_CATCH_UP = 3
 
@@ -140,9 +143,9 @@ def generate_recurring_expenses(as_of=None) -> dict:
 @frappe.whitelist()
 def get_repeating(as_of=None) -> dict:
 	"""Owner/BFF: what repeats, and what is waiting to be raised."""
-	from netgainz.net_gainz import permissions
 
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.require_all_branches("Repeating expenses")
 	rows = due_repeats(as_of)
 	return {
 		"rows": rows,
@@ -154,7 +157,6 @@ def get_repeating(as_of=None) -> dict:
 @frappe.whitelist()
 def run_now(as_of=None) -> dict:
 	"""Owner/BFF: raise the waiting drafts now rather than waiting for tonight."""
-	from netgainz.net_gainz import permissions
 
 	permissions.require_role(permissions.GYM_OWNER)
 	return generate_recurring_expenses(as_of)

@@ -28,6 +28,9 @@ expect: they pay for their first full period starting the day the free one stops
 import frappe
 from frappe.utils import add_days, getdate, today
 
+from netgainz.net_gainz import permissions
+from netgainz.net_gainz.accounting import branch as branch_mod
+
 TRIAL_STATUS = "Trial"
 
 
@@ -117,13 +120,15 @@ def trials_ending(within_days=7) -> dict:
 	Read-only. A trial ending is the single most useful follow-up a gym has: the member
 	is in the building today and paying from tomorrow.
 	"""
+	# Had no role check before Stage 10.4; a branch manager sees their branch only.
+	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
 	within = int(within_days or 7)
 	td = getdate(today())
 	horizon = add_days(td, within)
 
 	rows = frappe.get_all(
 		"Membership",
-		filters={"trial_ends_on": [">=", td]},
+		filters=branch_mod.filter_by_branch({"trial_ends_on": [">=", td]}, branch_mod.scope()),
 		fields=[
 			"name",
 			"member",
@@ -154,6 +159,8 @@ def trial_summary(start=None, end=None) -> dict:
 	least once — the honest test, since the first invoice only exists once the trial
 	ended. Trials still running are counted separately rather than as failures.
 	"""
+	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.require_all_branches("The trial summary")
 	filters = {"trial_ends_on": ["is", "set"]}
 	if start and end:
 		filters["creation"] = ["between", [start, end]]

@@ -438,6 +438,18 @@ export type PFBucket =
   | 'Tax'
   | 'Pass-Through';
 
+/** Stage 10.4: a gym login, as the Staff screen lists it. */
+export type StaffLogin = {
+  user: string;
+  full_name: string;
+  enabled: 0 | 1;
+  role: "Gym Owner" | "Gym Staff";
+  /** Branches this login is limited to; empty = every branch. */
+  branches: string[];
+  last_login: string | null;
+  is_me: boolean;
+};
+
 /** Stage 10.1: a gym location (Business Branch), as the Branches screen lists it. */
 export type Branch = {
   name: string;

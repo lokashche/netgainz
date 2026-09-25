@@ -96,7 +96,13 @@ def resolve_default_branch(doc) -> str | None:
 		member_branch = frappe.db.get_value("Member", doc.member, "branch")
 		if member_branch:
 			return member_branch
-	return ensure_default_branch(doc.get("company"))
+	default = ensure_default_branch(doc.get("company"))
+	# Stage 10.4: a branch manager's new records land in THEIR branch — the gym's
+	# default may be one they cannot even see.
+	allowed = allowed_branches()
+	if allowed and default not in allowed:
+		return allowed[0]
+	return default
 
 
 def stamp_default_branch(doc, method=None):
@@ -138,6 +144,35 @@ def scope(requested=None) -> list[str] | None:
 			frappe.throw(f"You do not have access to the {requested} branch.", frappe.PermissionError)
 		return [requested]
 	return allowed
+
+
+def is_branch_limited(user=None) -> bool:
+	"""True for a login the owner has limited to some branches (Stage 10.4)."""
+	return allowed_branches(user) is not None
+
+
+def require_all_branches(what="This screen") -> None:
+	"""For gym-wide reads (Profit First, commissions, go-live lists) that cannot be
+	cut by branch: a branch-limited login is refused rather than shown every
+	branch's money."""
+	if is_branch_limited():
+		frappe.throw(
+			f"{what} covers every branch, and your login is limited to your own branch.",
+			frappe.PermissionError,
+		)
+
+
+def assert_can_see(doctype, name) -> None:
+	"""A branch-limited login may only open records of its own branches (Stage 10.4).
+
+	Single-record reads and actions (a membership's payments, refund context,
+	assessments …) take a name from the request; without this a branch manager
+	could open another branch's member by editing a link. Frappe's own
+	``has_permission`` applies the User Permission on Business Branch."""
+	if not name or not is_branch_limited():
+		return
+	if not frappe.has_permission(doctype, "read", doc=name):
+		frappe.throw(f"This {doctype.lower()} belongs to another branch.", frappe.PermissionError)
 
 
 def filter_by_branch(filters, branches, field="branch"):

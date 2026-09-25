@@ -29,6 +29,7 @@ from frappe.utils import add_days, add_to_date, flt, getdate, today
 
 from netgainz.net_gainz import permissions
 from netgainz.net_gainz.accounting import billing, provisioning, refunds, trials
+from netgainz.net_gainz.accounting import branch as branch_mod
 
 REFUND_POLICY_NONE = "No refund"
 REFUND_POLICY_PRORATED = "Prorated unused days"
@@ -124,6 +125,7 @@ def freeze_membership(membership, from_date, to_date, reason=None) -> dict:
 	and the desk simply doesn't invoice a frozen member.
 	"""
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.assert_can_see("Membership", membership)
 
 	ms = billing._as_doc("Membership", membership)
 	_assert_not_cancelled(ms)
@@ -186,6 +188,7 @@ def unfreeze_membership(freeze, on_date=None) -> dict:
 	"""The member is back early: shorten the freeze to end yesterday and shift
 	the billing dates back by the days not actually taken."""
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.assert_can_see("Membership Freeze", freeze)
 
 	frz = frappe.get_doc("Membership Freeze", freeze)
 	on_date = getdate(on_date or today())
@@ -231,6 +234,7 @@ def change_plan(membership, new_plan, new_price=None, change_date=None) -> dict:
 	upgrades and downgrades; no surcharge path exists or is needed.
 	"""
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.assert_can_see("Membership", membership)
 
 	ms = billing._as_doc("Membership", membership)
 	_assert_not_cancelled(ms)
@@ -311,6 +315,7 @@ def cancel_membership(membership, reason=None) -> dict:
 	stand either way (collect or write off — never silently forgiven).
 	"""
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.assert_can_see("Membership", membership)
 
 	ms = billing._as_doc("Membership", membership)
 	_assert_not_cancelled(ms)
@@ -360,6 +365,8 @@ def transfer_membership(membership, to_member) -> dict:
 	and start a new one for the receiver carrying the remaining paid value as a
 	first-invoice credit. Branch transfer parks until Stage 11."""
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.assert_can_see("Membership", membership)
+	branch_mod.assert_can_see("Member", to_member)
 
 	ms = billing._as_doc("Membership", membership)
 	_assert_not_cancelled(ms)

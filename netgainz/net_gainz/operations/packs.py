@@ -190,6 +190,7 @@ def sell_pack(member, session_pack, payment_mode="Cash", price=None, notes=None)
 	``price`` overrides the pack's list price for THIS sale (gyms negotiate —
 	same philosophy as per-member membership pricing)."""
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.assert_can_see("Member", member)
 
 	company = _company()
 	if not company:
@@ -269,6 +270,7 @@ def _refresh_status(purchase) -> str:
 def use_session(pack_purchase, note=None) -> dict:
 	"""Burn one session off a pack — a PT booking or a desk tap."""
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.assert_can_see("Pack Purchase", pack_purchase)
 
 	purchase = frappe.get_doc("Pack Purchase", pack_purchase)
 	status = _refresh_status(purchase)

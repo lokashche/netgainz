@@ -32,6 +32,7 @@ import frappe
 from frappe.model.document import Document
 from frappe.utils import add_days, flt, getdate, today
 
+from netgainz.net_gainz import permissions
 from netgainz.net_gainz.accounting import (
 	billing_intervals,
 	branch,
@@ -42,6 +43,7 @@ from netgainz.net_gainz.accounting import (
 	provisioning,
 	trials,
 )
+from netgainz.net_gainz.accounting import branch as branch_mod
 from netgainz.net_gainz.profit_first import accounts as pf_accounts
 from netgainz.net_gainz.profit_first import calc
 
@@ -1008,6 +1010,7 @@ def record_membership_payment(
 	from netgainz.net_gainz.accounting import advances
 
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.assert_can_see("Membership", membership)
 	pe = record_payment(
 		membership,
 		amount,
@@ -1031,6 +1034,7 @@ def generate_membership_invoice(membership, posting_date=None) -> dict:
 	from netgainz.net_gainz import permissions
 
 	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.assert_can_see("Membership", membership)
 	company = _company()
 	ensure_subscription(membership, company)
 	# DS-4: refuse to bill a member whose free trial is still running. ERPNext decides
@@ -1054,6 +1058,8 @@ def get_membership_obligations(membership) -> dict:
 
 	Serialised straight from :func:`open_obligations`, so the owner app shows the
 	same rows the backend bills and allocates against, in either billing mode."""
+	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branch_mod.assert_can_see("Membership", membership)
 	from netgainz.net_gainz.accounting import advances, refunds, writeoff
 
 	rows = open_obligations(membership)
@@ -1095,6 +1101,8 @@ def unbillable_memberships() -> dict:
 		fields=["name", "member", "member_name", "membership_plan", "tariff", "subscription"],
 		limit_page_length=0,
 	):
+		permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+		branch_mod.require_all_branches("This list")
 		if is_billable(ms.name):
 			continue
 		plan_amount = (

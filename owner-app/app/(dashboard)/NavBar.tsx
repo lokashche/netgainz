@@ -18,6 +18,8 @@ const SETUP_ITEMS: NavItem[] = [
   { href: "/expense-categories", label: "Categories" },
   // Stage 10.1: the gym's locations.
   { href: "/branches", label: "Branches" },
+  // Stage 10.4: logins, and which branches they may see.
+  { href: "/staff", label: "Staff" },
 ];
 
 const CASHFLOW_ITEMS: NavItem[] = [
