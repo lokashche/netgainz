@@ -182,3 +182,20 @@ class TestStaffAccess(FrappeTestCase):
 		frappe.set_user(OWNER)
 		staff_access.set_staff_enabled(MANAGER, 0)
 		self.assertEqual(frappe.db.get_value("User", MANAGER, "enabled"), 0)
+
+	def test_per_branch_profit_first_shows_a_manager_their_own_branch(self):
+		from netgainz.net_gainz.profit_first import instant_assessment
+
+		frappe.db.set_single_value("Profit First Settings", "pf_enabled", 1)
+		frappe.db.set_single_value("Business Settings", "pf_per_branch", 1)
+		self.addCleanup(frappe.db.set_single_value, "Business Settings", "pf_per_branch", 0)
+		frappe.set_user(MANAGER)
+		result = instant_assessment.get_instant_assessment("This Month")
+		self.assertEqual(result["branches"], [self.other])
+		self.assertEqual(result["topline"], 1000.0)  # the other branch's payment only
+
+		frappe.set_user("Administrator")
+		frappe.db.set_single_value("Business Settings", "pf_per_branch", 0)
+		frappe.set_user(MANAGER)
+		with self.assertRaises(frappe.PermissionError):
+			instant_assessment.get_instant_assessment("This Month")

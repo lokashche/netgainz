@@ -404,6 +404,8 @@ export type GymSettings = {
   member_id_prefix: string;
   commission_percentage_basis?: CommissionPercentageBasis;
   commission_post_to_ledger?: 0 | 1;
+  /** Stage 10.6: Profit First follows the branch switcher. */
+  pf_per_branch?: 0 | 1;
   commission_expense_account?: string;
   commission_payable_account?: string;
   /** DS-5: the discount policy. */

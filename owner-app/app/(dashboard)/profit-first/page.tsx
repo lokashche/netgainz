@@ -1,5 +1,6 @@
 import { extractFrappeError, frappeRequest } from "@/lib/frappe";
 import { getSession } from "@/lib/session";
+import { branchParam, currentBranch } from "@/lib/branchScope";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { AssessmentRow, InstantAssessment, PFDashboard } from "@/lib/types";
@@ -63,7 +64,7 @@ export default async function ProfitFirstPage({
 
   const [res, dashRes] = await Promise.all([
     frappeRequest<{ message: InstantAssessment }>(
-      `api/method/netgainz.net_gainz.profit_first.instant_assessment.get_instant_assessment${qs}`,
+      `api/method/netgainz.net_gainz.profit_first.instant_assessment.get_instant_assessment${qs}${branchParam(await currentBranch(), qs ? "&" : "?")}`,
       { sessionCookie: session.frappeCookies }
     ),
     frappeRequest<{ message: PFDashboard }>(

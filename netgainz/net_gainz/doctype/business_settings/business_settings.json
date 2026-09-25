@@ -26,6 +26,7 @@
   "program_term_plural",
   "commissions_section",
   "commission_percentage_basis",
+  "pf_per_branch",
   "commission_post_to_ledger",
   "column_break_comm",
   "commission_expense_account",
@@ -120,6 +121,13 @@
    "fieldtype": "Select",
    "label": "Percentage Commission Basis",
    "options": "Assigned Member Revenue\nAll Gym Revenue"
+  },
+  {
+   "default": "0",
+   "fieldname": "pf_per_branch",
+   "fieldtype": "Check",
+   "label": "Profit First per branch",
+   "description": "Stage 10.6: off = one Profit First assessment for the whole gym. On = the assessment follows the branch switcher, and a branch manager sees their own branch's. Sweeps stay whole-gym either way."
   },
   {
    "default": "0",
@@ -450,7 +458,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-08-11 16:00:00.000000",
+ "modified": "2026-09-25 08:47:56.571564",
  "modified_by": "Administrator",
  "module": "Net Gainz",
  "name": "Business Settings",
