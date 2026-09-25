@@ -44,7 +44,18 @@ def get_instant_assessment(window: str | None = None, branch: str | None = None)
 
 	window = window or settings.assessment_window or "Trailing 12 Months"
 	start, end, period_label = _period(window)
+	result, passthrough_breakdown = assess(start, end, window, period_label, branches, settings)
+	result["enabled"] = True
+	result["passthrough_breakdown"] = passthrough_breakdown
+	result["branches"] = branches
+	return result
 
+
+def assess(start, end, window, period_label, branches=None, settings=None):
+	"""The assessment for any period — shared by the page (one window) and the
+	month-by-month report (Stage 11.6), so the two can never disagree.
+	Returns (result, passthrough_breakdown)."""
+	settings = settings or frappe.get_single("Profit First Settings")
 	topline_paise = billing.membership_collected_paise(
 		start, end, cost_centers=branch_mod.scope_cost_centers(branches)
 	)
@@ -66,10 +77,7 @@ def get_instant_assessment(window: str | None = None, branch: str | None = None)
 		# future exclusion source.
 		has_pf_bucket_field=has_field,
 	)
-	result["enabled"] = True
-	result["passthrough_breakdown"] = passthrough_breakdown
-	result["branches"] = branches
-	return result
+	return result, passthrough_breakdown
 
 
 def get_target_allocation(window: str | None = None) -> dict:

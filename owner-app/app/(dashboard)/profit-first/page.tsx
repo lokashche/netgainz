@@ -128,12 +128,20 @@ export default async function ProfitFirstPage({
           says it should.
         </p>
       </div>
-      <Link
-        href="/profit-first/sweeps"
-        className="text-sm font-medium px-3 py-2 rounded-lg text-[#E6EDF7] bg-[#1A2540] border border-[#1E2D45] hover:bg-[#22304d] transition-colors whitespace-nowrap"
-      >
-        Sweeps →
-      </Link>
+      <div className="flex gap-2">
+        <Link
+          href="/profit-first/reports"
+          className="text-sm font-medium px-3 py-2 rounded-lg text-[#E6EDF7] bg-[#1A2540] border border-[#1E2D45] hover:bg-[#22304d] transition-colors whitespace-nowrap"
+        >
+          Reports →
+        </Link>
+        <Link
+          href="/profit-first/sweeps"
+          className="text-sm font-medium px-3 py-2 rounded-lg text-[#E6EDF7] bg-[#1A2540] border border-[#1E2D45] hover:bg-[#22304d] transition-colors whitespace-nowrap"
+        >
+          Sweeps →
+        </Link>
+      </div>
     </div>
   );
 
