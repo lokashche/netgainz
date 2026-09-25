@@ -243,3 +243,15 @@ class TestPacks(FrappeTestCase):
 			packs.sell_pack(self.member.name, pack.name)
 		with self.assertRaises(frappe.PermissionError):
 			packs.sell_day_pass("OP4 Locked Guest", 300.0)
+
+	# ---- Stage 11.3: the pack usage report ------------------------------------ #
+	def test_pack_report_counts_sessions_never_used_on_expired_packs(self):
+		pack = _pack(f"OP4 Report Pack {frappe.generate_hash(length=4)}", sessions=10, price=1000.0)
+		sale = packs.sell_pack(self.member.name, pack.name)
+		for _ in range(3):
+			packs.use_session(sale["pack_purchase"])
+		frappe.db.set_value("Pack Purchase", sale["pack_purchase"], "expires_on", add_days(today(), -1))
+
+		row = next(r for r in packs.get_pack_report()["rows"] if r["pack"] == pack.name)
+		self.assertEqual((row["sold"], row["sessions"], row["used"], row["used_pct"]), (1, 10, 3, 30.0))
+		self.assertEqual((row["expired_unused"], row["sessions_lost"], row["value_lost"]), (1, 7, 700.0))

@@ -109,12 +109,70 @@ class TestGymExpense(FrappeTestCase):
 		self.assertFalse(exp.journal_entry, "cancel clears the link")
 		self.assertEqual(frappe.db.get_value("Journal Entry", je.name, "docstatus"), 2, "JE reversed")
 
-	def test_submit_posts_nothing_without_category_account(self):
+	# ---- Stage 11.0: every saved expense is in the books --------------------- #
+	def _je_lines(self, exp):
+		exp.reload()
+		self.assertTrue(exp.journal_entry, "a saved expense posts")
+		je = frappe.get_doc("Journal Entry", exp.journal_entry)
+		self.assertEqual(je.docstatus, 1)
+		return je, {r.account: flt(r.debit_in_account_currency) for r in je.accounts}
+
+	def test_a_category_without_an_account_gets_one_and_posts(self):
 		frappe.db.set_single_value("Business Settings", "expense_post_to_ledger", 1)
-		cat = self._category("WP5 Cat NoAcct", None)
+		cat = self._category("B110 Cat NoAcct", None)
 		exp = self._make_expense(700, cat)
-		exp.submit()
-		self.assertFalse(exp.journal_entry, "no category account -> skip posting")
+		acc = frappe.db.get_value("Expense Category", cat, "expense_account")
+		self.assertEqual(frappe.db.get_value("Account", acc, "root_type"), "Expense")
+		_, debits = self._je_lines(exp)
+		self.assertEqual(debits[acc], 700.0)
+
+	def test_a_draft_expense_posts_on_save_and_follows_edits(self):
+		frappe.db.set_single_value("Business Settings", "expense_post_to_ledger", 1)
+		exp = self._make_expense(400, self._category("B110 Cat Edit", self._an_expense_account()))
+		first, _ = self._je_lines(exp)
+
+		exp.reload()
+		exp.notes = "just a note"
+		exp.save()
+		self.assertEqual(
+			frappe.db.get_value("Expense", exp.name, "journal_entry"),
+			first.name,
+			"no money change, no re-post",
+		)
+
+		exp.reload()
+		exp.amount = 450
+		exp.save()
+		second, _ = self._je_lines(exp)
+		self.assertNotEqual(second.name, first.name)
+		self.assertEqual(flt(second.total_debit), 450.0)
+		self.assertEqual(frappe.db.get_value("Journal Entry", first.name, "docstatus"), 2, "old JE reversed")
+
+		exp.delete()
+		self.assertEqual(frappe.db.get_value("Journal Entry", second.name, "docstatus"), 2, "delete reverses")
+
+	def test_owners_pay_goes_to_drawings_not_expenses(self):
+		frappe.db.set_single_value("Business Settings", "expense_post_to_ledger", 1)
+		cat = self._category(f"B110 Owner Pay {frappe.generate_hash(length=4)}", None, bucket="Owner's Pay")
+		exp = self._make_expense(5000, cat)
+		acc = frappe.db.get_value("Expense Category", cat, "expense_account")
+		self.assertEqual(
+			frappe.db.get_value("Account", acc, ["account_name", "root_type", "account_type"]),
+			("Owner's Drawings", "Equity", "Equity"),
+		)
+		_, debits = self._je_lines(exp)
+		self.assertEqual(debits[acc], 5000.0)
+
+	def test_past_expenses_are_put_in_the_books_on_request(self):
+		from netgainz.net_gainz.doctype.expense import expense
+
+		frappe.db.set_single_value("Business Settings", "expense_post_to_ledger", 0)
+		old = self._make_expense(250, self._category("B110 Cat Past", self._an_expense_account()))
+		self.assertFalse(frappe.db.get_value("Expense", old.name, "journal_entry"))
+		frappe.db.set_single_value("Business Settings", "expense_post_to_ledger", 1)
+		self.assertGreaterEqual(expense.unposted_expense_count(), 1)
+		self.assertGreaterEqual(expense.post_past_expenses()["posted"], 1)
+		self.assertTrue(frappe.db.get_value("Expense", old.name, "journal_entry"))
 
 	def test_pf_expense_read_excludes_cancelled(self):
 		frappe.db.set_single_value("Business Settings", "expense_post_to_ledger", 1)

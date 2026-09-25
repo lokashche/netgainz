@@ -28,8 +28,6 @@ const CASHFLOW_ITEMS: NavItem[] = [
   { href: "/collections", label: "Money to Collect" },
   { href: "/expenses", label: "Expenses" },
   { href: "/discounts", label: "Discounts" },
-  // Stage 10.5: earned, spent and profit per branch.
-  { href: "/branch-profit", label: "Profit by Branch" },
   // Go-live: members loaded from the gym's own records are not billed until the
   // owner switches them on here.
   { href: "/billing", label: "Start Billing" },
@@ -344,6 +342,13 @@ export default function NavBar({
             >
               Profit First
             </Link>
+            {/* Stage 11.4: every report, one page. */}
+            <Link
+              href="/reports"
+              className={`${isActive(pathname, "/reports") ? activeLinkClass : linkClass} whitespace-nowrap`}
+            >
+              Reports
+            </Link>
           </div>
         </div>
 
@@ -442,6 +447,18 @@ export default function NavBar({
                 >
                   <NavIcon href="/profit-first" className="w-[18px] h-[18px]" />
                   Profit First
+                </Link>
+                <Link
+                  href="/reports"
+                  onClick={closeMenu}
+                  className={`flex items-center gap-3 min-h-[44px] px-4 text-sm font-medium transition-colors ${
+                    isActive(pathname, "/reports")
+                      ? "text-[#22D38C] bg-[#1A2540]"
+                      : "text-[#E6EDF7] hover:bg-[#1A2540]"
+                  }`}
+                >
+                  <NavIcon href="/reports" className="w-[18px] h-[18px]" />
+                  Reports
                 </Link>
               </div>
 

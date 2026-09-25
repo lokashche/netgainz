@@ -31,3 +31,4 @@ netgainz.patches.v0_8.apply_permission_matrix #8 restore the System Manager rows
 netgainz.patches.v0_8.stamp_backfill_paid_dates
 netgainz.patches.v0_8.mark_default_branch
 netgainz.patches.v0_8.stamp_class_branch
+netgainz.patches.v0_8.expenses_into_books

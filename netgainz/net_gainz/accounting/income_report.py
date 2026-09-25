@@ -140,3 +140,91 @@ def get_branch_profit(start=None, end=None) -> dict:
 		t["earned"], t["spent"] = flt(t["earned"], 2), flt(t["spent"], 2)
 		t["profit"] = flt(t["earned"] - t["spent"], 2)
 	return {"start": str(start), "end": str(end), "branches": out}
+
+
+def _month_keys(start, end):
+	"""'YYYY-MM' for every month from start to end, inclusive."""
+	keys, m = [], get_first_day(start)
+	while m <= getdate(end):
+		keys.append(m.strftime("%Y-%m"))
+		m = get_first_day(frappe.utils.add_months(m, 1))
+	return keys
+
+
+@frappe.whitelist()
+def get_member_report(months=12, branch=None) -> dict:
+	"""Stage 11.1: members month by month — active, joined, left, kept %, cash per
+	member — and lifetime value, for members homed in the branches in scope.
+
+	"Active in a month" = a submitted invoice's service period touches that month
+	(from_date..to_date; its posting month when it has none). Member status carries
+	no leave date, so billing is the only honest record of who stayed.
+	ponytail: scans every invoice of the members in scope; fine for a gym's volume,
+	pre-aggregate per month if a tenant reaches tens of thousands of invoices."""
+	permissions.require_role(permissions.GYM_OWNER, permissions.GYM_STAFF)
+	branches = branch_mod.scope(branch)
+	months = max(1, min(int(months), 36))
+	this_month = get_first_day(today())
+	first = get_first_day(frappe.utils.add_months(this_month, -(months - 1)))
+	window = _month_keys(first, this_month)
+	before = get_first_day(frappe.utils.add_months(first, -1)).strftime("%Y-%m")
+
+	customers = dict(
+		(m.customer, m.name)
+		for m in frappe.get_all(
+			"Member",
+			filters=branch_mod.filter_by_branch({"customer": ["is", "set"]}, branches),
+			fields=["name", "customer"],
+		)
+	)
+	covered: dict[str, set] = {}
+	if customers:
+		for si in frappe.get_all(
+			"Sales Invoice",
+			filters={"docstatus": 1, "is_return": 0, "customer": ["in", list(customers)]},
+			fields=["customer", "from_date", "to_date", "posting_date"],
+		):
+			span = (
+				_month_keys(si.from_date, si.to_date)
+				if si.from_date and si.to_date
+				else [si.posting_date.strftime("%Y-%m")]
+			)
+			covered.setdefault(customers[si.customer], set()).update(span)
+
+	first_month = {m: min(ks) for m, ks in covered.items()}
+	ccs = branch_mod.scope_cost_centers(branches)
+	rows, prev = [], {m for m, ks in covered.items() if before in ks}
+	for key in window:
+		active = {m for m, ks in covered.items() if key in ks}
+		start = getdate(f"{key}-01")
+		cash = calc.to_rupees(
+			billing.membership_collected_paise(start, get_last_day(start), cost_centers=ccs)
+		)
+		rows.append(
+			{
+				"month": start.strftime("%b %Y"),
+				"active": len(active),
+				"joined": sum(1 for m in active if first_month[m] == key),
+				"left": len(prev - active),
+				"kept_pct": round(100 * len(prev & active) / len(prev), 1) if prev else None,
+				"cash": cash,
+				"per_member": round(cash / len(active), 2) if active else None,
+			}
+		)
+		prev = active
+
+	# Total money over total member-months: each month weighs by its size, so a
+	# small month with a late payer does not drag the average.
+	member_months = sum(r["active"] for r in rows)
+	avg_per_member = round(sum(r["cash"] for r in rows) / member_months, 2) if member_months else None
+	# Months paid SO FAR: a yearly plan's future months are not yet a stay.
+	now_key = this_month.strftime("%Y-%m")
+	stays = [sum(1 for k in ks if k <= now_key) for ks in covered.values()]
+	stays = [n for n in stays if n]
+	avg_months = round(sum(stays) / len(stays), 1) if stays else None
+	return {
+		"rows": rows,
+		"avg_per_member_month": avg_per_member,
+		"avg_months_paid": avg_months,
+		"lifetime_value": round(avg_per_member * avg_months, 2) if avg_per_member and avg_months else None,
+	}

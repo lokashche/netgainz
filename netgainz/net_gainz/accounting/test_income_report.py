@@ -132,3 +132,20 @@ class TestIncomeReport(FrappeTestCase):
 		self.assertEqual(rows[other]["spent"], 200.0)
 		self.assertEqual(rows[other]["profit"], 1000.0)
 		self.assertIn(branch.ensure_default_branch(), rows)
+
+	def test_members_report_counts_who_stayed_joined_and_left(self):
+		from frappe.utils import add_months, get_first_day, get_last_day
+
+		last = get_first_day(add_months(frappe.utils.today(), -1))
+		lapsed = fx.enrol("INC Lapsed", amount=900.0)
+		# Paid for last month only, then stopped.
+		frappe.db.set_value(
+			"Sales Invoice", lapsed.current_sales_invoice, {"from_date": last, "to_date": get_last_day(last)}
+		)
+		fx.enrol("INC Current", amount=900.0)
+
+		rows = income_report.get_member_report(2)["rows"]
+		prev, now = rows
+		self.assertEqual((prev["active"], prev["joined"]), (1, 1))
+		self.assertEqual((now["active"], now["joined"], now["left"]), (1, 1, 1))
+		self.assertEqual(now["kept_pct"], 0.0)

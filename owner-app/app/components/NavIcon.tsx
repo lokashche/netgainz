@@ -68,9 +68,10 @@ const PATHS: Record<string, React.ReactNode> = {
       <circle cx="12" cy="11" r="2.2" />
     </>
   ),
-  "/branch-profit": (
+  "/reports": (
     <>
-      <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+      <path d="M6 3h9l4 4v14H6z" />
+      <path d="M15 3v4h4M9 12h7M9 16h7" />
     </>
   ),
   "/staff": (
