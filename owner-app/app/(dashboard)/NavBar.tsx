@@ -238,6 +238,8 @@ export default function NavBar({
     { href: "/schedules", label: `${classTermSingular} Schedules` },
     { href: "/attendance", label: "Attendance" },
     { href: "/churn-risk", label: "Churn Risk" },
+    // Stage 11.1: who stayed, joined, left; lifetime value.
+    { href: "/members-report", label: "Members Report" },
     { href: "/assessments", label: "Assessments" },
     { href: "/commissions", label: "Commissions" },
     { href: "/renewals", label: "Renewals" },
